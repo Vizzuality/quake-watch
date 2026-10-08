@@ -4,6 +4,7 @@ import { createRootRouteWithContext, HeadContent, Outlet, Scripts } from '@tanst
 import type { ReactNode } from 'react';
 
 import { m } from '@/paraglide/messages';
+import { getLocale } from '@/paraglide/runtime';
 
 import appCss from '../styles.css?url';
 
@@ -40,7 +41,7 @@ function RootComponent() {
 
 function RootDocument({ children }: { children: ReactNode }) {
   return (
-    <html lang="en">
+    <html lang={getLocale()}>
       <head>
         <HeadContent />
       </head>

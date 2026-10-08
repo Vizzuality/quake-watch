@@ -3,6 +3,7 @@ import { createFileRoute } from '@tanstack/react-router';
 
 import { QuakeMap } from '@/components/map/quake-map';
 import { MagnitudeLegend } from '@/containers/map/legend';
+import { LanguageSwitch } from '@/containers/shell/language-switch';
 import { earthquakesQueryOptions } from '@/lib/earthquakes/query-options';
 import { getEarthquakeCountLabel } from '@/lib/i18n/earthquake-count';
 import { m } from '@/paraglide/messages';
@@ -28,7 +29,10 @@ function Home() {
     <main className="relative h-dvh w-full overflow-hidden">
       <QuakeMap earthquakes={earthquakes} />
       <header className="absolute top-3 left-3 max-w-[calc(100%-1.5rem)] rounded-lg bg-ink/70 px-3 py-2 backdrop-blur">
-        <h1 className="text-base font-semibold tracking-tight">{m.app_title()}</h1>
+        <div className="flex items-center justify-between gap-4">
+          <h1 className="text-base font-semibold tracking-tight">{m.app_title()}</h1>
+          <LanguageSwitch />
+        </div>
         {data ? (
           <p aria-live="polite" className="text-xs text-muted">
             {summary}
