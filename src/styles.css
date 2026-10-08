@@ -1,0 +1,33 @@
+@import 'tailwindcss';
+
+@theme {
+  --color-ink: #0b0d10;
+  --color-paper: #f4f1ea;
+  --color-muted: #8a8f98;
+  --font-sans: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+}
+
+html,
+body {
+  height: 100%;
+  background: var(--color-ink);
+  color: var(--color-paper);
+}
+
+.maplibregl-map .maplibregl-ctrl-attrib.maplibregl-ctrl {
+  background: color-mix(in srgb, var(--color-ink) 70%, transparent);
+  color: var(--color-muted);
+  font-size: 0.6875rem;
+}
+
+.maplibregl-map .maplibregl-ctrl-attrib.maplibregl-ctrl a {
+  color: var(--color-muted);
+}
+
+.maplibregl-map .maplibregl-ctrl-attrib.maplibregl-ctrl a:hover {
+  color: var(--color-paper);
+}
+
+.maplibregl-map .maplibregl-ctrl-attrib.maplibregl-ctrl .maplibregl-ctrl-attrib-button {
+  filter: invert(1);
+}

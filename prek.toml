@@ -1,0 +1,16 @@
+[[repos]]
+repo = "local"
+
+[[repos.hooks]]
+id = "oxfmt"
+name = "oxfmt"
+language = "system"
+entry = "pnpm exec oxfmt"
+types_or = ["ts", "tsx", "javascript", "json", "css", "markdown"]
+
+[[repos.hooks]]
+id = "oxlint"
+name = "oxlint"
+language = "system"
+entry = "pnpm exec oxlint --fix"
+types_or = ["ts", "tsx", "javascript"]

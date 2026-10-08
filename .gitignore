@@ -1,0 +1,13 @@
+node_modules
+.output
+.nitro
+.tanstack
+dist
+coverage
+src/routeTree.gen.ts
+.env
+.env.*
+!.env.example
+.claude/
+.DS_Store
+*.log
