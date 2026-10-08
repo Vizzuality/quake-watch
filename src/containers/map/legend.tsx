@@ -1,4 +1,4 @@
-import { getMagnitudeSwatch } from '@/earthquakes/magnitude';
+import { getMagnitudeSwatch } from '@/lib/earthquakes/magnitude';
 
 const SAMPLES = [4, 5, 6].map((magnitude) => ({
   magnitude,

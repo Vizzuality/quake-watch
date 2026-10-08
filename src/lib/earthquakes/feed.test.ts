@@ -1,6 +1,10 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { getEarthquakesFromFeed, getLatestEarthquakes, USGS_FEED_URL } from '@/earthquakes/feed';
+import {
+  getEarthquakesFromFeed,
+  getLatestEarthquakes,
+  USGS_FEED_URL,
+} from '@/lib/earthquakes/feed';
 
 function makeFeature(overrides: Record<string, unknown> = {}) {
   return {

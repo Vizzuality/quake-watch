@@ -1,9 +1,9 @@
 import { useQuery } from '@tanstack/react-query';
 import { createFileRoute } from '@tanstack/react-router';
 
-import { earthquakesQueryOptions } from '@/earthquakes/queries';
-import { MagnitudeLegend } from '@/map/MagnitudeLegend';
-import { QuakeMap } from '@/map/QuakeMap';
+import { QuakeMap } from '@/components/map/quake-map';
+import { MagnitudeLegend } from '@/containers/map/legend';
+import { earthquakesQueryOptions } from '@/lib/earthquakes/query-options';
 
 export const Route = createFileRoute('/')({
   ssr: false,

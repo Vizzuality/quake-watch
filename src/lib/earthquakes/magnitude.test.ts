@@ -7,8 +7,8 @@ import {
   MAGNITUDE_RADIUS_STOPS,
   getMagnitudeColorExpression,
   getMagnitudeRadiusExpression,
-} from '@/earthquakes/magnitude';
-import type { Earthquake } from '@/earthquakes/types';
+} from '@/lib/earthquakes/magnitude';
+import type { Earthquake } from '@/lib/earthquakes/types';
 
 function getStopInputs(expression: unknown[]): number[] {
   return expression.slice(3).filter((_, index) => index % 2 === 0) as number[];

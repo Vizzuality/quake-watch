@@ -2,8 +2,8 @@ import 'maplibre-gl/dist/maplibre-gl.css';
 import { useMemo } from 'react';
 import { AttributionControl, Layer, Map as MapGL, Source } from 'react-map-gl/maplibre';
 
-import { getEarthquakesGeoJson } from '@/earthquakes/magnitude';
-import type { Earthquake } from '@/earthquakes/types';
+import { getEarthquakesGeoJson } from '@/lib/earthquakes/magnitude';
+import type { Earthquake } from '@/lib/earthquakes/types';
 
 import './maplibre-worker';
 import { MAP_STYLE_URL } from './basemap';
