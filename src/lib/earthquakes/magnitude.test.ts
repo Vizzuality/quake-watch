@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   getEarthquakesGeoJson,
+  getMagnitudeColor,
   getMagnitudeSwatch,
   MAGNITUDE_COLOR_STOPS,
   MAGNITUDE_RADIUS_STOPS,
@@ -17,7 +18,9 @@ function getStopInputs(expression: unknown[]): number[] {
 function makeQuake(id: string, magnitude: number): Earthquake {
   return {
     id,
+    source: 'usgs',
     magnitude,
+    magnitudeType: 'mww',
     place: `place ${id}`,
     time: 1,
     depthKm: 5,
@@ -81,5 +84,18 @@ describe('getEarthquakesGeoJson', () => {
     const input = [makeQuake('a', 6), makeQuake('b', 3)];
     getEarthquakesGeoJson(input);
     expect(input.map((q) => q.id)).toEqual(['a', 'b']);
+  });
+});
+
+describe('getMagnitudeColor', () => {
+  it.each([
+    [1.2, '#fde68a'],
+    [2.5, '#fde68a'],
+    [4.3, '#fbbf24'],
+    [5, '#f97316'],
+    [6.9, '#ef4444'],
+    [9.1, '#e11d48'],
+  ])('M%s → %s', (magnitude, color) => {
+    expect(getMagnitudeColor(magnitude)).toBe(color);
   });
 });

@@ -5,6 +5,7 @@ import { QuakeMap } from '@/components/map/quake-map';
 import { MagnitudeLegend } from '@/containers/map/legend';
 import { LanguageSwitch } from '@/containers/shell/language-switch';
 import { earthquakesQueryOptions } from '@/lib/earthquakes/query-options';
+import { EARTHQUAKE_SEARCH_DEFAULTS } from '@/lib/earthquakes/search-schema';
 import { getEarthquakeCountLabel } from '@/lib/i18n/earthquake-count';
 import { m } from '@/paraglide/messages';
 import { getLocale } from '@/paraglide/runtime';
@@ -15,9 +16,11 @@ export const Route = createFileRoute('/')({
 });
 
 function Home() {
-  const { data, isPending, isError, dataUpdatedAt } = useQuery(earthquakesQueryOptions);
+  const { data, isPending, isError, dataUpdatedAt } = useQuery(
+    earthquakesQueryOptions(EARTHQUAKE_SEARCH_DEFAULTS),
+  );
 
-  const earthquakes = data ?? [];
+  const earthquakes = data?.earthquakes ?? [];
   const locale = getLocale();
   const timeFormat = new Intl.DateTimeFormat(locale, { hour: '2-digit', minute: '2-digit' });
   const summary = m.map_summary({
