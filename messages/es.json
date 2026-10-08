@@ -14,5 +14,10 @@
   "error_source_retrying": "No hemos podido contactar con {source}. Reintentando cada minuto.",
   "legend_title": "Magnitud",
   "attribution_data": "Datos sísmicos: {source}",
-  "language_switch_label": "Idioma"
+  "language_switch_label": "Idioma",
+  "close": "Cerrar",
+  "pagination_label": "Paginación",
+  "pagination_previous": "Anterior",
+  "pagination_next": "Siguiente",
+  "pagination_status": "Página {page} de {pageCount}"
 }

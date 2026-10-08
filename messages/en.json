@@ -14,5 +14,10 @@
   "error_source_retrying": "Couldn't reach {source}. Retrying every minute.",
   "legend_title": "Magnitude",
   "attribution_data": "Earthquake data: {source}",
-  "language_switch_label": "Language"
+  "language_switch_label": "Language",
+  "close": "Close",
+  "pagination_label": "Pagination",
+  "pagination_previous": "Previous",
+  "pagination_next": "Next",
+  "pagination_status": "Page {page} of {pageCount}"
 }

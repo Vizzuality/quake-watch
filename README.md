@@ -14,20 +14,22 @@ Early scaffold: a live map of M2.5+ earthquakes from the last 24 hours, refreshe
 
 1. Use the Node version in [`.nvmrc`](.nvmrc): `nvm use`
 2. Install dependencies: `pnpm install`
-3. Start the dev server: `pnpm dev` (http://localhost:3000)
+3. Install the browser for integration tests: `pnpm exec playwright install chromium`
+4. Start the dev server: `pnpm dev` (http://localhost:3000)
 
-| Script          | What it does                                                     |
-| --------------- | ---------------------------------------------------------------- |
-| `dev`           | Run the app locally with hot reload                              |
-| `build`         | Build the app for production                                     |
-| `start`         | Serve the production build                                       |
-| `check`         | Run build, typecheck, lint, format check and tests with coverage |
-| `test`          | Run the test suite                                               |
-| `test:coverage` | Run the test suite with a coverage report                        |
-| `typecheck`     | Type-check the project without emitting files                    |
-| `lint`          | Lint the code with oxlint                                        |
-| `format`        | Format the code with oxfmt                                       |
-| `format:check`  | Check formatting without writing changes                         |
+| Script             | What it does                                                     |
+| ------------------ | ---------------------------------------------------------------- |
+| `dev`              | Run the app locally with hot reload                              |
+| `build`            | Build the app for production                                     |
+| `start`            | Serve the production build                                       |
+| `check`            | Run build, typecheck, lint, format check and tests with coverage |
+| `test`             | Run the test suite                                               |
+| `test:coverage`    | Run the test suite with a coverage report                        |
+| `test:integration` | Run browser-mode integration tests (Chromium via Playwright)     |
+| `typecheck`        | Type-check the project without emitting files                    |
+| `lint`             | Lint the code with oxlint                                        |
+| `format`           | Format the code with oxfmt                                       |
+| `format:check`     | Check formatting without writing changes                         |
 
 ## Stack
 
