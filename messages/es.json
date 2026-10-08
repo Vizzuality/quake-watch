@@ -57,5 +57,13 @@
   "filter_source": "Catálogo",
   "clear_filters": "Limpiar filtros",
   "filters_button": "Filtros",
-  "filters_title": "Filtros"
+  "filters_title": "Filtros",
+  "summary_near": "{count} a menos de {radius} de {place} · {period} · {source}",
+  "summary_world": "{count} en todo el mundo · {period} · {source}",
+  "view_tabs_label": "Vistas",
+  "tab_table": "Tabla",
+  "tab_map": "Mapa",
+  "error_title": "Algo ha fallado",
+  "error_back_home": "Volver al inicio",
+  "not_found_title": "Página no encontrada"
 }

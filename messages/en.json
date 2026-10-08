@@ -57,5 +57,13 @@
   "filter_source": "Catalogue",
   "clear_filters": "Clear filters",
   "filters_button": "Filters",
-  "filters_title": "Filters"
+  "filters_title": "Filters",
+  "summary_near": "{count} within {radius} of {place} · {period} · {source}",
+  "summary_world": "{count} worldwide · {period} · {source}",
+  "view_tabs_label": "Views",
+  "tab_table": "Table",
+  "tab_map": "Map",
+  "error_title": "Something went wrong",
+  "error_back_home": "Back to start",
+  "not_found_title": "Page not found"
 }

@@ -8,7 +8,7 @@ Most earthquake sites are built for experts. This one shows where an earthquake 
 
 ## Status
 
-Early scaffold: a live map of M2.5+ earthquakes from the last 24 hours, refreshed every minute.
+A searchable earthquake table and a map that share the same filters in the URL: place (with a radius), period or custom dates, minimum magnitude and catalogue (EMSC by default, USGS on request). The last-24-hours view refreshes every minute. The interface is available in English and Spanish.
 
 ## Getting started
 
@@ -17,19 +17,19 @@ Early scaffold: a live map of M2.5+ earthquakes from the last 24 hours, refreshe
 3. Install the browser for integration tests: `pnpm exec playwright install chromium`
 4. Start the dev server: `pnpm dev` (http://localhost:3000)
 
-| Script             | What it does                                                     |
-| ------------------ | ---------------------------------------------------------------- |
-| `dev`              | Run the app locally with hot reload                              |
-| `build`            | Build the app for production                                     |
-| `start`            | Serve the production build                                       |
-| `check`            | Run build, typecheck, lint, format check and tests with coverage |
-| `test`             | Run the test suite                                               |
-| `test:coverage`    | Run the test suite with a coverage report                        |
-| `test:integration` | Run browser-mode integration tests (Chromium via Playwright)     |
-| `typecheck`        | Type-check the project without emitting files                    |
-| `lint`             | Lint the code with oxlint                                        |
-| `format`           | Format the code with oxfmt                                       |
-| `format:check`     | Check formatting without writing changes                         |
+| Script             | What it does                                                                        |
+| ------------------ | ----------------------------------------------------------------------------------- |
+| `dev`              | Run the app locally with hot reload                                                 |
+| `build`            | Build the app for production                                                        |
+| `start`            | Serve the production build                                                          |
+| `check`            | Run build, typecheck, lint, format check, tests with coverage and integration tests |
+| `test`             | Run the test suite                                                                  |
+| `test:coverage`    | Run the test suite with a coverage report                                           |
+| `test:integration` | Run browser-mode integration tests (Chromium via Playwright)                        |
+| `typecheck`        | Type-check the project without emitting files                                       |
+| `lint`             | Lint the code with oxlint                                                           |
+| `format`           | Format the code with oxfmt                                                          |
+| `format:check`     | Check formatting without writing changes                                            |
 
 ## Stack
 
@@ -37,7 +37,8 @@ TanStack Start + React, MapLibre via react-map-gl, TanStack Query, Tailwind CSS.
 
 ## Data
 
-- Earthquakes: [USGS real-time GeoJSON feed](https://earthquake.usgs.gov/earthquakes/feed/v1.0/geojson.php)
+- Earthquakes: [EMSC FDSN event service](https://www.seismicportal.eu/fdsnws/event/1/) (default) and [USGS FDSN event service](https://earthquake.usgs.gov/fdsnws/event/1/)
+- Place search: [Photon](https://photon.komoot.io) geocoder, data © OpenStreetMap contributors
 - Basemap: [OpenFreeMap](https://openfreemap.org). Attribution: OpenFreeMap © OpenMapTiles Data from OpenStreetMap
 
 ## Deploy (Railway)
@@ -49,7 +50,7 @@ TanStack Start + React, MapLibre via react-map-gl, TanStack Query, Tailwind CSS.
 
 ## CI
 
-GitHub Actions runs build, typecheck, lint, format check and tests with coverage on pushes to `main` and on pull requests. Draft pull requests are skipped until they are marked ready for review. The workflow is in [.github/workflows/ci.yml](.github/workflows/ci.yml).
+GitHub Actions runs build, typecheck, lint, format check, tests with coverage and browser-mode integration tests on pushes to `main` and on pull requests. Draft pull requests are skipped until they are marked ready for review. The workflow is in [.github/workflows/ci.yml](.github/workflows/ci.yml).
 
 ## Glossary
 

@@ -1,13 +1,13 @@
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 
+import { LanguageSwitch } from '@/containers/shell/language-switch';
+import { ViewTabs } from '@/containers/shell/view-tabs';
 import { useEarthquakeSearch } from '@/hooks/use-earthquake-search';
 import { SOURCE_ADAPTERS, earthquakesQueryOptions } from '@/lib/earthquakes/query-options';
 import { getEarthquakeCountLabel } from '@/lib/i18n/earthquake-count';
 import { getPeriodLabel } from '@/lib/i18n/labels';
 import { m } from '@/paraglide/messages';
 import { getLocale } from '@/paraglide/runtime';
-
-import { LanguageSwitch } from '../shell/language-switch';
 
 export function MapHeader() {
   const search = useEarthquakeSearch();
@@ -35,7 +35,10 @@ export function MapHeader() {
     <header className="absolute top-3 left-3 max-w-[calc(100%-1.5rem)] rounded-lg bg-ink/70 px-3 py-2 backdrop-blur">
       <div className="flex items-center justify-between gap-4">
         <h1 className="text-base font-semibold tracking-tight">{m.app_title()}</h1>
-        <LanguageSwitch />
+        <div className="flex items-center gap-3">
+          <ViewTabs current="map" />
+          <LanguageSwitch />
+        </div>
       </div>
       {data ? (
         <p aria-live="polite" className="text-xs text-muted">
@@ -44,7 +47,7 @@ export function MapHeader() {
       ) : null}
       {isPending ? <p className="text-xs text-muted">{m.loading_earthquakes()}</p> : null}
       {isError ? (
-        <p role="alert" className="text-xs text-red-400">
+        <p role="alert" className="text-xs text-danger">
           {m.error_source_retrying({ source })}
         </p>
       ) : null}

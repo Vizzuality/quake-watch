@@ -1,6 +1,6 @@
 import { createFileRoute, stripSearchParams } from '@tanstack/react-router';
 
-import { MapLayout } from '@/containers/map/layout';
+import { SearchLayout } from '@/containers/search/layout';
 import {
   EARTHQUAKE_SEARCH_DEFAULTS,
   earthquakeSearchSchema,
@@ -10,5 +10,5 @@ export const Route = createFileRoute('/')({
   ssr: false,
   validateSearch: earthquakeSearchSchema,
   search: { middlewares: [stripSearchParams(EARTHQUAKE_SEARCH_DEFAULTS)] },
-  component: MapLayout,
+  component: SearchLayout,
 });
