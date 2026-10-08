@@ -32,3 +32,12 @@ export function getPeriodLabel(
     { locale },
   );
 }
+
+export function getPeriodOptionLabel(period: Period, locale: Locale): string {
+  if (period === 'custom') return m.period_custom_option({}, { locale });
+  return RELATIVE_PERIOD_LABELS[period]({}, { locale });
+}
+
+export function getPlaceLabel(search: EarthquakeSearch, locale: Locale): string {
+  return search.place ?? m.place_my_location({}, { locale });
+}

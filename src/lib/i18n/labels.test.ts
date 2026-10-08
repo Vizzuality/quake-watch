@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { earthquakeSearchSchema } from '@/lib/earthquakes/search-schema';
 
-import { getPeriodLabel } from './labels';
+import { getPeriodLabel, getPeriodOptionLabel, getPlaceLabel } from './labels';
 
 const NOW = new Date('2026-10-08T12:00:00.000Z');
 
@@ -46,5 +46,23 @@ describe('getPeriodLabel', () => {
     expect(
       getPeriodLabel(earthquakeSearchSchema.parse({ period: 'custom', from: '2026-08-14' }), 'en'),
     ).toBe('Aug 14, 2026 – today');
+  });
+});
+
+describe('getPeriodOptionLabel', () => {
+  it('names the custom option', () => {
+    expect(getPeriodOptionLabel('custom', 'en')).toBe('Custom dates');
+    expect(getPeriodOptionLabel('7d', 'es')).toBe('últimos 7 días');
+  });
+});
+
+describe('getPlaceLabel', () => {
+  it('uses the place name or my location', () => {
+    expect(
+      getPlaceLabel(earthquakeSearchSchema.parse({ place: 'Granada', lat: 1, lon: 1 }), 'en'),
+    ).toBe('Granada');
+    expect(getPlaceLabel(earthquakeSearchSchema.parse({ lat: 1, lon: 1 }), 'es')).toBe(
+      'Mi ubicación',
+    );
   });
 });
