@@ -19,5 +19,21 @@
   "pagination_label": "Paginación",
   "pagination_previous": "Anterior",
   "pagination_next": "Siguiente",
-  "pagination_status": "Página {page} de {pageCount}"
+  "pagination_status": "Página {page} de {pageCount}",
+  "col_magnitude": "Magnitud",
+  "col_time": "Fecha y hora",
+  "col_place": "Lugar",
+  "col_distance": "Distancia",
+  "col_depth": "Profundidad",
+  "col_magnitude_type": "Tipo de mag.",
+  "col_details": "Detalles",
+  "open_event_details": "Abrir en {source}",
+  "place_unknown": "Ubicación desconocida",
+  "table_caption": "Terremotos que coinciden con los filtros",
+  "error_source_unreachable": "No hemos podido contactar con {source}.",
+  "retry": "Reintentar",
+  "no_results_title": "Ningún terremoto coincide con estos filtros",
+  "widen_radius": "Ampliar radio a {radius}",
+  "widen_period": "Ampliar a {period}",
+  "truncated_notice": "Mostrando los {limit} más recientes. Acota zona, fechas o magnitud para ver el resto."
 }

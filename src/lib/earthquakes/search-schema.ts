@@ -12,7 +12,7 @@ export type Period = (typeof PERIODS)[number];
 type SortColumn = (typeof SORT_COLUMNS)[number];
 export type SearchCenter = { latitude: number; longitude: number };
 
-const DEFAULT_SORT = 'time.desc';
+export const DEFAULT_SORT = 'time.desc';
 const SORT_PATTERN = new RegExp(`^(${SORT_COLUMNS.join('|')})\\.(asc|desc)$`);
 const DAY_MS = 86_400_000;
 const PERIOD_MS: Record<Exclude<Period, 'custom'>, number> = {

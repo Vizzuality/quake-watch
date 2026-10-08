@@ -19,5 +19,21 @@
   "pagination_label": "Pagination",
   "pagination_previous": "Previous",
   "pagination_next": "Next",
-  "pagination_status": "Page {page} of {pageCount}"
+  "pagination_status": "Page {page} of {pageCount}",
+  "col_magnitude": "Magnitude",
+  "col_time": "Date & time",
+  "col_place": "Place",
+  "col_distance": "Distance",
+  "col_depth": "Depth",
+  "col_magnitude_type": "Mag. type",
+  "col_details": "Details",
+  "open_event_details": "Open on {source}",
+  "place_unknown": "Unknown location",
+  "table_caption": "Earthquakes matching the current filters",
+  "error_source_unreachable": "Couldn't reach {source}.",
+  "retry": "Retry",
+  "no_results_title": "No earthquakes match these filters",
+  "widen_radius": "Widen radius to {radius}",
+  "widen_period": "Widen to {period}",
+  "truncated_notice": "Showing the {limit} most recent. Narrow the area, dates or magnitude to see the rest."
 }
