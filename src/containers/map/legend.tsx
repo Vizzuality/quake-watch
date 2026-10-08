@@ -1,4 +1,5 @@
 import { getMagnitudeSwatch } from '@/lib/earthquakes/magnitude';
+import { m } from '@/paraglide/messages';
 
 const SAMPLES = [4, 5, 6].map((magnitude) => ({
   magnitude,
@@ -8,7 +9,7 @@ const SAMPLES = [4, 5, 6].map((magnitude) => ({
 export function MagnitudeLegend() {
   return (
     <div className="pointer-events-none absolute bottom-16 left-3 flex items-center gap-4 rounded-lg bg-ink/70 px-3 py-2 text-xs text-muted backdrop-blur sm:bottom-8">
-      <span id="magnitude-legend-title">Magnitude</span>
+      <span id="magnitude-legend-title">{m.legend_title()}</span>
       <ul aria-labelledby="magnitude-legend-title" className="flex items-center gap-4">
         {SAMPLES.map(({ magnitude, color, diameter }) => (
           <li key={magnitude} className="flex items-center gap-1.5">

@@ -4,6 +4,7 @@ import { AttributionControl, Layer, Map as MapGL, Source } from 'react-map-gl/ma
 
 import { getEarthquakesGeoJson } from '@/lib/earthquakes/magnitude';
 import type { Earthquake } from '@/lib/earthquakes/types';
+import { m } from '@/paraglide/messages';
 
 import './maplibre-worker';
 import { MAP_STYLE_URL } from './basemap';
@@ -23,7 +24,7 @@ export function QuakeMap({ earthquakes }: { earthquakes: Earthquake[] }) {
       attributionControl={false}
       style={{ position: 'absolute', inset: 0 }}
     >
-      <AttributionControl compact customAttribution="Earthquake data: USGS" />
+      <AttributionControl compact customAttribution={m.attribution_data({ source: 'USGS' })} />
       <Source id={QUAKE_SOURCE_ID} type="geojson" data={geojson}>
         <Layer {...HALO_LAYER} />
         <Layer {...CORE_LAYER} />

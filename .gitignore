@@ -11,3 +11,5 @@ src/routeTree.gen.ts
 .claude/
 .DS_Store
 *.log
+src/paraglide/
+project.inlang/cache/
