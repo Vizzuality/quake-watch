@@ -28,7 +28,7 @@ export function getTimelineRange(input: {
   const loaded = getLoadedRange(earthquakes);
   if (!loaded) return null;
   const periodEnd = getTimeRange(search, new Date(nowMs)).end?.getTime() ?? nowMs;
-  return { start: loaded.start, end: Math.max(loaded.start, periodEnd) };
+  return { start: loaded.start, end: Math.max(loaded.start, Math.min(periodEnd, nowMs)) };
 }
 
 export function getWindowMs(window: PlaybackWindow): number {

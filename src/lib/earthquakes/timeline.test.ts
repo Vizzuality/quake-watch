@@ -254,6 +254,18 @@ describe('getTimelineRange', () => {
   const quakes = [getQuake(first + HOUR), getQuake(first)];
   const nowMs = Date.parse('2026-10-05T12:00:00.000Z');
 
+  it('never ends after now, whatever the custom end date', () => {
+    const search = earthquakeSearchSchema.parse({
+      period: 'custom',
+      from: '2026-10-01',
+      to: '9999-12-31',
+    });
+    expect(getTimelineRange({ earthquakes: quakes, search, nowMs })).toEqual({
+      start: first,
+      end: nowMs,
+    });
+  });
+
   it('returns null for an empty list', () => {
     const search = earthquakeSearchSchema.parse({});
     expect(getTimelineRange({ earthquakes: [], search, nowMs })).toBeNull();
