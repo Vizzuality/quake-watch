@@ -1,0 +1,12 @@
+{
+  "app_title": "Quake Watch",
+  "app_description": "Terremotos de todo el mundo, en cuanto ocurren.",
+  "earthquake_count_one": "{count} terremoto",
+  "earthquake_count_other": "{count} terremotos",
+  "map_summary": "M2.5+ · últimas 24 h · {count} · actualizado {time}",
+  "loading_earthquakes": "Cargando terremotos…",
+  "error_source_retrying": "No hemos podido contactar con {source}. Reintentando cada minuto.",
+  "legend_title": "Magnitud",
+  "attribution_data": "Datos sísmicos: {source}",
+  "language_switch_label": "Idioma"
+}

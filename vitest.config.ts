@@ -1,8 +1,12 @@
 import path from 'node:path';
 
+import { paraglideVitePlugin } from '@inlang/paraglide-js';
 import { defineConfig } from 'vitest/config';
 
+import { paraglideOptions } from './paraglide.config';
+
 export default defineConfig({
+  plugins: [paraglideVitePlugin(paraglideOptions)],
   resolve: { alias: { '@': path.resolve(import.meta.dirname, 'src') } },
   test: {
     environment: 'node',

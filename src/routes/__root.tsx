@@ -3,6 +3,9 @@ import type { QueryClient } from '@tanstack/react-query';
 import { createRootRouteWithContext, HeadContent, Outlet, Scripts } from '@tanstack/react-router';
 import type { ReactNode } from 'react';
 
+import { m } from '@/paraglide/messages';
+import { getLocale } from '@/paraglide/runtime';
+
 import appCss from '../styles.css?url';
 
 const favicon =
@@ -13,8 +16,8 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: 'utf-8' },
       { name: 'viewport', content: 'width=device-width, initial-scale=1' },
-      { title: 'Quake Watch' },
-      { name: 'description', content: 'Earthquakes around the world, as they happen.' },
+      { title: m.app_title() },
+      { name: 'description', content: m.app_description() },
     ],
     links: [
       { rel: 'stylesheet', href: appCss },
@@ -38,7 +41,7 @@ function RootComponent() {
 
 function RootDocument({ children }: { children: ReactNode }) {
   return (
-    <html lang="en">
+    <html lang={getLocale()}>
       <head>
         <HeadContent />
       </head>

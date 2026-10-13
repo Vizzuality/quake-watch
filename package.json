@@ -28,6 +28,8 @@
     "zod": "4.6.5"
   },
   "devDependencies": {
+    "@inlang/paraglide-js": "2.25.4",
+    "@inlang/plugin-message-format": "4.4.4",
     "@j178/prek": "0.5.4",
     "@tailwindcss/vite": "4.3.3",
     "@tanstack/nitro-v2-vite-plugin": "1.155.2",
