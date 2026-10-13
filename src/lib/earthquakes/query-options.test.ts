@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import { getLatestEarthquakes } from '@/earthquakes/feed';
-import { earthquakesQueryOptions } from '@/earthquakes/queries';
+import { getLatestEarthquakes } from '@/lib/earthquakes/feed';
+import { earthquakesQueryOptions } from '@/lib/earthquakes/query-options';
 
 describe('earthquakesQueryOptions', () => {
   it('refetches every 60 seconds', () => {

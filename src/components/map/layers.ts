@@ -1,6 +1,9 @@
 import type { CircleLayerSpecification } from 'maplibre-gl';
 
-import { getMagnitudeColorExpression, getMagnitudeRadiusExpression } from '@/earthquakes/magnitude';
+import {
+  getMagnitudeColorExpression,
+  getMagnitudeRadiusExpression,
+} from '@/lib/earthquakes/magnitude';
 
 export const QUAKE_SOURCE_ID = 'earthquakes';
 
