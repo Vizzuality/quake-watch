@@ -35,6 +35,16 @@ _Avoid_: Location, marker, pin
 _Spanish_: Lugar de interés
 
 **Shaking wave**:
-The visual spread of seismic waves outward from the Epicenter, used to show when and how strongly shaking reached a Place of interest.
-_Avoid_: Ripple, ring, shockwave
+A ring that spreads from the Epicenter out to its Felt reach and fades as the estimated Intensity drops. Its speed is stylised, but its reach is real.
+_Avoid_: Ripple, shockwave
 _Spanish_: Onda sísmica
+
+**Felt reach**:
+The distance from the Epicenter within which the estimated Intensity is at least II.
+_Avoid_: Radius, range
+_Spanish_: Alcance sentido
+
+**Playback window**:
+The stretch of the searched period that the map plays back, 24 hours or 7 days long.
+_Avoid_: Range, zoom
+_Spanish_: Ventana

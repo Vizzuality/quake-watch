@@ -1,5 +1,5 @@
 import { QueryClient } from '@tanstack/react-query';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { getEmscFeature, getFeatureCollection, getUsgsFeature } from '@/test/fixtures/earthquakes';
 import { stubFetch } from '@/test/stub-fetch';
@@ -27,6 +27,12 @@ describe('getEarthquakesQueryKey', () => {
     );
   });
 
+  it('ignores t and window', () => {
+    expect(
+      getEarthquakesQueryKey(getSearch({ t: '2026-10-08T12:00:00.000Z', window: '7d' })),
+    ).toEqual(getEarthquakesQueryKey(getSearch()));
+  });
+
   it('changes with source and filters', () => {
     const base = getEarthquakesQueryKey(getSearch());
     expect(getEarthquakesQueryKey(getSearch({ source: 'usgs' }))).not.toEqual(base);
@@ -35,6 +41,10 @@ describe('getEarthquakesQueryKey', () => {
 });
 
 describe('earthquakesQueryOptions', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it('refetches every minute only for the last 24 h', () => {
     expect(earthquakesQueryOptions(getSearch()).refetchInterval).toBe(60_000);
     expect(earthquakesQueryOptions(getSearch({ period: '7d' })).refetchInterval).toBe(false);
@@ -53,9 +63,16 @@ describe('earthquakesQueryOptions', () => {
     expect(fetchMock.mock.calls[0]?.[1]?.signal).toBeInstanceOf(AbortSignal);
   });
 
+  it('stamps the result with the time the request was built from', async () => {
+    vi.setSystemTime(new Date('2026-10-05T12:00:00.000Z'));
+    stubFetch([{ match: () => true, respond: () => new Response(null, { status: 204 }) }]);
+    const result = await getClient().fetchQuery(earthquakesQueryOptions(getSearch()));
+    expect(result.fetchedAt).toBe(Date.parse('2026-10-05T12:00:00.000Z'));
+  });
+
   it('treats an EMSC 204 as no earthquakes', async () => {
     stubFetch([{ match: () => true, respond: () => new Response(null, { status: 204 }) }]);
-    expect(await getClient().fetchQuery(earthquakesQueryOptions(getSearch()))).toEqual({
+    expect(await getClient().fetchQuery(earthquakesQueryOptions(getSearch()))).toMatchObject({
       earthquakes: [],
       isTruncated: false,
     });

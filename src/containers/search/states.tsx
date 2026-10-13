@@ -2,7 +2,6 @@ import { Alert } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { useEarthquakeSearch, useSetEarthquakeSearch } from '@/hooks/use-earthquake-search';
 import { getWiderPeriod, getWiderRadius } from '@/lib/earthquakes/filters';
-import { EARTHQUAKE_LIMIT } from '@/lib/earthquakes/query-options';
 import { getSearchCenter } from '@/lib/earthquakes/search-schema';
 import { getKmLabel } from '@/lib/format';
 import { getPeriodLabel } from '@/lib/i18n/labels';
@@ -20,15 +19,6 @@ export function SourceErrorAlert({
     <Alert action={<Button onClick={onRetry}>{m.retry()}</Button>}>
       {m.error_source_unreachable({ source: sourceLabel })}
     </Alert>
-  );
-}
-
-export function TruncatedNotice() {
-  const limit = new Intl.NumberFormat(getLocale()).format(EARTHQUAKE_LIMIT);
-  return (
-    <p className="rounded-lg border border-line px-3 py-2 text-xs text-muted">
-      {m.truncated_notice({ limit })}
-    </p>
   );
 }
 

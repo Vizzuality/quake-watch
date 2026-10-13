@@ -6,17 +6,30 @@ import { m } from '@/paraglide/messages';
 import { EarthquakesLayer } from './earthquakes-layer';
 import { MapHeader } from './header';
 import { MagnitudeLegend } from './legend';
+import { PlaybackProvider } from './playback-context';
+import { SearchAreaLayer } from './search-area-layer';
+import { SearchCamera } from './search-camera';
+import { TimelineSync } from './timeline-sync';
+import { Timeline } from './timeline/timeline';
 
 export function MapLayout() {
   const search = useEarthquakeSearch();
 
   return (
-    <main className="relative h-dvh w-full overflow-hidden">
-      <QuakeMap attribution={m.attribution_data({ source: SOURCE_ADAPTERS[search.source].label })}>
-        <EarthquakesLayer />
-      </QuakeMap>
-      <MapHeader />
-      <MagnitudeLegend />
-    </main>
+    <PlaybackProvider>
+      <main className="relative h-dvh w-full overflow-hidden">
+        <QuakeMap
+          attribution={m.attribution_data({ source: SOURCE_ADAPTERS[search.source].label })}
+        >
+          <EarthquakesLayer />
+          <SearchAreaLayer />
+          <SearchCamera />
+          <TimelineSync />
+        </QuakeMap>
+        <MapHeader />
+        <MagnitudeLegend />
+        <Timeline />
+      </main>
+    </PlaybackProvider>
   );
 }

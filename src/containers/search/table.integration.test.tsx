@@ -91,6 +91,8 @@ describe('SearchTable', () => {
   it('warns when the result hit the limit', async () => {
     stubEmsc(() => Response.json(getFeatureCollection(getFeatures(1000))));
     const { screen } = await renderWithRouter(SearchTable, '/?period=1y');
-    await expect.element(screen.getByText(/Showing the 1,000 most recent/)).toBeVisible();
+    await expect
+      .element(screen.getByText(/Showing only the 1,000 most recent, in the table and on the map/))
+      .toBeVisible();
   });
 });

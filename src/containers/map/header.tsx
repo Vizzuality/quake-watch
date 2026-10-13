@@ -1,6 +1,7 @@
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 
 import { LanguageSwitch } from '@/containers/shell/language-switch';
+import { TruncatedNotice } from '@/containers/shell/truncated-notice';
 import { ViewTabs } from '@/containers/shell/view-tabs';
 import { useEarthquakeSearch } from '@/hooks/use-earthquake-search';
 import { SOURCE_ADAPTERS, earthquakesQueryOptions } from '@/lib/earthquakes/query-options';
@@ -45,6 +46,7 @@ export function MapHeader() {
           {summary}
         </p>
       ) : null}
+      {data?.isTruncated ? <TruncatedNotice className="max-w-sm border-0 px-0 py-1" /> : null}
       {isPending ? <p className="text-xs text-muted">{m.loading_earthquakes()}</p> : null}
       {isError ? (
         <p role="alert" className="text-xs text-danger">

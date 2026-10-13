@@ -76,7 +76,14 @@ describe('getEarthquakesGeoJson', () => {
     expect(result.features[0]).toEqual({
       type: 'Feature',
       geometry: { type: 'Point', coordinates: [10, 20] },
-      properties: { id: 'a', magnitude: 6, place: 'place a', time: 1 },
+      properties: {
+        id: 'a',
+        magnitude: 6,
+        place: 'place a',
+        time: 1,
+        depthKm: 5,
+        magnitudeType: 'mww',
+      },
     });
   });
 

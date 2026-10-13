@@ -6,7 +6,8 @@ import { DataTable } from '@/components/ui/data-table/data-table';
 import { Pagination } from '@/components/ui/data-table/pagination';
 import { EarthquakeCards } from '@/containers/search/cards';
 import { getEarthquakeColumns } from '@/containers/search/columns';
-import { NoResults, SourceErrorAlert, TruncatedNotice } from '@/containers/search/states';
+import { NoResults, SourceErrorAlert } from '@/containers/search/states';
+import { TruncatedNotice } from '@/containers/shell/truncated-notice';
 import { useEarthquakeSearch, useSetEarthquakeSearch } from '@/hooks/use-earthquake-search';
 import { getUpdatedValue, useAppTable } from '@/lib/data-table/table';
 import { SOURCE_ADAPTERS, earthquakesQueryOptions } from '@/lib/earthquakes/query-options';
@@ -33,13 +34,14 @@ export function SearchTable() {
   const center = getSearchCenter(search);
   const hasDistance = center !== null;
   const sourceLabel = SOURCE_ADAPTERS[search.source].label;
+  const earthquakes = data?.earthquakes;
   const rows = useMemo(
     () =>
       getEarthquakeRows(
-        data?.earthquakes ?? [],
+        earthquakes ?? [],
         lat === undefined || lon === undefined ? null : { latitude: lat, longitude: lon },
       ),
-    [data, lat, lon],
+    [earthquakes, lat, lon],
   );
   const columns = useMemo(
     () => getEarthquakeColumns({ hasDistance, locale, now: dataUpdatedAt, sourceLabel }),
