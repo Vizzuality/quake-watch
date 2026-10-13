@@ -35,7 +35,7 @@
   "no_results_title": "Ningún terremoto coincide con estos filtros",
   "widen_radius": "Ampliar radio a {radius}",
   "widen_period": "Ampliar a {period}",
-  "truncated_notice": "Mostrando los {limit} más recientes. Acota zona, fechas o magnitud para ver el resto.",
+  "truncated_notice": "Solo se muestran los {limit} más recientes, en la tabla y en el mapa. Acota las fechas o la zona para ver el resto.",
   "filter_place": "Lugar",
   "place_placeholder": "Busca una ciudad o región",
   "place_my_location": "Mi ubicación",

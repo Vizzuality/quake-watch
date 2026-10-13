@@ -35,7 +35,7 @@
   "no_results_title": "No earthquakes match these filters",
   "widen_radius": "Widen radius to {radius}",
   "widen_period": "Widen to {period}",
-  "truncated_notice": "Showing the {limit} most recent. Narrow the area, dates or magnitude to see the rest.",
+  "truncated_notice": "Showing only the {limit} most recent, in the table and on the map. Narrow the dates or the area to see the rest.",
   "filter_place": "Place",
   "place_placeholder": "Search a city or region",
   "place_my_location": "My location",
