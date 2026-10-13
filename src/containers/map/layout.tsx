@@ -9,6 +9,7 @@ import { MagnitudeLegend } from './legend';
 import { PlaybackProvider } from './playback-context';
 import { SearchAreaLayer } from './search-area-layer';
 import { SearchCamera } from './search-camera';
+import { TimelineSync } from './timeline-sync';
 import { Timeline } from './timeline/timeline';
 
 export function MapLayout() {
@@ -23,6 +24,7 @@ export function MapLayout() {
           <EarthquakesLayer />
           <SearchAreaLayer />
           <SearchCamera />
+          <TimelineSync />
         </QuakeMap>
         <MapHeader />
         <MagnitudeLegend />

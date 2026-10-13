@@ -1,11 +1,32 @@
-import type { CircleLayerSpecification, LineLayerSpecification } from 'maplibre-gl';
+import type {
+  CircleLayerSpecification,
+  ExpressionSpecification,
+  LineLayerSpecification,
+} from 'maplibre-gl';
 
 import {
   getMagnitudeColorExpression,
   getMagnitudeRadiusExpression,
 } from '@/lib/earthquakes/magnitude';
+import { AGE_OPACITY_FLOOR } from '@/lib/earthquakes/timeline';
 
 export const QUAKE_SOURCE_ID = 'earthquakes';
+
+export function getAgeOpacityExpression(): ExpressionSpecification {
+  const t: ExpressionSpecification = ['to-number', ['global-state', 't'], 0];
+  const windowStart: ExpressionSpecification = ['to-number', ['global-state', 'windowStart'], 0];
+  const windowMs: ExpressionSpecification = ['to-number', ['global-state', 'windowMs'], 1];
+  const time: ExpressionSpecification = ['get', 'time'];
+
+  return [
+    'case',
+    ['>', time, t],
+    0,
+    ['<', time, windowStart],
+    0,
+    ['interpolate', ['linear'], ['/', ['-', t, time], windowMs], 0, 1, 1, AGE_OPACITY_FLOOR],
+  ];
+}
 
 export const HALO_LAYER: Omit<CircleLayerSpecification, 'source'> = {
   id: 'earthquakes-halo',
@@ -14,7 +35,7 @@ export const HALO_LAYER: Omit<CircleLayerSpecification, 'source'> = {
     'circle-radius': ['*', 2.2, getMagnitudeRadiusExpression()],
     'circle-color': getMagnitudeColorExpression(),
     'circle-blur': 1,
-    'circle-opacity': 0.35,
+    'circle-opacity': ['*', 0.35, getAgeOpacityExpression()],
   },
 };
 
@@ -24,9 +45,10 @@ export const CORE_LAYER: Omit<CircleLayerSpecification, 'source'> = {
   paint: {
     'circle-radius': getMagnitudeRadiusExpression(),
     'circle-color': getMagnitudeColorExpression(),
-    'circle-opacity': 0.9,
+    'circle-opacity': ['*', 0.9, getAgeOpacityExpression()],
     'circle-stroke-width': 1,
     'circle-stroke-color': 'rgba(255, 255, 255, 0.35)',
+    'circle-stroke-opacity': getAgeOpacityExpression(),
   },
 };
 

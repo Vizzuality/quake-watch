@@ -25,6 +25,8 @@ export type QuakeFeatureProperties = {
   magnitude: number;
   place: string | null;
   time: number;
+  depthKm: number;
+  magnitudeType: string | null;
 };
 
 export type QuakeFeature = {
@@ -62,11 +64,22 @@ export function getMagnitudeSwatch(magnitude: number): { diameter: number; color
 export function getEarthquakesGeoJson(quakes: Earthquake[]): QuakeFeatureCollection {
   const features = [...quakes]
     .sort((a, b) => a.magnitude - b.magnitude)
-    .map(({ id, magnitude, place, time, longitude, latitude }): QuakeFeature => ({
-      type: 'Feature',
-      geometry: { type: 'Point', coordinates: [longitude, latitude] },
-      properties: { id, magnitude, place, time },
-    }));
+    .map(
+      ({
+        id,
+        magnitude,
+        place,
+        time,
+        depthKm,
+        magnitudeType,
+        longitude,
+        latitude,
+      }): QuakeFeature => ({
+        type: 'Feature',
+        geometry: { type: 'Point', coordinates: [longitude, latitude] },
+        properties: { id, magnitude, place, time, depthKm, magnitudeType },
+      }),
+    );
 
   return { type: 'FeatureCollection', features };
 }
