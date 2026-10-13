@@ -34,3 +34,17 @@ body {
 .maplibregl-map .maplibregl-ctrl-attrib.maplibregl-ctrl .maplibregl-ctrl-attrib-button {
   filter: invert(1);
 }
+
+.maplibregl-popup.quake-tooltip {
+  pointer-events: none;
+}
+
+.maplibregl-popup.quake-tooltip .maplibregl-popup-content {
+  background: transparent;
+  padding: 0;
+  box-shadow: none;
+}
+
+.maplibregl-popup.quake-tooltip.maplibregl-popup-anchor-bottom .maplibregl-popup-tip {
+  border-top-color: color-mix(in srgb, var(--color-ink) 90%, transparent);
+}

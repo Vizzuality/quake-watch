@@ -4,9 +4,11 @@ import { SOURCE_ADAPTERS } from '@/lib/earthquakes/query-options';
 import { m } from '@/paraglide/messages';
 
 import { EarthquakesLayer } from './earthquakes-layer';
+import { EpicenterTooltip } from './epicenter-tooltip';
 import { MapHeader } from './header';
 import { MagnitudeLegend } from './legend';
 import { PlaybackProvider } from './playback-context';
+import { RingTooltip } from './ring-tooltip';
 import { SearchAreaLayer } from './search-area-layer';
 import { SearchCamera } from './search-camera';
 import { ShakingWaves } from './shaking-waves';
@@ -27,6 +29,8 @@ export function MapLayout() {
           <SearchCamera />
           <TimelineSync />
           <ShakingWaves />
+          <RingTooltip />
+          <EpicenterTooltip />
         </QuakeMap>
         <MapHeader />
         <MagnitudeLegend />

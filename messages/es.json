@@ -75,5 +75,22 @@
   "timeline_histogram_hint": "Usa las flechas, Re Pág, Av Pág, Inicio y Fin para mover la ventana de reproducción.",
   "timeline_bar_tooltip": "{date} · {count}",
   "timeline_slider_label": "Instante de reproducción",
-  "timeline_empty": "No hay terremotos que reproducir"
+  "timeline_empty": "No hay terremotos que reproducir",
+  "ring_tooltip_title": "En este punto · intensidad estimada {roman} · {level}",
+  "ring_tooltip_magnitude": "Magnitud {magnitude}",
+  "ring_tooltip_distance": "A {distance} del epicentro",
+  "ring_tooltip_more": "y {count} más",
+  "intensity_level_not_felt": "No sentido",
+  "intensity_level_weak": "Débil",
+  "intensity_level_light": "Leve",
+  "intensity_level_moderate": "Moderado",
+  "intensity_level_strong": "Fuerte",
+  "intensity_level_very_strong": "Muy fuerte",
+  "intensity_level_severe": "Severo",
+  "intensity_level_violent": "Violento",
+  "intensity_level_extreme": "Extremo",
+  "epicenter_tooltip_magnitude": "Magnitud {magnitude}",
+  "epicenter_tooltip_magnitude_type": "Magnitud {magnitude} ({type})",
+  "epicenter_tooltip_depth": "Profundidad {depth}",
+  "epicenter_tooltip_place_distance": "A {distance} de {place}"
 }
