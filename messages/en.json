@@ -65,5 +65,15 @@
   "tab_map": "Map",
   "error_title": "Something went wrong",
   "error_back_home": "Back to start",
-  "not_found_title": "Page not found"
+  "not_found_title": "Page not found",
+  "timeline_label": "Timeline",
+  "timeline_play": "Play",
+  "timeline_window_label": "Playback window",
+  "timeline_window_24h": "Last 24 hours",
+  "timeline_window_7d": "Last 7 days",
+  "timeline_histogram_label": "Earthquakes over time",
+  "timeline_histogram_hint": "Use the arrow keys, Page Up, Page Down, Home and End to move the playback window.",
+  "timeline_bar_tooltip": "{date} · {count}",
+  "timeline_slider_label": "Playback time",
+  "timeline_empty": "No earthquakes to play"
 }

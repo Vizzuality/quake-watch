@@ -1,0 +1,133 @@
+import { describe, expect, it } from 'vitest';
+import { userEvent } from 'vitest/browser';
+
+import { getEmscFeature, getFeatureCollection } from '@/test/fixtures/earthquakes';
+import { renderWithRouter } from '@/test/render-with-router';
+import { stubFetch } from '@/test/stub-fetch';
+
+import { PlaybackProvider } from '../playback-context';
+import { Timeline } from './timeline';
+
+function TimelineUnderTest() {
+  return (
+    <PlaybackProvider>
+      <Timeline />
+    </PlaybackProvider>
+  );
+}
+
+function stubEarthquakes(times: string[]) {
+  return stubFetch([
+    {
+      match: (url) => url.hostname === 'www.seismicportal.eu',
+      respond: () =>
+        times.length === 0
+          ? new Response(null, { status: 204 })
+          : Response.json(
+              getFeatureCollection(
+                times.map((time, index) => getEmscFeature({ id: `e${index}`, time })),
+              ),
+            ),
+    },
+  ]);
+}
+
+const THREE_EARTHQUAKES = ['2026-08-13T10:00:00Z', '2026-08-13T20:00:00Z', '2026-08-14T08:00:00Z'];
+
+describe('Timeline', () => {
+  it('draws one bar per daily bin with a tooltip per bar', async () => {
+    stubEarthquakes(THREE_EARTHQUAKES);
+    const { screen } = await renderWithRouter(TimelineUnderTest, '/?period=7d');
+    const histogram = screen.getByRole('slider', { name: /Earthquakes over time/ });
+    await expect.poll(() => document.querySelectorAll('[data-bar]').length).toBe(2);
+    await userEvent.hover(histogram, { position: { x: 10, y: 20 } });
+    await expect
+      .poll(() => screen.getByTestId('timeline-bar-tooltip').query()?.textContent)
+      .toBe('Aug 13 · 2 earthquakes');
+  });
+
+  it('toggles playback with Space from inside the timeline', async () => {
+    stubEarthquakes(THREE_EARTHQUAKES);
+    const { screen } = await renderWithRouter(TimelineUnderTest, '/?period=7d');
+    const play = screen.getByRole('button', { name: 'Play' });
+    await expect.element(play).toBeEnabled();
+    screen.getByRole('slider', { name: 'Playback time' }).element().focus();
+    await userEvent.keyboard(' ');
+    await expect.element(play).toHaveAttribute('aria-pressed', 'true');
+    await userEvent.keyboard(' ');
+    await expect.element(play).toHaveAttribute('aria-pressed', 'false');
+  });
+
+  it('toggles playback with Space from the histogram', async () => {
+    stubEarthquakes(THREE_EARTHQUAKES);
+    const { screen } = await renderWithRouter(TimelineUnderTest, '/?period=7d');
+    const play = screen.getByRole('button', { name: 'Play' });
+    await expect.element(play).toBeEnabled();
+    screen.getByRole('slider', { name: 'Earthquakes over time' }).element().focus();
+    await userEvent.keyboard(' ');
+    await expect.element(play).toHaveAttribute('aria-pressed', 'true');
+  });
+
+  it('writes the window to the URL and hides the selector for a 24h period', async () => {
+    stubEarthquakes(THREE_EARTHQUAKES);
+    const week = await renderWithRouter(TimelineUnderTest, '/?period=7d');
+    await week.screen.getByRole('button', { name: 'Last 7 days' }).click();
+    await expect.poll(() => week.router.state.location.search).toMatchObject({ window: '7d' });
+    await week.screen.unmount();
+
+    const day = await renderWithRouter(TimelineUnderTest);
+    await expect.element(day.screen.getByRole('button', { name: 'Play' })).toBeVisible();
+    await expect
+      .element(day.screen.getByRole('group', { name: 'Playback window' }))
+      .not.toBeInTheDocument();
+  });
+
+  it('writes t on slider release without refetching earthquakes', async () => {
+    const fetchMock = stubEarthquakes(THREE_EARTHQUAKES);
+    const { screen, router } = await renderWithRouter(TimelineUnderTest, '/?period=7d');
+    await expect.element(screen.getByRole('button', { name: 'Play' })).toBeEnabled();
+    expect(router.state.location.search).not.toHaveProperty('t');
+    screen.getByRole('slider', { name: 'Playback time' }).element().focus();
+    await userEvent.keyboard('{ArrowLeft}');
+    await expect
+      .poll(() => (router.state.location.search as { t?: string }).t)
+      .toMatch(/^2026-08-14T07:\d{2}:00\.000Z$/);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('moves the window to the loaded edges with Home and End', async () => {
+    stubEarthquakes(THREE_EARTHQUAKES);
+    const { screen, router } = await renderWithRouter(TimelineUnderTest, '/?period=7d');
+    const histogram = screen.getByRole('slider', { name: 'Earthquakes over time' });
+    await expect.element(histogram).toHaveAccessibleDescription(/Home and End/);
+    histogram.element().focus();
+    await userEvent.keyboard('{Home}');
+    await expect
+      .poll(() => (router.state.location.search as { t?: string }).t)
+      .toBe('2026-08-13T10:00:00.000Z');
+    await userEvent.keyboard('{End}');
+    await expect
+      .poll(() => (router.state.location.search as { t?: string }).t)
+      .toBe('2026-08-14T08:00:00.000Z');
+  });
+
+  it('leaves the error to the header and keeps play disabled when the source fails', async () => {
+    stubFetch([
+      {
+        match: (url) => url.hostname === 'www.seismicportal.eu',
+        respond: () => new Response(null, { status: 500 }),
+      },
+    ]);
+    const { screen } = await renderWithRouter(TimelineUnderTest);
+    await expect.element(screen.getByRole('button', { name: 'Play' })).toBeDisabled();
+    expect(screen.getByText('No earthquakes to play').query()).toBeNull();
+    expect(document.querySelectorAll('[data-bar]')).toHaveLength(0);
+  });
+
+  it('shows an empty state and disables play without earthquakes', async () => {
+    stubEarthquakes([]);
+    const { screen } = await renderWithRouter(TimelineUnderTest);
+    await expect.element(screen.getByText('No earthquakes to play')).toBeVisible();
+    await expect.element(screen.getByRole('button', { name: 'Play' })).toBeDisabled();
+  });
+});
