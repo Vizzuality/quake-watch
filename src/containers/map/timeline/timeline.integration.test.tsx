@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { userEvent } from 'vitest/browser';
 
 import { getEmscFeature, getFeatureCollection } from '@/test/fixtures/earthquakes';
@@ -34,7 +34,17 @@ function stubEarthquakes(times: string[]) {
 
 const THREE_EARTHQUAKES = ['2026-08-13T10:00:00Z', '2026-08-13T20:00:00Z', '2026-08-14T08:00:00Z'];
 
+const NOW = '2026-08-14T12:00:00.000Z';
+
 describe('Timeline', () => {
+  beforeEach(() => {
+    vi.setSystemTime(new Date(NOW));
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it('draws one bar per daily bin with a tooltip per bar', async () => {
     stubEarthquakes(THREE_EARTHQUAKES);
     const { screen } = await renderWithRouter(TimelineUnderTest, '/?period=7d');
@@ -91,11 +101,11 @@ describe('Timeline', () => {
     await userEvent.keyboard('{ArrowLeft}');
     await expect
       .poll(() => (router.state.location.search as { t?: string }).t)
-      .toMatch(/^2026-08-14T07:\d{2}:00\.000Z$/);
+      .toMatch(/^2026-08-14T11:\d{2}:00\.000Z$/);
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
-  it('moves the window to the loaded edges with Home and End', async () => {
+  it('moves the window to the period edges with Home and End', async () => {
     stubEarthquakes(THREE_EARTHQUAKES);
     const { screen, router } = await renderWithRouter(TimelineUnderTest, '/?period=7d');
     const histogram = screen.getByRole('slider', { name: 'Earthquakes over time' });
@@ -106,9 +116,39 @@ describe('Timeline', () => {
       .poll(() => (router.state.location.search as { t?: string }).t)
       .toBe('2026-08-13T10:00:00.000Z');
     await userEvent.keyboard('{End}');
-    await expect
-      .poll(() => (router.state.location.search as { t?: string }).t)
-      .toBe('2026-08-14T08:00:00.000Z');
+    await expect.poll(() => (router.state.location.search as { t?: string }).t).toBe(NOW);
+  });
+
+  it('keeps the range end while the next period is pending and moves it once loaded', async () => {
+    const body = getFeatureCollection(
+      THREE_EARTHQUAKES.map((time, index) => getEmscFeature({ id: `e${index}`, time })),
+    );
+    const pending = Promise.withResolvers<Response>();
+    let calls = 0;
+    stubFetch([
+      {
+        match: (url) => url.hostname === 'www.seismicportal.eu',
+        respond: () => {
+          calls += 1;
+          return calls === 1 ? Response.json(body) : pending.promise;
+        },
+      },
+    ]);
+    const { screen, router } = await renderWithRouter(TimelineUnderTest, '/?period=7d');
+    const histogram = screen.getByRole('slider', { name: 'Earthquakes over time' });
+    const playback = screen.getByRole('slider', { name: 'Playback time' });
+    await expect.element(histogram).toHaveAttribute('aria-valuemax', String(Date.parse(NOW)));
+
+    const later = '2026-08-14T13:00:00.000Z';
+    vi.setSystemTime(new Date(later));
+    await router.navigate({ to: '/', search: { period: '30d' } });
+    await expect.poll(() => calls).toBe(2);
+    await expect.element(histogram).toHaveAttribute('aria-valuemax', String(Date.parse(NOW)));
+    await expect.element(playback).toHaveAttribute('max', String(Date.parse(NOW)));
+
+    pending.resolve(Response.json(body));
+    await expect.element(histogram).toHaveAttribute('aria-valuemax', String(Date.parse(later)));
+    await expect.element(playback).toHaveAttribute('max', String(Date.parse(later)));
   });
 
   it('leaves the error to the header and keeps play disabled when the source fails', async () => {

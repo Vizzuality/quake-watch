@@ -69,7 +69,7 @@ function getCustomRange(from: string | undefined, to: string | undefined, now: D
 }
 
 export function getTimeRange(
-  search: EarthquakeSearch,
+  search: Pick<EarthquakeSearch, 'period' | 'from' | 'to'>,
   now: Date,
 ): { start: Date; end: Date | null } {
   if (search.period === 'custom') return getCustomRange(search.from, search.to, now);

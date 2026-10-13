@@ -34,13 +34,14 @@ export function SearchTable() {
   const center = getSearchCenter(search);
   const hasDistance = center !== null;
   const sourceLabel = SOURCE_ADAPTERS[search.source].label;
+  const earthquakes = data?.earthquakes;
   const rows = useMemo(
     () =>
       getEarthquakeRows(
-        data?.earthquakes ?? [],
+        earthquakes ?? [],
         lat === undefined || lon === undefined ? null : { latitude: lat, longitude: lon },
       ),
-    [data, lat, lon],
+    [earthquakes, lat, lon],
   );
   const columns = useMemo(
     () => getEarthquakeColumns({ hasDistance, locale, now: dataUpdatedAt, sourceLabel }),

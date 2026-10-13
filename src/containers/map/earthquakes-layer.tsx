@@ -13,7 +13,8 @@ export function EarthquakesLayer() {
     ...earthquakesQueryOptions(search),
     placeholderData: keepPreviousData,
   });
-  const geojson = useMemo(() => getEarthquakesGeoJson(data?.earthquakes ?? []), [data]);
+  const earthquakes = data?.earthquakes;
+  const geojson = useMemo(() => getEarthquakesGeoJson(earthquakes ?? []), [earthquakes]);
 
   return (
     <Source id={QUAKE_SOURCE_ID} type="geojson" data={geojson}>

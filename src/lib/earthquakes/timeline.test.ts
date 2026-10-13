@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
+import { earthquakeSearchSchema } from './search-schema';
 import {
   AGE_OPACITY_FLOOR,
   getAgeOpacity,
@@ -10,6 +11,7 @@ import {
   getLoadedRange,
   getPlaybackRange,
   getPlaybackT,
+  getTimelineRange,
   getWindowMs,
   PLAYBACK_DURATION_MS,
 } from './timeline';
@@ -244,5 +246,65 @@ describe('getPlaybackT', () => {
 
   it('returns the end for a zero-span range', () => {
     expect(getPlaybackT({ range: { start: 5, end: 5 }, elapsedMs: 100 })).toBe(5);
+  });
+});
+
+describe('getTimelineRange', () => {
+  const first = Date.parse('2026-10-03T10:00:00.000Z');
+  const quakes = [getQuake(first + HOUR), getQuake(first)];
+  const nowMs = Date.parse('2026-10-05T12:00:00.000Z');
+
+  it('returns null for an empty list', () => {
+    const search = earthquakeSearchSchema.parse({});
+    expect(getTimelineRange({ earthquakes: [], search, nowMs })).toBeNull();
+  });
+
+  it('ends at now for a relative period and starts at the first earthquake', () => {
+    const search = earthquakeSearchSchema.parse({ period: '7d' });
+    expect(getTimelineRange({ earthquakes: quakes, search, nowMs })).toEqual({
+      start: first,
+      end: nowMs,
+    });
+  });
+
+  it('ends at the end of the to date for a custom period', () => {
+    const search = earthquakeSearchSchema.parse({
+      period: 'custom',
+      from: '2026-10-03',
+      to: '2026-10-04',
+    });
+    expect(getTimelineRange({ earthquakes: quakes, search, nowMs })).toEqual({
+      start: first,
+      end: Date.parse('2026-10-04T23:59:59.999Z'),
+    });
+  });
+
+  it('ends at now for a custom period without a to date', () => {
+    const search = earthquakeSearchSchema.parse({ period: 'custom', from: '2026-10-03' });
+    expect(getTimelineRange({ earthquakes: quakes, search, nowMs })).toEqual({
+      start: first,
+      end: nowMs,
+    });
+  });
+
+  it('never ends before the first earthquake', () => {
+    const search = earthquakeSearchSchema.parse({
+      period: 'custom',
+      from: '2026-10-01',
+      to: '2026-10-02',
+    });
+    expect(getTimelineRange({ earthquakes: quakes, search, nowMs })).toEqual({
+      start: first,
+      end: first,
+    });
+  });
+
+  it('extends histogram bins to now', () => {
+    const search = earthquakeSearchSchema.parse({ period: '7d' });
+    const range = getTimelineRange({ earthquakes: quakes, search, nowMs });
+    const bins = range ? getHistogramBins(quakes, range, 'day') : [];
+    const last = bins.at(-1);
+    expect(last?.start).toBeLessThanOrEqual(nowMs);
+    expect(last?.end).toBeGreaterThan(nowMs);
   });
 });

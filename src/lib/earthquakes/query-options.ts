@@ -16,7 +16,7 @@ export const SOURCE_ADAPTERS: Record<EarthquakeSource, SourceAdapter> = {
   usgs: usgsAdapter,
 };
 
-type EarthquakesResult = { earthquakes: Earthquake[]; isTruncated: boolean };
+type EarthquakesResult = { earthquakes: Earthquake[]; isTruncated: boolean; fetchedAt: number };
 
 export class EarthquakeSourceError extends Error {
   constructor(
@@ -46,14 +46,16 @@ async function getEarthquakes(
   signal: AbortSignal,
 ): Promise<EarthquakesResult> {
   const adapter = SOURCE_ADAPTERS[search.source];
-  const response = await fetch(adapter.getQueryUrl(search, new Date(), EARTHQUAKE_LIMIT), {
+  const now = new Date();
+  const fetchedAt = now.getTime();
+  const response = await fetch(adapter.getQueryUrl(search, now, EARTHQUAKE_LIMIT), {
     signal,
   });
   if (!response.ok) throw new EarthquakeSourceError(search.source, response.status);
-  if (response.status === 204) return { earthquakes: [], isTruncated: false };
+  if (response.status === 204) return { earthquakes: [], isTruncated: false, fetchedAt };
   const features = getFeatures(await response.json());
   const earthquakes = features.flatMap((feature) => adapter.getEarthquake(feature) ?? []);
-  return { earthquakes, isTruncated: features.length >= EARTHQUAKE_LIMIT };
+  return { earthquakes, isTruncated: features.length >= EARTHQUAKE_LIMIT, fetchedAt };
 }
 
 export function earthquakesQueryOptions(search: EarthquakeSearch) {

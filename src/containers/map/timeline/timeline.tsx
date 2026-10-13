@@ -10,8 +10,8 @@ import type { PlaybackWindow } from '@/lib/earthquakes/search-schema';
 import {
   getHistogramBins,
   getHistogramUnit,
-  getLoadedRange,
   getPlaybackRange,
+  getTimelineRange,
 } from '@/lib/earthquakes/timeline';
 import {
   getEffectiveWindow,
@@ -45,7 +45,15 @@ export function Timeline() {
   });
   const locale = getLocale();
   const earthquakes = data?.earthquakes;
-  const loaded = useMemo(() => (earthquakes ? getLoadedRange(earthquakes) : null), [earthquakes]);
+  const { period, from, to } = search;
+  const fetchedAt = data?.fetchedAt;
+  const loaded = useMemo(
+    () =>
+      earthquakes && fetchedAt !== undefined
+        ? getTimelineRange({ earthquakes, search: { period, from, to }, nowMs: fetchedAt })
+        : null,
+    [earthquakes, period, from, to, fetchedAt],
+  );
   const searchKey = getSearchKey(search);
   const playbackWindow = getEffectiveWindow(search.period, search.window);
   const unit = getHistogramUnit(search.period);

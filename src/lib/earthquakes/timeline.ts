@@ -1,4 +1,5 @@
-import type { Period, PlaybackWindow } from './search-schema';
+import { getTimeRange } from './search-schema';
+import type { EarthquakeSearch, Period, PlaybackWindow } from './search-schema';
 import type { Earthquake } from './types';
 
 export type TimeRange = { start: number; end: number };
@@ -16,6 +17,18 @@ export function getLoadedRange(earthquakes: Earthquake[]): TimeRange | null {
     (range, { time }) => ({ start: Math.min(range.start, time), end: Math.max(range.end, time) }),
     { start: Number.POSITIVE_INFINITY, end: Number.NEGATIVE_INFINITY },
   );
+}
+
+export function getTimelineRange(input: {
+  earthquakes: Earthquake[];
+  search: Pick<EarthquakeSearch, 'period' | 'from' | 'to'>;
+  nowMs: number;
+}): TimeRange | null {
+  const { earthquakes, search, nowMs } = input;
+  const loaded = getLoadedRange(earthquakes);
+  if (!loaded) return null;
+  const periodEnd = getTimeRange(search, new Date(nowMs)).end?.getTime() ?? nowMs;
+  return { start: loaded.start, end: Math.max(loaded.start, periodEnd) };
 }
 
 export function getWindowMs(window: PlaybackWindow): number {
