@@ -6,6 +6,7 @@ import { m } from '@/paraglide/messages';
 import { EarthquakesLayer } from './earthquakes-layer';
 import { MapHeader } from './header';
 import { MagnitudeLegend } from './legend';
+import { SearchAreaLayer } from './search-area-layer';
 import { SearchCamera } from './search-camera';
 
 export function MapLayout() {
@@ -15,6 +16,7 @@ export function MapLayout() {
     <main className="relative h-dvh w-full overflow-hidden">
       <QuakeMap attribution={m.attribution_data({ source: SOURCE_ADAPTERS[search.source].label })}>
         <EarthquakesLayer />
+        <SearchAreaLayer />
         <SearchCamera />
       </QuakeMap>
       <MapHeader />

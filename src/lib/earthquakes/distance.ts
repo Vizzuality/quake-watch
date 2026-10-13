@@ -1,8 +1,8 @@
 import type { SearchCenter } from './search-schema';
 
-const EARTH_RADIUS_KM = 6371.0088;
+export const EARTH_RADIUS_KM = 6371.0088;
 
-function getRadians(degrees: number): number {
+export function getRadians(degrees: number): number {
   return (degrees * Math.PI) / 180;
 }
 
