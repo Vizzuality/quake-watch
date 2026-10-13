@@ -9,6 +9,7 @@ import { MagnitudeLegend } from './legend';
 import { PlaybackProvider } from './playback-context';
 import { SearchAreaLayer } from './search-area-layer';
 import { SearchCamera } from './search-camera';
+import { ShakingWaves } from './shaking-waves';
 import { TimelineSync } from './timeline-sync';
 import { Timeline } from './timeline/timeline';
 
@@ -25,6 +26,7 @@ export function MapLayout() {
           <SearchAreaLayer />
           <SearchCamera />
           <TimelineSync />
+          <ShakingWaves />
         </QuakeMap>
         <MapHeader />
         <MagnitudeLegend />
