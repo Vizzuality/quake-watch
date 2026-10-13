@@ -75,5 +75,22 @@
   "timeline_histogram_hint": "Use the arrow keys, Page Up, Page Down, Home and End to move the playback window.",
   "timeline_bar_tooltip": "{date} · {count}",
   "timeline_slider_label": "Playback time",
-  "timeline_empty": "No earthquakes to play"
+  "timeline_empty": "No earthquakes to play",
+  "ring_tooltip_title": "At this point · estimated Intensity {roman} · {level}",
+  "ring_tooltip_magnitude": "Magnitude {magnitude}",
+  "ring_tooltip_distance": "{distance} from the Epicenter",
+  "ring_tooltip_more": "and {count} more",
+  "intensity_level_not_felt": "Not felt",
+  "intensity_level_weak": "Weak",
+  "intensity_level_light": "Light",
+  "intensity_level_moderate": "Moderate",
+  "intensity_level_strong": "Strong",
+  "intensity_level_very_strong": "Very strong",
+  "intensity_level_severe": "Severe",
+  "intensity_level_violent": "Violent",
+  "intensity_level_extreme": "Extreme",
+  "epicenter_tooltip_magnitude": "Magnitude {magnitude}",
+  "epicenter_tooltip_magnitude_type": "Magnitude {magnitude} ({type})",
+  "epicenter_tooltip_depth": "Depth {depth}",
+  "epicenter_tooltip_place_distance": "{distance} from {place}"
 }
