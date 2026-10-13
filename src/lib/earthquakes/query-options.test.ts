@@ -27,6 +27,12 @@ describe('getEarthquakesQueryKey', () => {
     );
   });
 
+  it('ignores t and window', () => {
+    expect(
+      getEarthquakesQueryKey(getSearch({ t: '2026-10-08T12:00:00.000Z', window: '7d' })),
+    ).toEqual(getEarthquakesQueryKey(getSearch()));
+  });
+
   it('changes with source and filters', () => {
     const base = getEarthquakesQueryKey(getSearch());
     expect(getEarthquakesQueryKey(getSearch({ source: 'usgs' }))).not.toEqual(base);

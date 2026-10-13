@@ -6,6 +6,9 @@ export const PERIODS = ['24h', '7d', '30d', '1y', 'custom'] as const;
 export const MIN_MAGNITUDES = [0, 1, 2, 2.5, 3, 4, 5, 6] as const;
 const SORT_COLUMNS = ['magnitude', 'time', 'place', 'distance', 'depth', 'magnitudeType'] as const;
 
+export const PLAYBACK_WINDOWS = ['24h', '7d'] as const;
+
+export type PlaybackWindow = (typeof PLAYBACK_WINDOWS)[number];
 export type EarthquakeSource = (typeof SOURCES)[number];
 export type RadiusKm = (typeof RADII_KM)[number];
 export type Period = (typeof PERIODS)[number];
@@ -34,13 +37,22 @@ export const earthquakeSearchSchema = z.object({
   minmag: z.literal(MIN_MAGNITUDES).default(2.5).catch(2.5),
   sort: z.string().regex(SORT_PATTERN).default(DEFAULT_SORT).catch(DEFAULT_SORT),
   page: z.int().min(1).default(1).catch(1),
+  t: z.iso.datetime().optional().catch(undefined),
+  window: z.enum(PLAYBACK_WINDOWS).default('24h').catch('24h'),
 });
 
 export type EarthquakeSearch = z.infer<typeof earthquakeSearchSchema>;
 
 export const EARTHQUAKE_SEARCH_DEFAULTS: EarthquakeSearch = earthquakeSearchSchema.parse({});
 
-const { source: _source, sort: _sort, page: _page, ...filterDefaults } = EARTHQUAKE_SEARCH_DEFAULTS;
+const {
+  source: _source,
+  sort: _sort,
+  page: _page,
+  t: _t,
+  window: _window,
+  ...filterDefaults
+} = EARTHQUAKE_SEARCH_DEFAULTS;
 export const EARTHQUAKE_FILTER_DEFAULTS = filterDefaults;
 
 export function getSearchCenter({ lat, lon }: EarthquakeSearch): SearchCenter | null {

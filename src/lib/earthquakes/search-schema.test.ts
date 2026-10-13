@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  EARTHQUAKE_FILTER_DEFAULTS,
   EARTHQUAKE_SEARCH_DEFAULTS,
   earthquakeSearchSchema,
   getSearchCenter,
@@ -77,6 +78,30 @@ describe('earthquakeSearchSchema', () => {
       page: 1,
       from: undefined,
     });
+  });
+});
+
+describe('playback search params', () => {
+  it('defaults window to 24h and t to undefined', () => {
+    expect(EARTHQUAKE_SEARCH_DEFAULTS.window).toBe('24h');
+    expect(EARTHQUAKE_SEARCH_DEFAULTS.t).toBeUndefined();
+  });
+
+  it('accepts a toISOString datetime and a 7d window', () => {
+    const t = new Date(1_760_000_000_123).toISOString();
+    expect(getSearch({ t, window: '7d' })).toMatchObject({ t, window: '7d' });
+  });
+
+  it('drops an invalid t and falls back an invalid window', () => {
+    expect(getSearch({ t: 'banana', window: '30d' })).toMatchObject({
+      t: undefined,
+      window: '24h',
+    });
+  });
+
+  it('keeps t and window out of the filter defaults', () => {
+    expect(EARTHQUAKE_FILTER_DEFAULTS).not.toHaveProperty('t');
+    expect(EARTHQUAKE_FILTER_DEFAULTS).not.toHaveProperty('window');
   });
 });
 
