@@ -1,20 +1,13 @@
 import 'maplibre-gl/dist/maplibre-gl.css';
-import { useMemo } from 'react';
-import { AttributionControl, Layer, Map as MapGL, Source } from 'react-map-gl/maplibre';
-
-import { getEarthquakesGeoJson } from '@/lib/earthquakes/magnitude';
-import type { Earthquake } from '@/lib/earthquakes/types';
-import { m } from '@/paraglide/messages';
+import type { ReactNode } from 'react';
+import { AttributionControl, Map as MapGL } from 'react-map-gl/maplibre';
 
 import './maplibre-worker';
 import { MAP_STYLE_URL } from './basemap';
-import { CORE_LAYER, HALO_LAYER, QUAKE_SOURCE_ID } from './layers';
 
 const INITIAL_VIEW_STATE = { longitude: 0, latitude: 20, zoom: 1.4 };
 
-export function QuakeMap({ earthquakes }: { earthquakes: Earthquake[] }) {
-  const geojson = useMemo(() => getEarthquakesGeoJson(earthquakes), [earthquakes]);
-
+export function QuakeMap({ attribution, children }: { attribution: string; children: ReactNode }) {
   return (
     <MapGL
       initialViewState={INITIAL_VIEW_STATE}
@@ -24,11 +17,8 @@ export function QuakeMap({ earthquakes }: { earthquakes: Earthquake[] }) {
       attributionControl={false}
       style={{ position: 'absolute', inset: 0 }}
     >
-      <AttributionControl compact customAttribution={m.attribution_data({ source: 'USGS' })} />
-      <Source id={QUAKE_SOURCE_ID} type="geojson" data={geojson}>
-        <Layer {...HALO_LAYER} />
-        <Layer {...CORE_LAYER} />
-      </Source>
+      <AttributionControl compact customAttribution={attribution} />
+      {children}
     </MapGL>
   );
 }

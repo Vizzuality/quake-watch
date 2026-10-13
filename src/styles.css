@@ -4,6 +4,9 @@
   --color-ink: #0b0d10;
   --color-paper: #f4f1ea;
   --color-muted: #8a8f98;
+  --color-surface: #161b23;
+  --color-line: #2a323e;
+  --color-danger: #f87171;
   --font-sans: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
 }
 

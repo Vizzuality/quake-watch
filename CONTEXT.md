@@ -5,7 +5,7 @@ Earthquakes around the world, shown in terms of the places people care about.
 ## Language
 
 **Earthquake**:
-A seismic event reported by a seismological agency (today: USGS), with a time, an Epicenter, a Depth and a Magnitude.
+A seismic event reported by a seismological agency (EMSC by default, USGS on request), with a time, an Epicenter, a Depth and a Magnitude.
 _Avoid_: Quake, tremor, event
 _Spanish_: Terremoto
 

@@ -23,7 +23,7 @@ export const MAGNITUDE_COLOR_STOPS: ReadonlyArray<readonly [number, string]> = [
 export type QuakeFeatureProperties = {
   id: string;
   magnitude: number;
-  place: string;
+  place: string | null;
   time: number;
 };
 
@@ -69,4 +69,11 @@ export function getEarthquakesGeoJson(quakes: Earthquake[]): QuakeFeatureCollect
     }));
 
   return { type: 'FeatureCollection', features };
+}
+
+export function getMagnitudeColor(magnitude: number): string {
+  const [firstStop] = MAGNITUDE_COLOR_STOPS;
+  const stop =
+    MAGNITUDE_COLOR_STOPS.findLast(([stopMagnitude]) => stopMagnitude <= magnitude) ?? firstStop;
+  return stop[1];
 }
