@@ -48,3 +48,18 @@ _Spanish_: Alcance sentido
 The stretch of the searched period that the map plays back, 24 hours or 7 days long.
 _Avoid_: Range, zoom
 _Spanish_: Ventana
+
+**Crust layer**:
+One band of the ground under the Epicenter (water, ice, sediments, upper, middle or lower crust), with the Depth of its top and bottom.
+_Avoid_: Stratum, level
+_Spanish_: Capa de la corteza
+
+**Moho**:
+The boundary between the crust and the mantle under the Epicenter.
+_Avoid_: Crust bottom, mantle top
+_Spanish_: Moho
+
+**Crustal block**:
+A 3D cut of the ground around the Epicenter that shows its Crust layers and the Depth at which the Earthquake started.
+_Avoid_: Cross-section, Earth slice
+_Spanish_: Bloque de corteza
