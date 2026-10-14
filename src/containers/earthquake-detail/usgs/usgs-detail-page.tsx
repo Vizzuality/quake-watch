@@ -1,0 +1,54 @@
+import { useQuery } from '@tanstack/react-query';
+
+import { CrustalBlockSection } from '@/containers/earthquake-detail/crustal-block/crustal-block-section';
+import { DetailError } from '@/containers/earthquake-detail/shared/detail-error';
+import { DetailHeader } from '@/containers/earthquake-detail/shared/detail-header';
+import { DetailLayout } from '@/containers/earthquake-detail/shared/detail-layout';
+import { DetailMinimap } from '@/containers/earthquake-detail/shared/detail-minimap';
+import { DetailNotFound } from '@/containers/earthquake-detail/shared/detail-not-found';
+import { DetailSkeleton } from '@/containers/earthquake-detail/shared/detail-skeleton';
+import { usgsEarthquakeDetailQueryOptions } from '@/lib/earthquakes/details/usgs-query-options';
+import { SOURCE_ADAPTERS } from '@/lib/earthquakes/query-options';
+
+import { UsgsImpactSection } from './usgs-impact-section';
+import { UsgsMechanismSection } from './usgs-mechanism-section';
+import { UsgsOriginSection } from './usgs-origin-section';
+import { UsgsShakemapSection } from './usgs-shakemap-section';
+import { UsgsSummarySection } from './usgs-summary-section';
+
+function UsgsDetailBody({ earthquakeId }: { earthquakeId: string }) {
+  const { data, status, refetch } = useQuery(usgsEarthquakeDetailQueryOptions(earthquakeId));
+
+  if (status === 'pending') return <DetailSkeleton />;
+  if (status === 'error')
+    return <DetailError sourceLabel={SOURCE_ADAPTERS.usgs.label} onRetry={() => refetch()} />;
+  if (data === null) return <DetailNotFound />;
+
+  const { earthquake } = data;
+  return (
+    <div className="flex flex-col gap-8">
+      <DetailHeader earthquake={earthquake} />
+      <div className="grid gap-6 lg:grid-cols-2">
+        <DetailMinimap earthquake={earthquake} />
+        <UsgsSummarySection earthquakeId={earthquakeId} />
+      </div>
+      <UsgsShakemapSection earthquakeId={earthquakeId} />
+      <CrustalBlockSection
+        latitude={earthquake.latitude}
+        longitude={earthquake.longitude}
+        depthKm={earthquake.depthKm}
+      />
+      <UsgsOriginSection earthquakeId={earthquakeId} />
+      <UsgsImpactSection earthquakeId={earthquakeId} />
+      <UsgsMechanismSection earthquakeId={earthquakeId} />
+    </div>
+  );
+}
+
+export function UsgsDetailPage({ earthquakeId }: { earthquakeId: string }) {
+  return (
+    <DetailLayout>
+      <UsgsDetailBody earthquakeId={earthquakeId} />
+    </DetailLayout>
+  );
+}

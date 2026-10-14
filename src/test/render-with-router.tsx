@@ -26,8 +26,18 @@ export async function renderWithRouter(component: () => ReactNode, initialEntry 
     validateSearch: earthquakeSearchSchema,
     component: () => null,
   });
+  const usgsDetailRoute = createRoute({
+    getParentRoute: () => rootRoute,
+    path: '/earthquakes/usgs/$earthquakeId',
+    component,
+  });
+  const emscDetailRoute = createRoute({
+    getParentRoute: () => rootRoute,
+    path: '/earthquakes/emsc/$earthquakeId',
+    component,
+  });
   const router = createRouter({
-    routeTree: rootRoute.addChildren([pageRoute, mapRoute]),
+    routeTree: rootRoute.addChildren([pageRoute, mapRoute, usgsDetailRoute, emscDetailRoute]),
     history: createMemoryHistory({ initialEntries: [initialEntry] }),
   });
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });

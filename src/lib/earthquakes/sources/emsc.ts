@@ -6,11 +6,11 @@ import type { Earthquake } from '../types';
 import { coordinatesSchema } from './feature-collection';
 import type { SourceAdapter } from './feature-collection';
 
-const EMSC_QUERY_URL = 'https://www.seismicportal.eu/fdsnws/event/1/query';
+export const EMSC_QUERY_URL = 'https://www.seismicportal.eu/fdsnws/event/1/query';
 const EMSC_EVENT_URL = 'https://www.seismicportal.eu/eventdetails.html';
 const KM_PER_DEGREE = 111.195;
 
-const emscFeatureSchema = z.object({
+export const emscFeatureSchema = z.object({
   id: z.string(),
   geometry: z.object({ coordinates: coordinatesSchema }),
   properties: z.object({
@@ -51,7 +51,7 @@ function getQueryUrl(search: EarthquakeSearch, now: Date, limit: number): string
   return `${EMSC_QUERY_URL}?${params}`;
 }
 
-function getEarthquake(feature: unknown): Earthquake | null {
+export function getEarthquake(feature: unknown): Earthquake | null {
   const result = emscFeatureSchema.safeParse(feature);
   if (!result.success) return null;
   const { geometry, properties } = result.data;
