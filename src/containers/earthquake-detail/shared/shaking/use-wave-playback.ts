@@ -2,43 +2,46 @@ import { useEffect, useState } from 'react';
 
 import { useMediaQuery } from '@/hooks/use-media-query';
 import {
-  getAdvancedProgress,
-  getInitialProgress,
-  getPlayStartProgress,
+  getAdvancedSeconds,
+  getInitialSeconds,
+  getPlayStartSeconds,
 } from '@/lib/shakemap/playback';
 
 export const REDUCED_MOTION_QUERY = '(prefers-reduced-motion: reduce)';
 
-export function useShakemapPlayback({
+export function useWavePlayback({
+  durationSeconds,
   canAutoplay,
   canAnimate,
 }: {
+  durationSeconds: number;
   canAutoplay: boolean;
   canAnimate: boolean;
 }) {
   const reducedMotion = useMediaQuery(REDUCED_MOTION_QUERY);
-  const [progress, setProgress] = useState(() => getInitialProgress(reducedMotion));
+  const [seconds, setSeconds] = useState(() => getInitialSeconds(reducedMotion, durationSeconds));
   const [playing, setPlaying] = useState(false);
   const [hasAutoplayed, setHasAutoplayed] = useState(false);
+  const complete = seconds >= durationSeconds;
 
   if (canAutoplay && !hasAutoplayed) {
     setHasAutoplayed(true);
     if (!reducedMotion) setPlaying(true);
   }
-  if (playing && progress >= 1) setPlaying(false);
+  if (playing && complete) setPlaying(false);
 
   function toggle() {
     if (playing) {
       setPlaying(false);
       return;
     }
-    setProgress(getPlayStartProgress(progress));
+    setSeconds(getPlayStartSeconds(seconds, durationSeconds));
     setPlaying(true);
   }
 
   function seek(value: number) {
     setPlaying(false);
-    setProgress(value);
+    setSeconds(value);
   }
 
   useEffect(() => {
@@ -48,12 +51,12 @@ export function useShakemapPlayback({
     function tick(now: number) {
       const elapsedMs = now - previous;
       previous = now;
-      setProgress((current) => getAdvancedProgress(current, elapsedMs));
+      setSeconds((current) => getAdvancedSeconds(current, elapsedMs, durationSeconds));
       frame = requestAnimationFrame(tick);
     }
     frame = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(frame);
-  }, [playing, canAnimate]);
+  }, [playing, canAnimate, durationSeconds]);
 
-  return { progress, playing, toggle, seek };
+  return { seconds, complete, playing, toggle, seek };
 }

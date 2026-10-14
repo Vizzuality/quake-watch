@@ -37,3 +37,9 @@ export function getMapHint(coarsePointer: boolean, active: boolean): string {
 export function getPlayLabel(playing: boolean): string {
   return playing ? m.detail_shakemap_pause() : m.detail_shakemap_play();
 }
+
+export function getSwatchClassName(filled: boolean): string {
+  return filled
+    ? 'size-3 shrink-0 rounded-sm ring-1 ring-ink/40'
+    : 'h-[3px] w-3 shrink-0 rounded-full';
+}

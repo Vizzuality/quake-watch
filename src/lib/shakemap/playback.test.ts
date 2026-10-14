@@ -1,30 +1,42 @@
 import { describe, expect, it } from 'vitest';
 
-import { getAdvancedProgress, getInitialProgress, getPlayStartProgress } from './playback';
-import { SHAKEMAP_PLAY_DURATION_MS } from './reveal';
+import {
+  getAdvancedSeconds,
+  getInitialSeconds,
+  getPlayStartSeconds,
+  getRunDurationSeconds,
+} from './playback';
+import { WAVE_SCREEN_MS } from './wave';
 
-describe('getAdvancedProgress', () => {
-  it('covers the whole Felt reach in the play duration', () => {
-    expect(getAdvancedProgress(0, SHAKEMAP_PLAY_DURATION_MS / 4)).toBeCloseTo(0.25);
-    expect(getAdvancedProgress(0.5, SHAKEMAP_PLAY_DURATION_MS / 2)).toBe(1);
+describe('getAdvancedSeconds', () => {
+  it('covers the whole run in the screen duration', () => {
+    expect(getAdvancedSeconds(0, WAVE_SCREEN_MS / 4, 120)).toBeCloseTo(30);
+    expect(getAdvancedSeconds(60, WAVE_SCREEN_MS / 2, 120)).toBe(120);
   });
 
   it('stops at the end and never runs backwards', () => {
-    expect(getAdvancedProgress(0.9, SHAKEMAP_PLAY_DURATION_MS)).toBe(1);
-    expect(getAdvancedProgress(0.4, -100)).toBe(0.4);
+    expect(getAdvancedSeconds(100, WAVE_SCREEN_MS, 120)).toBe(120);
+    expect(getAdvancedSeconds(40, -100, 120)).toBe(40);
   });
 });
 
-describe('getPlayStartProgress', () => {
-  it('restarts from the Epicenter once the wave has reached its end', () => {
-    expect(getPlayStartProgress(1)).toBe(0);
-    expect(getPlayStartProgress(0.3)).toBe(0.3);
+describe('getPlayStartSeconds', () => {
+  it('restarts from the rupture start once the run has ended', () => {
+    expect(getPlayStartSeconds(120, 120)).toBe(0);
+    expect(getPlayStartSeconds(30, 120)).toBe(30);
   });
 });
 
-describe('getInitialProgress', () => {
+describe('getInitialSeconds', () => {
   it('starts at the final state when motion is reduced', () => {
-    expect(getInitialProgress(true)).toBe(1);
-    expect(getInitialProgress(false)).toBe(0);
+    expect(getInitialSeconds(true, 120)).toBe(120);
+    expect(getInitialSeconds(false, 120)).toBe(0);
+  });
+});
+
+describe('getRunDurationSeconds', () => {
+  it('rounds up to whole seconds and never collapses to zero', () => {
+    expect(getRunDurationSeconds(103.2)).toBe(104);
+    expect(getRunDurationSeconds(0)).toBe(1);
   });
 });

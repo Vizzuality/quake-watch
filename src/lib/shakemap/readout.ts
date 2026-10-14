@@ -1,21 +1,24 @@
+import { getDistanceKm } from '@/lib/earthquakes/distance';
 import type { SearchCenter } from '@/lib/earthquakes/search-schema';
 
 import { getGridMmi } from './coverage';
 import type { ShakemapGrid } from './coverage';
-import { getIsInsideReveal, getRevealRadiusKm } from './reveal';
+import { S_WAVE_KM_S, getArrivalSeconds } from './wave';
 
-export type ShakemapReveal = { epicenter: SearchCenter; radiusKm: number; complete: boolean };
+export type ShakemapReveal = {
+  epicenter: SearchCenter;
+  depthKm: number;
+  seconds: number;
+  complete: boolean;
+};
 
 export function getShakemapReveal(
   epicenter: SearchCenter,
-  progress: number,
-  maxReachKm: number,
+  depthKm: number,
+  seconds: number,
+  complete: boolean,
 ): ShakemapReveal {
-  return {
-    epicenter,
-    radiusKm: getRevealRadiusKm(progress, maxReachKm),
-    complete: progress >= 1,
-  };
+  return { epicenter, depthKm, seconds, complete };
 }
 
 export function getRevealedMmi(
@@ -25,6 +28,11 @@ export function getRevealedMmi(
 ): number | null {
   const mmi = getGridMmi(grid, point.longitude, point.latitude);
   if (mmi === null) return null;
-  if (!reveal.complete && !getIsInsideReveal(reveal.epicenter, point, reveal.radiusKm)) return null;
-  return mmi;
+  if (reveal.complete) return mmi;
+  const arrival = getArrivalSeconds(
+    getDistanceKm(reveal.epicenter, point),
+    reveal.depthKm,
+    S_WAVE_KM_S,
+  );
+  return arrival <= reveal.seconds ? mmi : null;
 }

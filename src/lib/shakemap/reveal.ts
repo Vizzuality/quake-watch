@@ -2,10 +2,10 @@ import { getDistanceKm } from '@/lib/earthquakes/distance';
 import { FELT_INTENSITY } from '@/lib/earthquakes/intensity';
 import type { SearchCenter } from '@/lib/earthquakes/search-schema';
 
+import type { ShakemapContour } from './contours';
+import { getContoursReachKm } from './contours';
 import { getGridLatitude, getGridLongitude } from './coverage';
 import type { ShakemapGrid } from './coverage';
-
-export const SHAKEMAP_PLAY_DURATION_MS = 4_000;
 
 export function getMaxReachKm(grid: ShakemapGrid, epicenter: SearchCenter): number {
   let feltReachKm = 0;
@@ -27,15 +27,10 @@ export function getMaxReachKm(grid: ShakemapGrid, epicenter: SearchCenter): numb
   );
 }
 
-export function getRevealRadiusKm(progress: number, maxReachKm: number): number {
-  if (Number.isNaN(progress)) return 0;
-  return Math.min(1, Math.max(0, progress)) * maxReachKm;
-}
-
-export function getIsInsideReveal(
+export function getDrawnReachKm(
+  grid: ShakemapGrid,
+  contours: readonly ShakemapContour[],
   epicenter: SearchCenter,
-  point: SearchCenter,
-  radiusKm: number,
-): boolean {
-  return getDistanceKm(epicenter, point) <= radiusKm;
+): number {
+  return Math.max(getMaxReachKm(grid, epicenter), getContoursReachKm(contours, epicenter));
 }

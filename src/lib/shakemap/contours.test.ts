@@ -2,8 +2,11 @@ import { describe, expect, it } from 'vitest';
 
 import { shakemapContours } from '@/test/fixtures/shakemap-contours';
 
+import { getDistanceKm } from '../earthquakes/distance';
 import { EarthquakeSourceError } from '../earthquakes/query-options';
-import { getShakemapContours } from './contours';
+import type { ShakemapContour } from './contours';
+import { getContourSegments, getContoursReachKm, getShakemapContours } from './contours';
+import { S_WAVE_KM_S, getArrivalSeconds } from './wave';
 
 describe('getShakemapContours', () => {
   const contours = getShakemapContours(shakemapContours);
@@ -89,5 +92,43 @@ describe('getShakemapContours', () => {
     ],
   ])('throws EarthquakeSourceError for %s', (_label, json) => {
     expect(() => getShakemapContours(json)).toThrow(EarthquakeSourceError);
+  });
+});
+
+const line: ShakemapContour = {
+  mmi: 3,
+  color: '#abcdef',
+  lines: [Array.from({ length: 11 }, (_, index) => [index * 0.1, 0] as const)],
+};
+const origin = { latitude: 0, longitude: 0 };
+
+describe('getContourSegments', () => {
+  it('splits lines into joined chunks that keep the contour color', () => {
+    const segments = getContourSegments([line], origin, 0);
+    expect(segments).toHaveLength(2);
+    expect(segments[0].coordinates).toHaveLength(6);
+    expect(segments[0].coordinates.at(-1)).toEqual(segments[1].coordinates[0]);
+    expect(segments.every(({ color, mmi }) => color === '#abcdef' && mmi === 3)).toBe(true);
+  });
+
+  it('times each chunk to the S arrival at its farthest vertex, sorted', () => {
+    const [near, far] = getContourSegments(
+      [{ ...line, lines: [line.lines[0].toReversed()] }],
+      origin,
+      10,
+    );
+    expect(near.arrival).toBeLessThan(far.arrival);
+    expect(far.arrival).toBeCloseTo(
+      getArrivalSeconds(getDistanceKm(origin, { latitude: 0, longitude: 1 }), 10, S_WAVE_KM_S),
+    );
+  });
+});
+
+describe('getContoursReachKm', () => {
+  it('is the distance to the farthest contour vertex', () => {
+    expect(getContoursReachKm([line], origin)).toBeCloseTo(
+      getDistanceKm(origin, { latitude: 0, longitude: 1 }),
+    );
+    expect(getContoursReachKm([], origin)).toBe(0);
   });
 });

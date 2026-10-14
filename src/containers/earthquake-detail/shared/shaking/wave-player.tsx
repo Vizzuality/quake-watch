@@ -2,38 +2,36 @@ import { Pause, Play } from 'lucide-react';
 import { type ChangeEvent, type KeyboardEvent, useId } from 'react';
 
 import { Button } from '@/components/ui/button';
-import { getKmLabel } from '@/lib/format';
+import { getDecimalLabel } from '@/lib/format';
 import { m } from '@/paraglide/messages';
 import { getLocale } from '@/paraglide/runtime';
 
-import { getPlayLabel } from './shakemap-labels';
+import { getPlayLabel } from './shaking-labels';
 
-const PROGRESS_STEP = 0.01;
+const SLIDER_STEP_SECONDS = 1;
 
 function PlayIcon({ playing }: { playing: boolean }) {
   const Icon = playing ? Pause : Play;
   return <Icon aria-hidden className="size-4" />;
 }
 
-export function ShakemapPlayer({
-  progress,
+export function WavePlayer({
+  seconds,
+  durationSeconds,
   playing,
-  radiusKm,
-  maxReachKm,
   onToggle,
   onSeek,
 }: {
-  progress: number;
+  seconds: number;
+  durationSeconds: number;
   playing: boolean;
-  radiusKm: number;
-  maxReachKm: number;
   onToggle: () => void;
-  onSeek: (progress: number) => void;
+  onSeek: (seconds: number) => void;
 }) {
   const sliderId = useId();
   const locale = getLocale();
-  const distance = getKmLabel(radiusKm, locale);
-  const total = getKmLabel(maxReachKm, locale);
+  const wholeSeconds = Math.round(seconds);
+  const secondsLabel = getDecimalLabel(wholeSeconds, locale);
 
   function handleChange(event: ChangeEvent<HTMLInputElement>) {
     onSeek(Number(event.target.value));
@@ -57,16 +55,22 @@ export function ShakemapPlayer({
         id={sliderId}
         type="range"
         min={0}
-        max={1}
-        step={PROGRESS_STEP}
-        value={progress}
-        aria-valuetext={m.detail_shakemap_slider_value({ distance, total })}
+        max={durationSeconds}
+        step={SLIDER_STEP_SECONDS}
+        value={wholeSeconds}
+        aria-valuetext={m.detail_shakemap_slider_value({
+          seconds: secondsLabel,
+          total: getDecimalLabel(durationSeconds, locale),
+        })}
         onChange={handleChange}
         onKeyDown={handleKeyDown}
         className="h-8 min-w-40 flex-1 cursor-pointer accent-paper"
       />
-      <span aria-hidden="true" className="text-sm text-paper tabular-nums">
-        {m.detail_shakemap_slider_value({ distance, total })}
+      <span aria-hidden="true" className="flex items-baseline gap-1.5">
+        <span className="min-w-14 text-right text-base font-semibold text-paper tabular-nums">
+          {m.detail_shakemap_clock({ seconds: secondsLabel })}
+        </span>
+        <span className="text-xs text-muted">{m.detail_shakemap_clock_caption()}</span>
       </span>
     </div>
   );

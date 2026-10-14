@@ -4,12 +4,7 @@ import { shakemapCoverage } from '@/test/fixtures/shakemap-coverage';
 
 import { getDistanceKm } from '../earthquakes/distance';
 import { getGridLatitude, getGridLongitude, getShakemapGrid } from './coverage';
-import {
-  SHAKEMAP_PLAY_DURATION_MS,
-  getIsInsideReveal,
-  getMaxReachKm,
-  getRevealRadiusKm,
-} from './reveal';
+import { getDrawnReachKm, getMaxReachKm } from './reveal';
 
 const grid = getShakemapGrid(shakemapCoverage);
 const epicenter = { latitude: getGridLatitude(grid, 1), longitude: getGridLongitude(grid, 2) };
@@ -48,40 +43,17 @@ describe('getMaxReachKm', () => {
   });
 });
 
-describe('getRevealRadiusKm', () => {
-  it('scales linearly with progress', () => {
-    expect(getRevealRadiusKm(0, 300)).toBe(0);
-    expect(getRevealRadiusKm(0.5, 300)).toBe(150);
-    expect(getRevealRadiusKm(1, 300)).toBe(300);
-  });
-
-  it('clamps progress to 0..1', () => {
-    expect(getRevealRadiusKm(-2, 300)).toBe(0);
-    expect(getRevealRadiusKm(7, 300)).toBe(300);
-    expect(getRevealRadiusKm(Number.NaN, 300)).toBe(0);
-  });
-
-  it('plays over four seconds', () => {
-    expect(SHAKEMAP_PLAY_DURATION_MS).toBe(4_000);
-  });
-});
-
-describe('getIsInsideReveal', () => {
-  const point = { latitude: epicenter.latitude + 1, longitude: epicenter.longitude };
-  const distanceKm = getDistanceKm(epicenter, point);
-
-  it('includes points within the radius and excludes points beyond it', () => {
-    expect(getIsInsideReveal(epicenter, point, distanceKm + 1)).toBe(true);
-    expect(getIsInsideReveal(epicenter, point, distanceKm - 1)).toBe(false);
-  });
-
-  it('keeps the Epicenter inside a zero radius', () => {
-    expect(getIsInsideReveal(epicenter, epicenter, 0)).toBe(true);
-  });
-
-  it('measures across the antimeridian', () => {
-    const near = { latitude: 0, longitude: 179.9 };
-    const across = { latitude: 0, longitude: -179.9 };
-    expect(getIsInsideReveal(near, across, 50)).toBe(true);
+describe('getDrawnReachKm', () => {
+  it('reaches whichever is farther: felt cells or contour vertices', () => {
+    const farContour = {
+      mmi: 2,
+      color: '#fff',
+      lines: [[[grid.east, grid.north] as const, [grid.east, grid.south] as const]],
+    };
+    const southWest = { latitude: grid.south, longitude: grid.west };
+    expect(getDrawnReachKm(grid, [farContour], southWest)).toBeCloseTo(
+      getDistanceKm(southWest, { latitude: grid.north, longitude: grid.east }),
+    );
+    expect(getDrawnReachKm(grid, [], epicenter)).toBe(getMaxReachKm(grid, epicenter));
   });
 });

@@ -10,6 +10,7 @@ import { DetailSkeleton } from '@/containers/earthquake-detail/shared/detail-ske
 import { emscEarthquakeDetailQueryOptions } from '@/lib/earthquakes/details/emsc-query-options';
 import { SOURCE_ADAPTERS } from '@/lib/earthquakes/query-options';
 
+import { EmscFeltReportsSection } from './emsc-felt-reports-section';
 import { EmscOriginSection } from './emsc-origin-section';
 import { EmscSummarySection } from './emsc-summary-section';
 
@@ -29,6 +30,7 @@ function EmscDetailBody({ earthquakeId }: { earthquakeId: string }) {
         <DetailMinimap earthquake={earthquake} />
         <EmscSummarySection earthquakeId={earthquakeId} />
       </div>
+      <EmscFeltReportsSection earthquakeId={earthquakeId} />
       <CrustalBlockSection
         latitude={earthquake.latitude}
         longitude={earthquake.longitude}

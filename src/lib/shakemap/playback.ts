@@ -1,13 +1,24 @@
-import { SHAKEMAP_PLAY_DURATION_MS } from './reveal';
+import { WAVE_SCREEN_MS } from './wave';
 
-export function getAdvancedProgress(progress: number, elapsedMs: number): number {
-  return Math.min(1, progress + Math.max(0, elapsedMs) / SHAKEMAP_PLAY_DURATION_MS);
+export function getAdvancedSeconds(
+  seconds: number,
+  elapsedMs: number,
+  durationSeconds: number,
+): number {
+  return Math.min(
+    durationSeconds,
+    seconds + (Math.max(0, elapsedMs) / WAVE_SCREEN_MS) * durationSeconds,
+  );
 }
 
-export function getPlayStartProgress(progress: number): number {
-  return progress >= 1 ? 0 : progress;
+export function getPlayStartSeconds(seconds: number, durationSeconds: number): number {
+  return seconds >= durationSeconds ? 0 : seconds;
 }
 
-export function getInitialProgress(reducedMotion: boolean): number {
-  return reducedMotion ? 1 : 0;
+export function getInitialSeconds(reducedMotion: boolean, durationSeconds: number): number {
+  return reducedMotion ? durationSeconds : 0;
+}
+
+export function getRunDurationSeconds(runEndSeconds: number): number {
+  return Math.max(1, Math.ceil(runEndSeconds));
 }

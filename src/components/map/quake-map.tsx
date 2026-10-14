@@ -17,6 +17,8 @@ type QuakeMapProps = Pick<
   | 'onMouseMove'
   | 'onMouseOut'
   | 'onClick'
+  | 'interactiveLayerIds'
+  | 'onMoveStart'
 > & {
   attribution: string;
   children: ReactNode;

@@ -1,22 +1,21 @@
 import { describe, expect, it } from 'vitest';
 
+import { getDistanceKm } from '@/lib/earthquakes/distance';
 import { getMercatorY } from '@/lib/map/shaking-waves';
-import { shakemapContours } from '@/test/fixtures/shakemap-contours';
 import { shakemapCoverage } from '@/test/fixtures/shakemap-coverage';
 
 import {
+  FILL_MIN_MMI,
   getCanvasPoint,
-  getContourPaths,
   getGridMaxMmi,
-  getRevealOutline,
   getShakemapCanvasSize,
   getShakemapCorners,
-  getSurfaceAlpha,
-  getSurfacePixels,
+  getSurfaceRaster,
 } from './canvas';
-import { getShakemapContours } from './contours';
 import { getPaletteColor, getShakemapGrid } from './coverage';
 import type { ShakemapGrid } from './coverage';
+import { type PulseRaster, SETTLED_ALPHA, getPulseFrameBuffer, paintPulseFrame } from './pulse';
+import { S_WAVE_KM_S, getArrivalSeconds } from './wave';
 
 const grid = getShakemapGrid(shakemapCoverage);
 
@@ -31,9 +30,7 @@ function getPixel(pixels: Uint8ClampedArray, width: number, x: number, y: number
 
 function getExpectedPixel(mmi: number): number[] {
   const [red, green, blue] = getPaletteColor(grid.palette, mmi);
-  return Array.from(
-    Uint8ClampedArray.of(red * 255, green * 255, blue * 255, getSurfaceAlpha(mmi) * 255),
-  );
+  return Array.from(Uint8ClampedArray.of(red * 255, green * 255, blue * 255, SETTLED_ALPHA));
 }
 
 describe('getShakemapCorners', () => {
@@ -90,39 +87,68 @@ describe('getCanvasPoint', () => {
   });
 });
 
-describe('getSurfaceAlpha', () => {
-  it('hides Intensity I and fades in up to II', () => {
-    expect(getSurfaceAlpha(0.5)).toBe(0);
-    expect(getSurfaceAlpha(1)).toBe(0);
-    expect(getSurfaceAlpha(1.5)).toBeCloseTo(0.175);
-  });
-
-  it('keeps low felt Intensity faint and reaches full opacity at V', () => {
-    expect(getSurfaceAlpha(2)).toBeCloseTo(0.35);
-    expect(getSurfaceAlpha(3.5)).toBeCloseTo(0.675);
-    expect(getSurfaceAlpha(5)).toBe(1);
-    expect(getSurfaceAlpha(8)).toBe(1);
-  });
-
-  it('never decreases as Intensity grows', () => {
-    const alphas = Array.from({ length: 101 }, (_, index) => getSurfaceAlpha(index / 10));
-    expect(alphas.every((alpha, index) => index === 0 || alpha >= alphas[index - 1])).toBe(true);
-  });
+const strongGrid = getGrid({
+  west: 0,
+  east: 4,
+  south: 0,
+  north: 3,
+  columns: 5,
+  rows: 4,
+  values: Float32Array.from([
+    3.9,
+    4,
+    5,
+    8,
+    2,
+    3.99,
+    4.01,
+    Number.NaN,
+    6,
+    1,
+    7,
+    7,
+    7,
+    7,
+    7,
+    0.5,
+    9,
+    3,
+    4,
+    10,
+  ]),
 });
 
-describe('getSurfacePixels', () => {
-  it('paints each cell with its palette color, row 0 at the north edge', () => {
-    const size = { width: grid.columns, height: grid.rows };
-    const pixels = getSurfacePixels(grid, size);
+function getSettledPixels(raster: PulseRaster): Uint8ClampedArray {
+  const pixels = getPulseFrameBuffer(raster);
+  paintPulseFrame(pixels, raster, 0, true);
+  return pixels;
+}
 
-    expect(pixels).toHaveLength(grid.columns * grid.rows * 4);
-    expect(getPixel(pixels, size.width, 2, size.height - 1)).toEqual(getExpectedPixel(2));
-    expect(getPixel(pixels, size.width, 1, size.height - 2)).toEqual(getExpectedPixel(2.7));
+describe('getSurfaceRaster', () => {
+  const size = { width: strongGrid.columns, height: strongGrid.rows };
+  const epicenter = { latitude: 0, longitude: 0 };
+
+  it('fills only from Intensity IV in the palette color', () => {
+    expect(FILL_MIN_MMI).toBe(4);
+    const pixels = getSettledPixels(getSurfaceRaster(strongGrid, size, epicenter, 10));
+
+    expect(pixels).toHaveLength(strongGrid.columns * strongGrid.rows * 4);
+    expect(getPixel(pixels, size.width, 0, size.height - 1)[3]).toBe(0);
+    expect(getPixel(pixels, size.width, 1, size.height - 1)).toEqual(getExpectedPixel(4));
+    expect(getPixel(pixels, size.width, 2, size.height - 1)).toEqual(getExpectedPixel(5));
   });
 
-  it('leaves missing cells transparent', () => {
-    const pixels = getSurfacePixels(grid, { width: grid.columns, height: grid.rows });
-    expect(getPixel(pixels, grid.columns, 2, 1)[3]).toBe(0);
+  it('keeps Intensity II-III and missing cells transparent', () => {
+    const pixels = getSettledPixels(getSurfaceRaster(strongGrid, size, epicenter, 10));
+    expect(getPixel(pixels, size.width, 4, size.height - 1)[3]).toBe(0);
+    expect(getPixel(pixels, size.width, 0, 0)[3]).toBe(0);
+    expect(getPixel(pixels, size.width, 0, 2)[3]).toBe(0);
+    expect(getPixel(pixels, size.width, 2, 2)[3]).toBe(0);
+  });
+
+  it('has no points for a grid that never reaches IV', () => {
+    const raster = getSurfaceRaster(grid, { width: grid.columns, height: grid.rows }, epicenter, 0);
+    expect(raster.pixels).toHaveLength(0);
   });
 
   it('samples rows by Web Mercator latitude so the surface lines up with the basemap', () => {
@@ -133,43 +159,42 @@ describe('getSurfacePixels', () => {
       north: 80,
       columns: 2,
       rows: 3,
-      values: Float32Array.from([3, 3, 6, 6, 9, 9]),
+      values: Float32Array.from([5, 5, 6, 6, 9, 9]),
     });
-    const size = { width: 2, height: 100 };
-    const pixels = getSurfacePixels(tall, size);
+    const pixels = getSettledPixels(
+      getSurfaceRaster(tall, { width: 2, height: 100 }, epicenter, 0),
+    );
 
     expect(getPixel(pixels, 2, 0, 40)).toEqual(getExpectedPixel(9));
-    expect(getPixel(pixels, 2, 0, 99)).toEqual(getExpectedPixel(3));
+    expect(getPixel(pixels, 2, 0, 99)).toEqual(getExpectedPixel(5));
   });
-});
 
-describe('getContourPaths', () => {
-  it('keeps each contour color and maps its vertices onto the canvas', () => {
-    const size = { width: 100, height: 100 };
-    const contours = getShakemapContours(shakemapContours);
-    const paths = getContourPaths(grid, size, contours);
-
-    expect(paths).toHaveLength(contours.length);
-    expect(paths[0].color).toBe(contours[0].color);
-    expect(paths[0].mmi).toBe(contours[0].mmi);
-    expect(paths[0].lines[0][0]).toEqual(getCanvasPoint(grid, size, contours[0].lines[0][0]));
+  it('gives each point its hypocentral S arrival', () => {
+    const strip = getGrid({
+      west: 0,
+      east: 2,
+      south: 0,
+      north: 0.001,
+      columns: 2,
+      rows: 2,
+      values: Float32Array.from([6, 6, 6, 6]),
+    });
+    const raster = getSurfaceRaster(strip, { width: 4, height: 1 }, epicenter, 10);
+    const expected = getArrivalSeconds(
+      getDistanceKm(epicenter, { latitude: 0.0005, longitude: 0.75 }),
+      10,
+      S_WAVE_KM_S,
+    );
+    expect(raster.pixels[1]).toBe(1);
+    expect(raster.arrivals[1]).toBeCloseTo(expected, 1);
+    expect(raster.intensities[1]).toBe(6);
   });
-});
 
-describe('getRevealOutline', () => {
-  it('traces a closed geodesic circle around the Epicenter', () => {
-    const size = { width: 400, height: 400 };
-    const epicenter = { latitude: 37, longitude: -3.5 };
-    const outline = getRevealOutline(grid, size, epicenter, 50);
-    const [centerX, centerY] = getCanvasPoint(grid, size, [
-      epicenter.longitude,
-      epicenter.latitude,
-    ]);
-
-    expect(outline).toHaveLength(128);
-    expect(outline[0][0]).toBeCloseTo(centerX);
-    expect(outline[0][1]).toBeLessThan(centerY);
-    expect(outline[64][1]).toBeGreaterThan(centerY);
+  it('shifts every arrival later when the Depth grows', () => {
+    const shallow = getSurfaceRaster(strongGrid, size, epicenter, 0);
+    const deep = getSurfaceRaster(strongGrid, size, epicenter, 100);
+    expect(shallow.arrivals.length).toBeGreaterThan(0);
+    expect(shallow.arrivals.every((arrival, index) => deep.arrivals[index] > arrival)).toBe(true);
   });
 });
 

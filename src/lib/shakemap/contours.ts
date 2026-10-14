@@ -1,6 +1,10 @@
 import { z } from 'zod';
 
+import { getDistanceKm } from '@/lib/earthquakes/distance';
 import { EarthquakeSourceError } from '@/lib/earthquakes/query-options';
+import type { SearchCenter } from '@/lib/earthquakes/search-schema';
+
+import { S_WAVE_KM_S, getArrivalSeconds } from './wave';
 
 export type ShakemapContour = {
   mmi: number;
@@ -36,4 +40,60 @@ export function getShakemapContours(json: unknown): ShakemapContour[] {
       ),
     };
   });
+}
+
+export type ContourSegment = {
+  mmi: number;
+  color: string;
+  coordinates: Array<readonly [number, number]>;
+  arrival: number;
+};
+
+const SEGMENT_VERTICES = 6;
+
+function getLineChunks<T>(line: readonly T[]): T[][] {
+  const chunks: T[][] = [];
+  for (let start = 0; start < line.length - 1; start += SEGMENT_VERTICES - 1) {
+    chunks.push(line.slice(start, start + SEGMENT_VERTICES));
+  }
+  return chunks;
+}
+
+export function getContourSegments(
+  contours: readonly ShakemapContour[],
+  epicenter: SearchCenter,
+  depthKm: number,
+): ContourSegment[] {
+  const segments = contours.flatMap(({ mmi, color, lines }) =>
+    lines.flatMap(getLineChunks).map((coordinates) => ({
+      mmi,
+      color,
+      coordinates,
+      arrival: Math.max(
+        ...coordinates.map(([longitude, latitude]) =>
+          getArrivalSeconds(
+            getDistanceKm(epicenter, { latitude, longitude }),
+            depthKm,
+            S_WAVE_KM_S,
+          ),
+        ),
+      ),
+    })),
+  );
+  return segments.toSorted((first, second) => first.arrival - second.arrival);
+}
+
+export function getContoursReachKm(
+  contours: readonly ShakemapContour[],
+  epicenter: SearchCenter,
+): number {
+  let reachKm = 0;
+  for (const { lines } of contours) {
+    for (const line of lines) {
+      for (const [longitude, latitude] of line) {
+        reachKm = Math.max(reachKm, getDistanceKm(epicenter, { latitude, longitude }));
+      }
+    }
+  }
+  return reachKm;
 }
