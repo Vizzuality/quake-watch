@@ -5,11 +5,13 @@ export function MapTooltip({
   latitude,
   longitude,
   offset,
+  interactive = false,
   children,
 }: {
   latitude: number;
   longitude: number;
   offset: number;
+  interactive?: boolean;
   children: ReactNode;
 }) {
   return (
@@ -21,7 +23,7 @@ export function MapTooltip({
       closeButton={false}
       closeOnClick={false}
       focusAfterOpen={false}
-      className="quake-tooltip"
+      className={interactive ? 'quake-tooltip quake-tooltip-interactive' : 'quake-tooltip'}
       maxWidth="none"
     >
       <div role="tooltip" className="rounded-lg bg-ink/90 px-3 py-2 text-xs text-paper">

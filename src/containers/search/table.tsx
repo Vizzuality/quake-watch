@@ -44,8 +44,8 @@ export function SearchTable() {
     [earthquakes, lat, lon],
   );
   const columns = useMemo(
-    () => getEarthquakeColumns({ hasDistance, locale, now: dataUpdatedAt, sourceLabel }),
-    [hasDistance, locale, dataUpdatedAt, sourceLabel],
+    () => getEarthquakeColumns({ hasDistance, locale, now: dataUpdatedAt }),
+    [hasDistance, locale, dataUpdatedAt],
   );
   const sorting = getTableSorting(search.sort, hasDistance);
   const pagination = {
