@@ -46,6 +46,12 @@ export type TilePixels = {
   data: ArrayLike<number>;
 };
 
+export type CrustColumn = {
+  groundTopKm: number;
+  waterKm: number;
+  thicknessesKm: readonly number[];
+};
+
 export type ElevationGrid = { segments: number; sideKm: number; elevationsM: Float32Array };
 
 export type CrustalBlock = {
@@ -108,7 +114,8 @@ export const BLOCK_SEGMENTS = 96;
 
 const MOHO_UPPER_BOUND_KM = 80;
 const GROUND_TOP_INDEX = 1;
-const MOHO_INDEX = CRUST_LAYER_KINDS.length;
+const SOLID_LAYER_KINDS = CRUST_LAYER_KINDS.slice(GROUND_TOP_INDEX);
+const MIN_CRUST_SCALE = 0.5;
 const MIN_COS_LATITUDE = 0.01;
 const TILE_SIZE_FALLBACK = 256;
 const MAX_MERCATOR_LATITUDE = 85.051_128_78;
@@ -195,7 +202,7 @@ export function getCrustalBlock(
 ): CrustalBlock {
   const epicenterColumn: CrustCell = {
     ...origin,
-    boundaryElevationsKm: getBoundaryField(cells, origin)({ x: 0, z: 0 }),
+    boundaryElevationsKm: getColumnBoundaries(getColumnField(cells, origin)({ x: 0, z: 0 })),
   };
   const mohoDepthKm = getMohoDepthKm(epicenterColumn);
   const blockDepthKm = getBlockDepthKm(depthKm, mohoDepthKm);
@@ -216,10 +223,56 @@ function getCellKey(latitudeIndex: number, longitudeIndex: number): string {
   return `${latitudeIndex}:${getWrappedLongitude(longitudeIndex)}`;
 }
 
-export function getBoundaryField(
+function getCellColumnValues({ boundaryElevationsKm: boundaries }: CrustCell): number[] {
+  const thicknessesKm = SOLID_LAYER_KINDS.map(
+    (_, offset) =>
+      boundaries[GROUND_TOP_INDEX + offset] - boundaries[GROUND_TOP_INDEX + offset + 1],
+  );
+  return [
+    boundaries[GROUND_TOP_INDEX],
+    boundaries[0] - boundaries[GROUND_TOP_INDEX],
+    ...thicknessesKm,
+  ];
+}
+
+function getColumn([groundTopKm, waterKm, ...thicknessesKm]: readonly number[]): CrustColumn {
+  return { groundTopKm, waterKm, thicknessesKm };
+}
+
+function getCrustThicknessKm(column: CrustColumn): number {
+  return column.thicknessesKm.reduce((sum, thicknessKm) => sum + thicknessKm, 0);
+}
+
+export function getColumnBoundaries(column: CrustColumn): number[] {
+  const solidBoundaries = getStackedBoundaries(column.groundTopKm, column.thicknessesKm, 1);
+  return [
+    getWaterTopKm(column.groundTopKm + column.waterKm, column.groundTopKm),
+    ...solidBoundaries,
+  ];
+}
+
+function getStackedBoundaries(
+  topKm: number,
+  thicknessesKm: readonly number[],
+  scale: number,
+): number[] {
+  const boundaries = [topKm];
+  for (const thicknessKm of thicknessesKm) {
+    boundaries.push(boundaries[boundaries.length - 1] - thicknessKm * scale);
+  }
+  return boundaries;
+}
+
+export function getAnchoredBoundaries(column: CrustColumn, surfaceKm: number): number[] {
+  const crustKm = getCrustThicknessKm(column);
+  const mohoKm = Math.min(column.groundTopKm - crustKm, surfaceKm - crustKm * MIN_CRUST_SCALE);
+  return getStackedBoundaries(surfaceKm, column.thicknessesKm, (surfaceKm - mohoKm) / crustKm);
+}
+
+export function getColumnField(
   cells: readonly CrustCell[],
   origin: GeoPoint,
-): (point: LocalPoint) => number[] {
+): (point: LocalPoint) => CrustColumn {
   const cellsByKey = new Map<string, CrustCell>();
   for (const cell of cells) {
     cellsByKey.set(getCellKey(Math.floor(cell.latitude), Math.floor(cell.longitude)), cell);
@@ -249,10 +302,15 @@ export function getBoundaryField(
       { cell: getCell(latitudeIndex + 1, longitudeIndex), weight: (1 - fu) * fv },
       { cell: getCell(latitudeIndex + 1, longitudeIndex + 1), weight: fu * fv },
     ];
-    const blended = corners[0].cell.boundaryElevationsKm.map((_, index) =>
-      corners.reduce((sum, { cell, weight }) => sum + cell.boundaryElevationsKm[index] * weight, 0),
+    const cornerValues = corners.map(({ cell, weight }) => ({
+      values: getCellColumnValues(cell),
+      weight,
+    }));
+    return getColumn(
+      cornerValues[0].values.map((_, index) =>
+        cornerValues.reduce((sum, { values, weight }) => sum + values[index] * weight, 0),
+      ),
     );
-    return [getWaterTopKm(blended[0], blended[GROUND_TOP_INDEX]), ...blended.slice(1)];
   };
 }
 
@@ -369,35 +427,25 @@ export function getSurfaceKm(groundTopKm: number, elevationKm: number): number {
   return elevationKm < 0 ? Math.min(surfaceKm, elevationKm) : Math.max(surfaceKm, elevationKm);
 }
 
-function getTopmostSolidIndex(boundaries: readonly number[]): number {
-  for (let index = GROUND_TOP_INDEX; index < MOHO_INDEX; index++) {
-    if (boundaries[index] > boundaries[index + 1]) return index;
-  }
-  return MOHO_INDEX;
-}
-
 export function getColumnBands(
-  boundaries: readonly number[],
+  column: CrustColumn,
   surfaceKm: number,
   hasWater: boolean,
   blockDepthKm: number,
 ): Band[] {
-  const topmostSolidIndex = getTopmostSolidIndex(boundaries);
-  const drawn = boundaries.map((boundary, index) =>
-    index <= topmostSolidIndex ? surfaceKm : Math.min(boundary, surfaceKm),
-  );
+  const drawn = getAnchoredBoundaries(column, surfaceKm);
   const waterBottomKm = hasWater ? Math.min(surfaceKm, 0) : 0;
   const transitionTopKm = -Math.min(PREM_BOUNDARIES_KM.transitionZoneTop, blockDepthKm);
   const lowerMantleTopKm = -Math.min(PREM_BOUNDARIES_KM.lowerMantleTop, blockDepthKm);
-  const solidBands = CRUST_LAYER_KINDS.slice(1).map((kind, offset) => ({
+  const solidBands = SOLID_LAYER_KINDS.map((kind, index) => ({
     kind,
-    topKm: drawn[GROUND_TOP_INDEX + offset],
-    bottomKm: drawn[GROUND_TOP_INDEX + offset + 1],
+    topKm: drawn[index],
+    bottomKm: drawn[index + 1],
   }));
   return [
     { kind: 'water', topKm: 0, bottomKm: waterBottomKm },
     ...solidBands,
-    { kind: 'upper-mantle', topKm: drawn[MOHO_INDEX], bottomKm: transitionTopKm },
+    { kind: 'upper-mantle', topKm: drawn[drawn.length - 1], bottomKm: transitionTopKm },
     { kind: 'transition-zone', topKm: transitionTopKm, bottomKm: lowerMantleTopKm },
     { kind: 'lower-mantle', topKm: lowerMantleTopKm, bottomKm: -blockDepthKm },
   ];
@@ -464,7 +512,7 @@ function addSegment(lines: number[], a: Vertex, aY: number, b: Vertex, bY: numbe
 
 export function getBlockMeshData(input: BlockMeshInput): BlockMeshData {
   const { segments, sideKm, blockDepthKm, getBandColor, getTerrainColor } = input;
-  const field = getBoundaryField(input.cells, input.origin);
+  const field = getColumnField(input.cells, input.origin);
   const relief = input.relief?.segments === segments ? input.relief : null;
   const stride = segments + 1;
   const half = segments / 2;
@@ -474,12 +522,12 @@ export function getBlockMeshData(input: BlockMeshInput): BlockMeshData {
     for (let column = 0; column <= segments; column++) {
       const x = getGridPoint(column, segments, sideKm);
       const z = getGridPoint(row, segments, sideKm);
-      const boundaries = field({ x, z });
-      const groundTopKm = boundaries[GROUND_TOP_INDEX];
+      const crustColumn = field({ x, z });
+      const { groundTopKm } = crustColumn;
       const elevationKm = relief ? relief.elevationsM[row * stride + column] / 1000 : groundTopKm;
       const surfaceKm = relief ? getSurfaceKm(groundTopKm, elevationKm) : groundTopKm;
-      const hasWater = elevationKm < 0 && boundaries[0] > boundaries[GROUND_TOP_INDEX];
-      const bands = getColumnBands(boundaries, surfaceKm, hasWater, blockDepthKm);
+      const hasWater = elevationKm < 0 && crustColumn.waterKm > 0;
+      const bands = getColumnBands(crustColumn, surfaceKm, hasWater, blockDepthKm);
       vertices.push({ x, z, elevationKm, surfaceKm, hasWater, bands });
     }
   }
