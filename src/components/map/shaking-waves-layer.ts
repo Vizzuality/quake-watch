@@ -8,6 +8,7 @@ import { EARTH_RADIUS_KM } from '@/lib/earthquakes/distance';
 import { ALLEN_2012_RHYPO, FELT_INTENSITY } from '@/lib/earthquakes/intensity';
 import {
   MAX_MERCATOR_LATITUDE,
+  WAVE_FRONT_STYLES,
   WAVE_FULL_OPACITY_STEPS,
   WAVE_MIN_OPACITY,
   WAVE_RAMP,
@@ -19,6 +20,8 @@ import {
   getWorldCopies,
 } from '@/lib/map/shaking-waves';
 import type { WaveInstances } from '@/lib/map/shaking-waves';
+import { S_WAVE_KM_S, WAVE_SPEEDS_KM_S } from '@/lib/shakemap/wave';
+import type { WaveKind } from '@/lib/shakemap/wave';
 
 export type WaveFrame = { tMs: number; waveSpanMs: number; reducedMotion: boolean };
 
@@ -31,6 +34,8 @@ export type ShakingWavesLayer = {
 const TILE_SIZE_PX = 512;
 const BYTES_PER_FLOAT = 4;
 const QUAD_CORNERS = new Float32Array([0, 0, 1, 0, 0, 1, 1, 1]);
+const ANIMATED_FRONTS: ReadonlyArray<WaveKind> = ['p', 's'];
+const STILL_FRONTS: ReadonlyArray<WaveKind> = ['s'];
 
 export const WAVE_VERTEX_SHADER = `#version 300 es
 precision highp float;
@@ -46,6 +51,9 @@ uniform vec4 u_origin;
 uniform float u_time_sec;
 uniform float u_span_sec;
 uniform float u_reduced_motion;
+uniform float u_speed_km_s;
+uniform float u_s_speed_km_s;
+uniform float u_front_opacity;
 uniform float u_merc_per_px;
 uniform float u_earth_radius_km;
 uniform float u_felt_intensity;
@@ -82,6 +90,11 @@ float getOpacity(float intensity) {
   return step(u_felt_intensity, intensity) * clamp(opacity, u_min_opacity, 1.0);
 }
 
+float getFrontKm(float seconds, float depthKm) {
+  float slantKm = max(seconds, 0.0) * u_speed_km_s;
+  return sqrt(max(slantKm * slantKm - depthKm * depthKm, 0.0));
+}
+
 vec3 getRampColor(float intensity) {
   vec3 color = u_ramp_color[0];
   for (int i = 1; i < RAMP_SIZE; i++) {
@@ -95,15 +108,17 @@ vec3 getRampColor(float intensity) {
 void main() {
   float age = u_time_sec - a_wave.x;
   float progress = age / u_span_sec;
+  float feltReachKm = a_wave.y;
   float magnitude = a_wave.z;
   float depthKm = a_wave.w;
-  float radiusKm = a_wave.y * mix(progress, 1.0, u_reduced_motion);
+  float seconds = progress * length(vec2(feltReachKm, depthKm)) / u_s_speed_km_s;
+  float radiusKm = mix(getFrontKm(seconds, depthKm), feltReachKm, u_reduced_motion);
   float delta = radiusKm / u_earth_radius_km;
   float mercatorY = a_position.y + a_position.w;
   float psi = PI * (1.0 - 2.0 * mercatorY);
   float radiusPx = delta * cosh(psi) / (2.0 * PI * u_merc_per_px);
 
-  if (age < 0.0 || age > u_span_sec || radiusPx < MIN_RADIUS_PX) {
+  if (age < 0.0 || progress * u_speed_km_s > u_s_speed_km_s || radiusPx < MIN_RADIUS_PX) {
     gl_Position = vec4(2.0, 2.0, 2.0, 1.0);
     return;
   }
@@ -120,7 +135,8 @@ void main() {
   float frontIntensity = getIntensity(magnitude, depthKm, radiusKm);
   float epicentralIntensity = getIntensity(magnitude, depthKm, 0.0);
   float intensity = max(mix(frontIntensity, epicentralIntensity, u_reduced_motion), u_felt_intensity);
-  float alpha = getOpacity(intensity) * mix(1.0, 1.0 - progress, u_reduced_motion);
+  float fade = mix(1.0, 1.0 - progress, u_reduced_motion);
+  float alpha = getOpacity(intensity) * fade * u_front_opacity;
 
   vec2 centre = (a_position.xy - u_origin.xy) + (a_position.zw - u_origin.zw);
   v_offset = mix(minCorner, maxCorner, a_corner);
@@ -134,12 +150,12 @@ export const WAVE_FRAGMENT_SHADER = `#version 300 es
 precision highp float;
 
 const float PI = 3.141592653589793;
-const float BAND_HALF_PX = 1.0;
 const float SERIES_LIMIT = 0.25;
 const float ASIN_SERIES_LIMIT = 0.1;
 
 uniform float u_earth_radius_km;
 uniform float u_pixel_ratio;
+uniform float u_band_half_px;
 
 in vec2 v_offset;
 flat in float v_psi;
@@ -175,7 +191,7 @@ void main() {
   float distanceKm = 2.0 * u_earth_radius_km * getAsin(sqrt(h));
   float kmPerPx = max(length(vec2(dFdx(distanceKm), dFdy(distanceKm))), 1e-9);
   float offsetPx = abs(distanceKm - v_radius_km) / kmPerPx;
-  float coverage = clamp(BAND_HALF_PX * u_pixel_ratio + 0.5 - offsetPx, 0.0, 1.0);
+  float coverage = clamp(u_band_half_px * u_pixel_ratio + 0.5 - offsetPx, 0.0, 1.0);
   if (coverage <= 0.0) discard;
   fragColor = v_color * coverage;
 }`;
@@ -186,6 +202,9 @@ const FRAME_UNIFORMS = [
   'u_time_sec',
   'u_span_sec',
   'u_reduced_motion',
+  'u_speed_km_s',
+  'u_front_opacity',
+  'u_band_half_px',
   'u_merc_per_px',
   'u_pixel_ratio',
 ] as const;
@@ -220,6 +239,7 @@ function setStaticUniforms(gl: WebGL2RenderingContext, program: WebGLProgram) {
 
   gl.useProgram(program);
   set('u_earth_radius_km', EARTH_RADIUS_KM);
+  set('u_s_speed_km_s', S_WAVE_KM_S);
   set('u_felt_intensity', FELT_INTENSITY);
   set('u_min_opacity', WAVE_MIN_OPACITY);
   set('u_full_opacity_steps', WAVE_FULL_OPACITY_STEPS);
@@ -356,10 +376,17 @@ export function getShakingWavesLayer(id = 'shaking-waves'): ShakingWavesLayer {
       gl.uniform1f(uniforms.u_merc_per_px, 1 / (TILE_SIZE_PX * 2 ** map.getZoom()));
       gl.uniform1f(uniforms.u_pixel_ratio, map.getPixelRatio());
       gl.bindVertexArray(vao);
-      for (const copy of getWorldCopies(bounds.getWest(), bounds.getEast())) {
-        const [originXHigh, originXLow] = getFloat32Split(originX - copy);
-        gl.uniform4f(uniforms.u_origin, originXHigh, originYHigh, originXLow, originYLow);
-        gl.drawArraysInstanced(gl.TRIANGLE_STRIP, 0, 4, instances.count);
+      const copies = getWorldCopies(bounds.getWest(), bounds.getEast());
+      const fronts = frame.reducedMotion ? STILL_FRONTS : ANIMATED_FRONTS;
+      for (const wave of fronts) {
+        gl.uniform1f(uniforms.u_speed_km_s, WAVE_SPEEDS_KM_S[wave]);
+        gl.uniform1f(uniforms.u_front_opacity, WAVE_FRONT_STYLES[wave].opacity);
+        gl.uniform1f(uniforms.u_band_half_px, WAVE_FRONT_STYLES[wave].bandHalfPx);
+        for (const copy of copies) {
+          const [originXHigh, originXLow] = getFloat32Split(originX - copy);
+          gl.uniform4f(uniforms.u_origin, originXHigh, originYHigh, originXLow, originYLow);
+          gl.drawArraysInstanced(gl.TRIANGLE_STRIP, 0, 4, instances.count);
+        }
       }
       gl.bindVertexArray(null);
     },

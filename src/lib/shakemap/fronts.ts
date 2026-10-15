@@ -1,9 +1,9 @@
 import type { SearchCenter } from '@/lib/earthquakes/search-schema';
 import { getCirclePosition } from '@/lib/map/search-area';
 
-import { P_WAVE_KM_S, S_WAVE_KM_S, getWaveRadiusKm } from './wave';
+import { WAVE_SPEEDS_KM_S, getWaveRadiusKm } from './wave';
+import type { WaveKind } from './wave';
 
-export type WaveKind = 'p' | 's';
 type Position = [number, number];
 export type WaveFront = {
   type: 'Feature';
@@ -13,10 +13,7 @@ export type WaveFront = {
 export type WaveFronts = { type: 'FeatureCollection'; features: WaveFront[] };
 
 const FRONT_STEPS = 128;
-const WAVE_SPEEDS: ReadonlyArray<readonly [WaveKind, number]> = [
-  ['p', P_WAVE_KM_S],
-  ['s', S_WAVE_KM_S],
-];
+const WAVES: ReadonlyArray<WaveKind> = ['p', 's'];
 
 export function getWaveFrontRing(epicenter: SearchCenter, radiusKm: number): Position[] {
   return Array.from({ length: FRONT_STEPS + 1 }, (_, index) =>
@@ -39,8 +36,8 @@ export function getWaveFronts(
   visible: boolean,
 ): WaveFronts {
   if (!visible) return { type: 'FeatureCollection', features: [] };
-  const features = WAVE_SPEEDS.flatMap(([wave, speed]) => {
-    const radiusKm = getWaveRadiusKm(seconds, depthKm, speed);
+  const features = WAVES.flatMap((wave) => {
+    const radiusKm = getWaveRadiusKm(seconds, depthKm, WAVE_SPEEDS_KM_S[wave]);
     return radiusKm > 0 ? [getWaveFront(epicenter, radiusKm, wave)] : [];
   });
   return { type: 'FeatureCollection', features };

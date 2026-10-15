@@ -1,5 +1,10 @@
 export const P_WAVE_KM_S = 6;
 export const S_WAVE_KM_S = 4;
+export type WaveKind = 'p' | 's';
+export const WAVE_SPEEDS_KM_S: Readonly<Record<WaveKind, number>> = {
+  p: P_WAVE_KM_S,
+  s: S_WAVE_KM_S,
+};
 export const WAVE_SCREEN_MS = 7_000;
 
 export const MAX_MMI = 10;

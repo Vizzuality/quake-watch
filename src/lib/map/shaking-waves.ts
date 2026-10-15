@@ -3,12 +3,27 @@ import { FELT_INTENSITY, getFeltReachKm, getIntensity } from '@/lib/earthquakes/
 import { PLAYBACK_DURATION_MS } from '@/lib/earthquakes/timeline';
 import type { TimeRange } from '@/lib/earthquakes/timeline';
 import type { Earthquake } from '@/lib/earthquakes/types';
+import {
+  S_WAVE_KM_S,
+  WAVE_SPEEDS_KM_S,
+  getRealSeconds,
+  getWaveDurationSeconds,
+  getWaveRadiusKm,
+} from '@/lib/shakemap/wave';
+import type { WaveKind } from '@/lib/shakemap/wave';
 
 export const WAVE_DURATION_PLAYBACK_MS = 2_000;
 export const WAVE_INSTANCE_STRIDE = 8;
 export const WAVE_MIN_OPACITY = 0.15;
 export const WAVE_FULL_OPACITY_STEPS = 4;
 export const MAX_MERCATOR_LATITUDE = 85.051129;
+
+export const WAVE_FRONT_STYLES: Readonly<
+  Record<WaveKind, { readonly opacity: number; readonly bandHalfPx: number }>
+> = {
+  s: { opacity: 1, bandHalfPx: 1 },
+  p: { opacity: 0.5, bandHalfPx: 0.5 },
+};
 
 export const WAVE_RAMP: ReadonlyArray<{ readonly intensity: number; readonly hex: string }> = [
   { intensity: 2, hex: '#9a3412' },
@@ -84,16 +99,25 @@ export function getTranslatedMatrix(matrix: ArrayLike<number>, x: number, y: num
   return translated;
 }
 
-export function getWaveRadiusKm(input: {
+type WaveLife = {
   ageMs: number;
   waveSpanMs: number;
   feltReachKm: number;
-  reducedMotion: boolean;
-}): number | null {
-  const { ageMs, waveSpanMs, feltReachKm, reducedMotion } = input;
-  if (ageMs < 0 || ageMs > waveSpanMs) return null;
-  if (reducedMotion) return feltReachKm;
-  return (feltReachKm * ageMs) / waveSpanMs;
+  depthKm: number;
+};
+
+export function getWaveSeconds({ ageMs, waveSpanMs, feltReachKm, depthKm }: WaveLife): number {
+  return getRealSeconds(ageMs / waveSpanMs, getWaveDurationSeconds(feltReachKm, depthKm));
+}
+
+export function getWaveFrontKm(
+  input: WaveLife & { wave: WaveKind; reducedMotion: boolean },
+): number | null {
+  const { ageMs, waveSpanMs, feltReachKm, depthKm, wave, reducedMotion } = input;
+  const speedKmS = WAVE_SPEEDS_KM_S[wave];
+  if (ageMs < 0 || ageMs > (waveSpanMs * S_WAVE_KM_S) / speedKmS) return null;
+  if (reducedMotion) return wave === 's' ? feltReachKm : null;
+  return getWaveRadiusKm(getWaveSeconds(input), depthKm, speedKmS);
 }
 
 export function getWaveOpacity(intensity: number): number {
@@ -117,22 +141,17 @@ export function getWaveIntensity(input: {
   return Math.max(FELT_INTENSITY, getIntensity({ magnitude, depthKm, distanceKm }));
 }
 
-export function getWaveStyle(input: {
-  ageMs: number;
-  waveSpanMs: number;
-  magnitude: number;
-  depthKm: number;
-  feltReachKm: number;
-  reducedMotion: boolean;
-}): WaveStyle | null {
-  const radiusKm = getWaveRadiusKm(input);
+export function getWaveStyle(
+  input: WaveLife & { wave: WaveKind; magnitude: number; reducedMotion: boolean },
+): WaveStyle | null {
+  const radiusKm = getWaveFrontKm(input);
   if (radiusKm === null) return null;
   const intensity = getWaveIntensity({ ...input, radiusKm });
   const fade = getWaveFade({ progress: input.ageMs / input.waveSpanMs, ...input });
   return {
     radiusKm,
     intensity,
-    opacity: getWaveOpacity(intensity) * fade,
+    opacity: getWaveOpacity(intensity) * fade * WAVE_FRONT_STYLES[input.wave].opacity,
     color: getWaveColor(intensity),
   };
 }

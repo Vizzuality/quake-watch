@@ -9,7 +9,7 @@ import { getIntensityLevel } from '@/lib/earthquakes/intensity';
 import { earthquakesQueryOptions } from '@/lib/earthquakes/query-options';
 import type { SearchCenter } from '@/lib/earthquakes/search-schema';
 import { getWindowMs } from '@/lib/earthquakes/timeline';
-import { getKmLabel } from '@/lib/format';
+import { getDecimalLabel, getKmLabel } from '@/lib/format';
 import { getIntensityLevelLabel, getNumberLabel } from '@/lib/i18n/tooltip-labels';
 import { getVisibleEpicenterId } from '@/lib/map/epicenter-hit';
 import { getRingHits } from '@/lib/map/ring-hits';
@@ -34,7 +34,7 @@ export function RingTooltipContent({
   moreCount: number;
   locale: Locale;
 }) {
-  const { earthquake, intensity, distanceKm } = hit;
+  const { earthquake, intensity, distanceKm, secondsSinceRuptureStart } = hit;
   const { roman, key } = getIntensityLevel(intensity);
 
   return (
@@ -49,6 +49,12 @@ export function RingTooltipContent({
         )}
       </p>
       <p>{m.ring_tooltip_distance({ distance: getKmLabel(distanceKm, locale) }, { locale })}</p>
+      <p>
+        {m.ring_tooltip_seconds(
+          { seconds: getDecimalLabel(secondsSinceRuptureStart, locale) },
+          { locale },
+        )}
+      </p>
       {moreCount > 0 && (
         <p className="text-muted">{m.ring_tooltip_more({ count: moreCount }, { locale })}</p>
       )}

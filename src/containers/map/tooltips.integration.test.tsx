@@ -24,16 +24,18 @@ const HIT = {
   earthquake: EARTHQUAKE,
   distanceKm: 120,
   intensity: getIntensity({ magnitude: 5.24, depthKm: 9.8, distanceKm: 120 }),
+  secondsSinceRuptureStart: 30.1,
 };
 
 describe('RingTooltipContent', () => {
-  it('shows the estimated Intensity, Magnitude and distance from the Epicenter', async () => {
+  it('shows the estimated Intensity, Magnitude, distance from the Epicenter and seconds since the rupture start', async () => {
     const screen = await render(<RingTooltipContent hit={HIT} moreCount={0} locale="en" />);
     await expect
       .element(screen.getByText(/At this point · estimated Intensity [IVX]+ · /))
       .toBeVisible();
     await expect.element(screen.getByText('Magnitude 5.2')).toBeVisible();
     await expect.element(screen.getByText('120 km from the Epicenter')).toBeVisible();
+    await expect.element(screen.getByText('+30 s since the rupture start')).toBeVisible();
     await expect.element(screen.getByText(/more/)).not.toBeInTheDocument();
   });
 
@@ -49,6 +51,7 @@ describe('RingTooltipContent', () => {
       .toBeVisible();
     await expect.element(screen.getByText('Magnitud 5,2')).toBeVisible();
     await expect.element(screen.getByText('A 120 km del epicentro')).toBeVisible();
+    await expect.element(screen.getByText('+30 s desde el inicio de la ruptura')).toBeVisible();
     await expect.element(screen.getByText('y 1 más')).toBeVisible();
   });
 });
