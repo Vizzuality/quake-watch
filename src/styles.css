@@ -39,6 +39,10 @@ body {
   pointer-events: none;
 }
 
+.maplibregl-popup.quake-tooltip.quake-tooltip-interactive {
+  pointer-events: auto;
+}
+
 .maplibregl-popup.quake-tooltip .maplibregl-popup-content {
   background: transparent;
   padding: 0;

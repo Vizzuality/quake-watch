@@ -1,10 +1,12 @@
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
+import { Link } from '@tanstack/react-router';
 import type { MapMouseEvent } from 'maplibre-gl';
 import { useEffect, useMemo, useState } from 'react';
 import { useMap } from 'react-map-gl/maplibre';
 
 import { CORE_LAYER } from '@/components/map/layers';
 import { useEarthquakeSearch } from '@/hooks/use-earthquake-search';
+import { getEarthquakeDetailLinkOptions } from '@/lib/earthquakes/detail-link';
 import { getDistanceKm } from '@/lib/earthquakes/distance';
 import { earthquakesQueryOptions } from '@/lib/earthquakes/query-options';
 import { getSearchCenter } from '@/lib/earthquakes/search-schema';
@@ -35,10 +37,12 @@ export function EpicenterTooltipContent({
   earthquake,
   placeOfInterest,
   locale,
+  isPinned = false,
 }: {
   earthquake: Earthquake;
   placeOfInterest: PlaceOfInterestDistance | null;
   locale: Locale;
+  isPinned?: boolean;
 }) {
   return (
     <div className="flex flex-col gap-0.5">
@@ -62,6 +66,14 @@ export function EpicenterTooltipContent({
           )}
         </p>
       )}
+      {isPinned && (
+        <Link
+          {...getEarthquakeDetailLinkOptions(earthquake)}
+          className="mt-1 rounded font-medium underline underline-offset-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-paper"
+        >
+          {m.epicenter_tooltip_view_details({}, { locale })}
+        </Link>
+      )}
     </div>
   );
 }
@@ -81,6 +93,9 @@ export function EpicenterTooltip() {
   );
   const center = getSearchCenter(search);
   const [hovered, setHovered] = useState<Earthquake | null>(null);
+  const [pinnedId, setPinnedId] = useState<string | null>(null);
+  const pinned = (pinnedId && earthquakesById.get(pinnedId)) || null;
+  const shown = pinned ?? hovered;
 
   useEffect(() => {
     if (!map) return;
@@ -91,33 +106,56 @@ export function EpicenterTooltip() {
       setHovered((id && earthquakesById.get(id)) || null);
     };
     const clear = () => setHovered(null);
+    const pin = (event: MapMouseEvent) => {
+      show(event);
+      setPinnedId(getVisibleEpicenterId(instance, event.point, clock));
+    };
 
     instance.on('mousemove', CORE_LAYER.id, show);
     instance.on('mouseleave', CORE_LAYER.id, clear);
-    instance.on('click', show);
-    const unsubscribe = clock.subscribe(() =>
+    instance.on('click', pin);
+    const unsubscribe = clock.subscribe(() => {
       setHovered((previous) =>
         previous && getIsEpicenterVisible(previous.time, clock) ? previous : null,
-      ),
-    );
+      );
+      setPinnedId((previous) => {
+        const earthquake = previous && earthquakesById.get(previous);
+        return earthquake && getIsEpicenterVisible(earthquake.time, clock) ? previous : null;
+      });
+    });
     return () => {
       instance.off('mousemove', CORE_LAYER.id, show);
       instance.off('mouseleave', CORE_LAYER.id, clear);
-      instance.off('click', show);
+      instance.off('click', pin);
       unsubscribe();
       clear();
     };
   }, [map, clock, earthquakesById]);
 
-  if (!hovered) return null;
+  useEffect(() => {
+    if (!pinnedId) return;
+    const unpin = ({ key }: KeyboardEvent) => {
+      if (key === 'Escape') setPinnedId(null);
+    };
+    window.addEventListener('keydown', unpin);
+    return () => window.removeEventListener('keydown', unpin);
+  }, [pinnedId]);
+
+  if (!shown) return null;
   const placeOfInterest = center
-    ? { label: getPlaceLabel(search, locale), distanceKm: getDistanceKm(center, hovered) }
+    ? { label: getPlaceLabel(search, locale), distanceKm: getDistanceKm(center, shown) }
     : null;
 
   return (
-    <MapTooltip latitude={hovered.latitude} longitude={hovered.longitude} offset={14}>
+    <MapTooltip
+      latitude={shown.latitude}
+      longitude={shown.longitude}
+      offset={14}
+      interactive={pinned !== null}
+    >
       <EpicenterTooltipContent
-        earthquake={hovered}
+        earthquake={shown}
+        isPinned={pinned !== null}
         placeOfInterest={placeOfInterest}
         locale={locale}
       />

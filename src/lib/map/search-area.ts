@@ -26,7 +26,11 @@ function getDegrees(radians: number): number {
   return (radians * 180) / Math.PI;
 }
 
-function getCirclePosition(center: SearchCenter, radiusKm: number, bearing: number): Position {
+export function getCirclePosition(
+  center: SearchCenter,
+  radiusKm: number,
+  bearing: number,
+): Position {
   const lat = getRadians(center.latitude);
   const angularDistance = radiusKm / EARTH_RADIUS_KM;
   const latitude = Math.asin(

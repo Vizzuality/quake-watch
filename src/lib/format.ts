@@ -25,3 +25,64 @@ export function getKmLabel(km: number, locale: string, fractionDigits = 0): stri
     maximumFractionDigits: fractionDigits,
   }).format(km);
 }
+
+export function getDecimalLabel(value: number, locale: string, fractionDigits = 0): string {
+  return new Intl.NumberFormat(locale, { maximumFractionDigits: fractionDigits }).format(value);
+}
+
+export function getDegreesLabel(degrees: number, locale: string, fractionDigits = 0): string {
+  return new Intl.NumberFormat(locale, {
+    style: 'unit',
+    unit: 'degree',
+    unitDisplay: 'narrow',
+    maximumFractionDigits: fractionDigits,
+  }).format(degrees);
+}
+
+export function getSecondsLabel(seconds: number, locale: string, fractionDigits = 2): string {
+  return new Intl.NumberFormat(locale, {
+    style: 'unit',
+    unit: 'second',
+    unitDisplay: 'narrow',
+    maximumFractionDigits: fractionDigits,
+  }).format(seconds);
+}
+
+export function getPercentLabel(fraction: number, locale: string): string {
+  return new Intl.NumberFormat(locale, { style: 'percent', maximumFractionDigits: 0 }).format(
+    fraction,
+  );
+}
+
+const COORDINATE_DIGITS = 3;
+
+function getCoordinateLabel(value: number, hemispheres: readonly [string, string], locale: string) {
+  const hemisphere = value < 0 ? hemispheres[1] : hemispheres[0];
+  return `${getDecimalLabel(Math.abs(value), locale, COORDINATE_DIGITS)}° ${hemisphere}`;
+}
+
+export function getCoordinatesLabel(
+  { latitude, longitude }: { latitude: number; longitude: number },
+  locale: string,
+): string {
+  const latitudeLabel = getCoordinateLabel(latitude, ['N', 'S'], locale);
+  const longitudeLabel = getCoordinateLabel(longitude, ['E', locale === 'es' ? 'O' : 'W'], locale);
+  return `${latitudeLabel}, ${longitudeLabel}`;
+}
+
+export function getScientificLabel(value: number, locale: string): string {
+  const [mantissa = '0', exponent = '0'] = value.toExponential(2).split('e');
+  const power = String(Number(exponent))
+    .split('')
+    .map((char) => (char === '-' ? '⁻' : '⁰¹²³⁴⁵⁶⁷⁸⁹'.charAt(Number(char))))
+    .join('');
+  return `${getDecimalLabel(Number(mantissa), locale, 2)} × 10${power}`;
+}
+
+export function getFullDateTimeLabel(time: number, locale: string, timeZone?: string): string {
+  return new Intl.DateTimeFormat(locale, {
+    dateStyle: 'long',
+    timeStyle: 'long',
+    timeZone,
+  }).format(time);
+}

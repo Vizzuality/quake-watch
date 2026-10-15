@@ -34,6 +34,55 @@ describe('SearchTable', () => {
     await expect.element(screen.getByRole('row').nth(1)).toMatchTextContent('Region 2');
   });
 
+  it('links each place, in the table and in the cards, to its internal detail page', async () => {
+    stubEmsc(() => Response.json(getFeatureCollection(getFeatures(1))));
+    const { screen } = await renderWithRouter(SearchTable, '/?period=1y');
+    await expect.element(screen.getByRole('cell', { name: 'Region 0' })).toBeVisible();
+    const links = screen.getByRole('link', { name: 'Region 0', includeHidden: true }).elements();
+    expect(links).toHaveLength(2);
+    for (const link of links) {
+      expect(link.getAttribute('href')).toBe('/earthquakes/emsc/e0');
+      expect(link.getAttribute('target')).toBeNull();
+    }
+  });
+
+  it('navigates to the detail page when a place is clicked', async () => {
+    stubEmsc(() => Response.json(getFeatureCollection(getFeatures(1))));
+    const { screen, router } = await renderWithRouter(SearchTable, '/?period=1y');
+    await screen.getByRole('cell', { name: 'Region 0' }).getByRole('link').click();
+    await expect.poll(() => router.state.location.pathname).toBe('/earthquakes/emsc/e0');
+  });
+
+  it('links USGS places to the USGS detail page', async () => {
+    stubFetch([
+      {
+        match: (url) => url.hostname === 'earthquake.usgs.gov',
+        respond: () =>
+          Response.json({
+            type: 'FeatureCollection',
+            features: [
+              {
+                type: 'Feature',
+                id: 'us7000abcd',
+                geometry: { type: 'Point', coordinates: [-3.6, 37.1, 10] },
+                properties: {
+                  mag: 4.1,
+                  magType: 'mb',
+                  place: '3 km N of Granada, Spain',
+                  time: Date.UTC(2026, 7, 14),
+                  url: 'https://earthquake.usgs.gov/earthquakes/eventpage/us7000abcd',
+                },
+              },
+            ],
+          }),
+      },
+    ]);
+    const { screen } = await renderWithRouter(SearchTable, '/?period=1y&source=usgs');
+    await expect
+      .element(screen.getByRole('cell', { name: '3 km N of Granada, Spain' }).getByRole('link'))
+      .toHaveAttribute('href', '/earthquakes/usgs/us7000abcd');
+  });
+
   it('shows skeleton cards while loading', async () => {
     stubFetch([
       {
