@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
 import {
-  getOrbitLimits,
   ISOMETRIC_CAMERA,
   getTerrariumElevationM,
   getTerrariumTiles,
@@ -146,38 +145,6 @@ describe('getTerrariumTileUrl', () => {
     expect(getTerrariumTileUrl({ z: 11, x: 1002, y: 771 })).toBe(
       'https://s3.amazonaws.com/elevation-tiles-prod/terrarium/11/1002/771.png',
     );
-  });
-});
-
-describe('getOrbitLimits', () => {
-  const limits = getOrbitLimits();
-
-  it('bounds the polar angle away from overhead and below the top plane', () => {
-    expect(limits.minPolarAngle).toBeGreaterThan(0);
-    expect(limits.maxPolarAngle).toBeLessThan(Math.PI / 2);
-    expect(limits.minPolarAngle).toBeLessThan(limits.maxPolarAngle);
-  });
-
-  it('lets the isometric view sit inside the polar bounds', () => {
-    const isometricPolarAngle = Math.PI / 2 - ISOMETRIC_CAMERA.elevationRad;
-    expect(isometricPolarAngle).toBeGreaterThan(limits.minPolarAngle);
-    expect(isometricPolarAngle).toBeLessThan(limits.maxPolarAngle);
-  });
-
-  it('limits orthographic zoom around the fitted zoom of 1', () => {
-    expect(limits.minZoom).toBe(0.7);
-    expect(limits.maxZoom).toBe(2.5);
-    expect(limits.minZoom).toBeLessThan(1);
-    expect(limits.maxZoom).toBeGreaterThan(1);
-  });
-
-  it('disables panning', () => {
-    expect(limits.enablePan).toBe(false);
-  });
-
-  it('has no perspective distance limits', () => {
-    expect(limits).not.toHaveProperty('minDistance');
-    expect(limits).not.toHaveProperty('maxDistance');
   });
 });
 

@@ -185,39 +185,8 @@ describe('CrustalBlockSection', () => {
     const { screen } = await renderSection();
     await expect.poll(() => screen.container.querySelector('canvas')).not.toBeNull();
     await expect.element(screen.getByText('Rupture start · 10 km')).toBeInTheDocument();
-    await expect
-      .element(screen.getByText('Drag to rotate · click, then scroll to zoom'))
-      .toBeInTheDocument();
+    const canvas = screen.container.querySelector('canvas')!;
+    expect(getComputedStyle(canvas).touchAction).not.toBe('none');
+    expect(getComputedStyle(canvas.parentElement!.parentElement!).touchAction).not.toBe('none');
   });
-
-  it.runIf(canCreateWebGL2Context())(
-    'lets touch users scroll past until they tap the block',
-    async () => {
-      stubTerrariumTiles();
-      vi.spyOn(window, 'matchMedia').mockImplementation(
-        (query) =>
-          ({
-            matches: true,
-            media: query,
-            addEventListener: vi.fn<() => void>(),
-            removeEventListener: vi.fn<() => void>(),
-          }) as unknown as MediaQueryList,
-      );
-      mocks.isWebGL2Available.mockReturnValue(true);
-      const { screen } = await renderSection();
-      await expect.poll(() => screen.container.querySelector('canvas')).not.toBeNull();
-      const canvas = screen.container.querySelector('canvas')!;
-      const wrapper = canvas.parentElement!.parentElement!;
-      await expect.element(screen.getByText('Tap to rotate and zoom')).toBeInTheDocument();
-      await expect.poll(() => wrapper.style.touchAction).toBe('auto');
-      canvas.dispatchEvent(new MouseEvent('click', { bubbles: true }));
-      await expect
-        .element(screen.getByText('Drag to rotate · pinch to zoom · tap outside to stop'))
-        .toBeInTheDocument();
-      await expect.poll(() => wrapper.style.touchAction).toBe('none');
-      document.body.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
-      await expect.element(screen.getByText('Tap to rotate and zoom')).toBeInTheDocument();
-      await expect.poll(() => wrapper.style.touchAction).toBe('auto');
-    },
-  );
 });

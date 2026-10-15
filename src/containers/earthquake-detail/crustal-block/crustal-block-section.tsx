@@ -155,7 +155,6 @@ export function CrustalBlockSection(props: CrustalBlockProps) {
           <p>{m.crustal_block_explainer_crust()}</p>
           <p>{m.crustal_block_explainer_depth()}</p>
           <p>{m.crustal_block_explainer_relief()}</p>
-          <p>{m.crustal_block_explainer_controls()}</p>
         </SectionExplainer>
       </div>
       <CrustalBlockBody {...props} />

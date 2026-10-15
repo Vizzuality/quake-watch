@@ -4,14 +4,6 @@ import { KM_PER_DEGREE } from './block';
 
 export type TileCoord = { z: number; x: number; y: number };
 
-export type OrbitLimits = {
-  minPolarAngle: number;
-  maxPolarAngle: number;
-  minZoom: number;
-  maxZoom: number;
-  enablePan: false;
-};
-
 export const ISOMETRIC_CAMERA = {
   azimuthRad: Math.PI / 4,
   elevationRad: Math.atan(1 / Math.SQRT2),
@@ -21,10 +13,6 @@ const WEB_MERCATOR_EQUATOR_KM = 2 * Math.PI * 6378.137;
 const MAX_MERCATOR_LATITUDE = 85.051_128_78;
 const MAX_TILE_SPAN = 3;
 const MAX_TERRARIUM_ZOOM = 12;
-const MIN_POLAR_ANGLE = 0.2 * Math.PI;
-const MAX_POLAR_ANGLE = 0.4 * Math.PI;
-const MIN_ZOOM = 0.7;
-const MAX_ZOOM = 2.5;
 
 function getClamped(value: number, min: number, max: number): number {
   return Math.min(Math.max(value, min), max);
@@ -88,14 +76,4 @@ export function getTerrariumTiles(
 
 export function getTerrariumTileUrl(tile: TileCoord): string {
   return `https://s3.amazonaws.com/elevation-tiles-prod/terrarium/${tile.z}/${tile.x}/${tile.y}.png`;
-}
-
-export function getOrbitLimits(): OrbitLimits {
-  return {
-    minPolarAngle: MIN_POLAR_ANGLE,
-    maxPolarAngle: MAX_POLAR_ANGLE,
-    minZoom: MIN_ZOOM,
-    maxZoom: MAX_ZOOM,
-    enablePan: false,
-  };
 }
