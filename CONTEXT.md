@@ -35,7 +35,7 @@ _Avoid_: Location, marker, pin
 _Spanish_: Lugar de interés
 
 **Shaking wave**:
-A ring that spreads from the Epicenter out to its Felt reach and fades as the estimated Intensity drops. Its speed is stylised, but its reach is real.
+A ring that spreads from the Epicenter out to its Felt reach and fades as the estimated Intensity drops. Its fronts travel at real P and S wave speeds from the rupture start, Depth included, with each Earthquake's real seconds squeezed into the same few seconds on screen. The S front reaches the Felt reach as the ring ends.
 _Avoid_: Ripple, shockwave
 _Spanish_: Onda sísmica
 

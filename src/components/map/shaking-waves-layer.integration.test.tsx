@@ -5,12 +5,14 @@ import { EARTH_RADIUS_KM } from '@/lib/earthquakes/distance';
 import { getFeltReachKm } from '@/lib/earthquakes/intensity';
 import type { Earthquake } from '@/lib/earthquakes/types';
 import {
+  WAVE_FRONT_STYLES,
   getMercatorX,
   getMercatorY,
   getWaveInstances,
   getWaveStyle,
 } from '@/lib/map/shaking-waves';
 import type { WaveStyle } from '@/lib/map/shaking-waves';
+import type { WaveKind } from '@/lib/shakemap/wave';
 
 import { getShakingWavesLayer, getWaveProgram } from './shaking-waves-layer';
 
@@ -149,10 +151,11 @@ function getMagnitudeForReach(targetKm: number): number {
   return high;
 }
 
-function getOracle(earthquake: Earthquake, frame: Frame): WaveStyle {
+function getOracle(earthquake: Earthquake, frame: Frame, wave: WaveKind = 's'): WaveStyle {
   const style = getWaveStyle({
     ...earthquake,
     ...frame,
+    wave,
     waveSpanMs: SPAN_MS,
     feltReachKm: getFeltReachKm(earthquake),
   });
@@ -209,6 +212,22 @@ function getRingOffsetPx(ray: Uint8Array[]): number {
   const total = ray.reduce((sum, pixel) => sum + pixel[3], 0);
   const weighted = ray.reduce((sum, pixel, step) => sum + pixel[3] * (step + 0.5), 0);
   return weighted / total;
+}
+
+function getBands(ray: Uint8Array[]): Uint8Array[][] {
+  return ray.reduce<{ bands: Uint8Array[][]; open: boolean }>(
+    ({ bands, open }, pixel) => {
+      if (pixel[3] === 0) return { bands, open: false };
+      if (open) bands[bands.length - 1].push(pixel);
+      else bands.push([pixel]);
+      return { bands, open: true };
+    },
+    { bands: [], open: false },
+  ).bands;
+}
+
+function getBandOffsetPx(ray: Uint8Array[], band: Uint8Array[]): number {
+  return getRingOffsetPx(ray.map((pixel) => (band.includes(pixel) ? pixel : new Uint8Array(4))));
 }
 
 function getPeakPixel(ray: Uint8Array[]): Uint8Array {
@@ -312,19 +331,71 @@ describe('shaking waves WebGL2 layer', () => {
     },
   );
 
-  it('grows the ring linearly and colours it by the intensity at the front', () => {
+  it('draws the P front ahead of the S front, each at its real-speed radius and front intensity', () => {
     const { view, earthquake } = getScene(6, 40);
-    const frame = { ageMs: SPAN_MS * 0.3, reducedMotion: false };
-    const style = getOracle(earthquake, frame);
+    const frame = { ageMs: SPAN_MS * 0.5, reducedMotion: false };
+    const s = getOracle(earthquake, frame, 's');
+    const p = getOracle(earthquake, frame, 'p');
+    const { error, pixels } = drawScene(context, view, [earthquake], frame);
+    const ray = getEastRay(pixels);
+    const [inner, outer] = getBands(ray);
+
+    expect(error).toBe(context.NO_ERROR);
+    expect(getBands(ray)).toHaveLength(2);
+    expect(p.radiusKm).toBeGreaterThan(s.radiusKm);
+    expect(
+      Math.abs(getBandOffsetPx(ray, inner) / getEastRadiusPx(view, 40, s.radiusKm) - 1),
+    ).toBeLessThan(0.05);
+    expect(
+      Math.abs(getBandOffsetPx(ray, outer) / getEastRadiusPx(view, 40, p.radiusKm) - 1),
+    ).toBeLessThan(0.05);
+    expectPeakToMatch(getPeakPixel(inner), s);
+    const peak = getPeakPixel(outer);
+    p.color.forEach((channel, index) => {
+      expect(Math.abs(peak[index] / peak[3] - channel)).toBeLessThan(0.05);
+    });
+  });
+
+  it('draws the P front band half as wide as the S front band', () => {
+    const { view, earthquake } = getScene(6, 40);
+    const frame = { ageMs: SPAN_MS * 0.5, reducedMotion: false };
+    const { pixels } = drawScene(context, view, [earthquake], frame);
+    const [inner, outer] = getBands(getEastRay(pixels));
+    const getWidthPx = (band: Uint8Array[], style: WaveStyle) =>
+      band.reduce((sum, pixel) => sum + pixel[3], 0) / (style.opacity * 255);
+
+    const sWidthPx = getWidthPx(inner, getOracle(earthquake, frame, 's'));
+    const pWidthPx = getWidthPx(outer, getOracle(earthquake, frame, 'p'));
+
+    expect(Math.abs(sWidthPx - WAVE_FRONT_STYLES.s.bandHalfPx * 2)).toBeLessThan(0.5);
+    expect(Math.abs(pWidthPx - WAVE_FRONT_STYLES.p.bandHalfPx * 2)).toBeLessThan(0.5);
+  });
+
+  it('drops the P front once it passes the felt reach and keeps the S front', () => {
+    const { view, earthquake } = getScene(6, 40);
+    const frame = { ageMs: SPAN_MS * 0.8, reducedMotion: false };
+    const s = getOracle(earthquake, frame, 's');
     const { error, pixels } = drawScene(context, view, [earthquake], frame);
     const ray = getEastRay(pixels);
 
     expect(error).toBe(context.NO_ERROR);
-    expect(style.radiusKm).toBeCloseTo(getFeltReachKm(earthquake) * 0.3, 6);
-    expect(
-      Math.abs(getRingOffsetPx(ray) / getEastRadiusPx(view, 40, style.radiusKm) - 1),
-    ).toBeLessThan(0.05);
-    expectPeakToMatch(getPeakPixel(ray), style);
+    expect(getBands(ray)).toHaveLength(1);
+    expect(Math.abs(getRingOffsetPx(ray) / getEastRadiusPx(view, 40, s.radiusKm) - 1)).toBeLessThan(
+      0.05,
+    );
+  });
+
+  it('draws nothing while both fronts are still climbing from the Depth', () => {
+    const earthquake = getEarthquake({ magnitude: 7, longitude: 0, latitude: 0, depthKm: 200 });
+    const view = getCentredView(earthquake, { zoom: 4 });
+    const { error, pixels } = drawScene(context, view, [earthquake], {
+      ageMs: SPAN_MS * 0.01,
+      reducedMotion: false,
+    });
+
+    expect(error).toBe(context.NO_ERROR);
+    expect(getFeltReachKm(earthquake)).toBeGreaterThan(0);
+    expect(pixels.data.some((value) => value > 0)).toBe(false);
   });
 
   it('colours the reduced-motion ring by the epicentral intensity and fades it over the wave life', () => {

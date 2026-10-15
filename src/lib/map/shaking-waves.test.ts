@@ -2,8 +2,10 @@ import { describe, expect, it } from 'vitest';
 
 import { FELT_INTENSITY, getFeltReachKm, getIntensity } from '@/lib/earthquakes/intensity';
 import type { Earthquake } from '@/lib/earthquakes/types';
+import { P_WAVE_KM_S, S_WAVE_KM_S, getArrivalSeconds, getWaveRadiusKm } from '@/lib/shakemap/wave';
 
 import {
+  WAVE_FRONT_STYLES,
   WAVE_INSTANCE_STRIDE,
   WAVE_RAMP,
   getMercatorX,
@@ -16,8 +18,9 @@ import {
   getWaveFade,
   getWaveInstances,
   getWaveIntensity,
+  getWaveFrontKm,
   getWaveOpacity,
-  getWaveRadiusKm,
+  getWaveSeconds,
   getWaveSpanMs,
   getWaveStyle,
   getWorldCopies,
@@ -220,25 +223,69 @@ describe('getTranslatedMatrix', () => {
   });
 });
 
-describe('getWaveRadiusKm', () => {
-  const base = { waveSpanMs: 1_000, feltReachKm: 300, reducedMotion: false };
+describe('getWaveSeconds', () => {
+  const life = { waveSpanMs: 2_000, feltReachKm: 300, depthKm: 40 };
+  const totalSeconds = getArrivalSeconds(300, 40, S_WAVE_KM_S);
 
-  it('grows linearly from the epicentre to the felt reach', () => {
-    expect(getWaveRadiusKm({ ...base, ageMs: 0 })).toBe(0);
-    expect(getWaveRadiusKm({ ...base, ageMs: 250 })).toBe(75);
-    expect(getWaveRadiusKm({ ...base, ageMs: 1_000 })).toBe(300);
+  it('squeezes the real seconds until the S wave reaches the felt reach into the wave span', () => {
+    expect(getWaveSeconds({ ...life, ageMs: 0 })).toBe(0);
+    expect(getWaveSeconds({ ...life, ageMs: 500 })).toBeCloseTo(totalSeconds / 4, 10);
+    expect(getWaveSeconds({ ...life, ageMs: 2_000 })).toBeCloseTo(totalSeconds, 10);
   });
 
-  it('is gone before the earthquake and after the wave span', () => {
-    expect(getWaveRadiusKm({ ...base, ageMs: -1 })).toBeNull();
-    expect(getWaveRadiusKm({ ...base, ageMs: 1_001 })).toBeNull();
+  it('gives a larger Earthquake more real seconds in the same wave span', () => {
+    const small = getWaveSeconds({ ...life, ageMs: 2_000, feltReachKm: 50 });
+    const large = getWaveSeconds({ ...life, ageMs: 2_000, feltReachKm: 900 });
+    expect(large).toBeGreaterThan(small);
+  });
+});
+
+describe('getWaveFrontKm', () => {
+  const base = { waveSpanMs: 1_000, feltReachKm: 300, depthKm: 40, reducedMotion: false };
+  const totalSeconds = getArrivalSeconds(300, 40, S_WAVE_KM_S);
+
+  it('moves both fronts at their real speeds on the squeezed clock', () => {
+    const seconds = totalSeconds * 0.5;
+    expect(getWaveFrontKm({ ...base, wave: 's', ageMs: 500 })).toBeCloseTo(
+      getWaveRadiusKm(seconds, 40, S_WAVE_KM_S),
+      10,
+    );
+    expect(getWaveFrontKm({ ...base, wave: 'p', ageMs: 500 })).toBeCloseTo(
+      getWaveRadiusKm(seconds, 40, P_WAVE_KM_S),
+      10,
+    );
   });
 
-  it('stays at the felt reach for the whole life with reduced motion', () => {
+  it('leads with the P front and brings the S front to the felt reach at the end', () => {
+    const p = getWaveFrontKm({ ...base, wave: 'p', ageMs: 400 }) ?? 0;
+    const s = getWaveFrontKm({ ...base, wave: 's', ageMs: 400 }) ?? 0;
+    expect(p).toBeGreaterThan(s);
+    expect(getWaveFrontKm({ ...base, wave: 's', ageMs: 1_000 })).toBeCloseTo(300, 6);
+  });
+
+  it('keeps the S front at the Epicenter until it climbs up from the Depth', () => {
+    const climbMs = (1_000 * (40 / S_WAVE_KM_S)) / totalSeconds;
+    expect(getWaveFrontKm({ ...base, wave: 's', ageMs: climbMs * 0.9 })).toBe(0);
+    expect(getWaveFrontKm({ ...base, wave: 's', ageMs: climbMs * 1.1 })).toBeGreaterThan(0);
+  });
+
+  it('drops the P front once it passes the felt reach', () => {
+    const passMs = (1_000 * S_WAVE_KM_S) / P_WAVE_KM_S;
+    expect(getWaveFrontKm({ ...base, wave: 'p', ageMs: passMs - 1 })).toBeLessThanOrEqual(300);
+    expect(getWaveFrontKm({ ...base, wave: 'p', ageMs: passMs + 1 })).toBeNull();
+  });
+
+  it('is gone before the Earthquake and after the wave span', () => {
+    expect(getWaveFrontKm({ ...base, wave: 's', ageMs: -1 })).toBeNull();
+    expect(getWaveFrontKm({ ...base, wave: 's', ageMs: 1_001 })).toBeNull();
+  });
+
+  it('holds the S front at the felt reach and hides the P front with reduced motion', () => {
     const reduced = { ...base, reducedMotion: true };
-    expect(getWaveRadiusKm({ ...reduced, ageMs: 0 })).toBe(300);
-    expect(getWaveRadiusKm({ ...reduced, ageMs: 600 })).toBe(300);
-    expect(getWaveRadiusKm({ ...reduced, ageMs: 1_001 })).toBeNull();
+    expect(getWaveFrontKm({ ...reduced, wave: 's', ageMs: 0 })).toBe(300);
+    expect(getWaveFrontKm({ ...reduced, wave: 's', ageMs: 600 })).toBe(300);
+    expect(getWaveFrontKm({ ...reduced, wave: 'p', ageMs: 100 })).toBeNull();
+    expect(getWaveFrontKm({ ...reduced, wave: 's', ageMs: 1_001 })).toBeNull();
   });
 });
 
@@ -288,23 +335,34 @@ describe('getWaveIntensity', () => {
 describe('getWaveStyle', () => {
   const quake = { magnitude: 6, depthKm: 10, waveSpanMs: 1_000 };
   const feltReachKm = getFeltReachKm(quake);
+  const life = { ...quake, feltReachKm };
 
   it('is null outside the wave life', () => {
-    expect(getWaveStyle({ ...quake, feltReachKm, ageMs: -1, reducedMotion: false })).toBeNull();
+    expect(getWaveStyle({ ...life, wave: 's', ageMs: -1, reducedMotion: false })).toBeNull();
   });
 
-  it('colours a growing ring by its front without fading', () => {
-    const style = getWaveStyle({ ...quake, feltReachKm, ageMs: 250, reducedMotion: false });
-    const intensity = getIntensity({ ...quake, distanceKm: feltReachKm / 4 });
+  it('colours a growing S front by its intensity without fading', () => {
+    const style = getWaveStyle({ ...life, wave: 's', ageMs: 250, reducedMotion: false });
+    const radiusKm = getWaveFrontKm({ ...life, wave: 's', ageMs: 250, reducedMotion: false });
+    const intensity = getIntensity({ ...quake, distanceKm: radiusKm ?? 0 });
 
-    expect(style?.radiusKm).toBeCloseTo(feltReachKm / 4, 10);
+    expect(style?.radiusKm).toBe(radiusKm);
     expect(style?.intensity).toBe(intensity);
     expect(style?.opacity).toBe(getWaveOpacity(intensity));
     expect(style?.color).toEqual(getWaveColor(intensity));
   });
 
+  it('draws the P front ahead and fainter than the S front', () => {
+    const p = getWaveStyle({ ...life, wave: 'p', ageMs: 250, reducedMotion: false });
+    const s = getWaveStyle({ ...life, wave: 's', ageMs: 250, reducedMotion: false });
+    const intensity = getIntensity({ ...quake, distanceKm: p?.radiusKm ?? 0 });
+
+    expect(p?.radiusKm).toBeGreaterThan(s?.radiusKm ?? 0);
+    expect(p?.opacity).toBeCloseTo(getWaveOpacity(intensity) * WAVE_FRONT_STYLES.p.opacity, 10);
+  });
+
   it('colours a reduced-motion ring by the epicentre and fades it over the wave life', () => {
-    const style = getWaveStyle({ ...quake, feltReachKm, ageMs: 250, reducedMotion: true });
+    const style = getWaveStyle({ ...life, wave: 's', ageMs: 250, reducedMotion: true });
     const intensity = getIntensity({ ...quake, distanceKm: 0 });
 
     expect(style?.radiusKm).toBe(feltReachKm);

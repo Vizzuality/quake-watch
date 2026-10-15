@@ -77,6 +77,7 @@
   "ring_tooltip_title": "En este punto · intensidad estimada {roman} · {level}",
   "ring_tooltip_magnitude": "Magnitud {magnitude}",
   "ring_tooltip_distance": "A {distance} del epicentro",
+  "ring_tooltip_seconds": "+{seconds} s desde el inicio de la ruptura",
   "ring_tooltip_more": "y {count} más",
   "intensity_level_not_felt": "No sentido",
   "intensity_level_weak": "Débil",

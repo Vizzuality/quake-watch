@@ -2,8 +2,10 @@ import { describe, expect, it } from 'vitest';
 
 import { getFeltReachKm } from '@/lib/earthquakes/intensity';
 import type { Earthquake } from '@/lib/earthquakes/types';
+import { S_WAVE_KM_S, getArrivalSeconds } from '@/lib/shakemap/wave';
 
 import { getRingHits } from './ring-hits';
+import { getWaveFrontKm } from './shaking-waves';
 
 const KM_PER_DEGREE = 111.195;
 const SPAN_MS = 1000;
@@ -29,6 +31,15 @@ function getCursorAtKm(km: number) {
 }
 
 const REACH = getFeltReachKm({ magnitude: 6, depthKm: 10 });
+const FRONT_KM =
+  getWaveFrontKm({
+    ageMs: SPAN_MS / 2,
+    waveSpanMs: SPAN_MS,
+    feltReachKm: REACH,
+    depthKm: 10,
+    wave: 's',
+    reducedMotion: false,
+  }) ?? 0;
 
 function getHits(overrides: Partial<Parameters<typeof getRingHits>[0]> = {}) {
   return getRingHits({
@@ -36,27 +47,45 @@ function getHits(overrides: Partial<Parameters<typeof getRingHits>[0]> = {}) {
     tMs: SPAN_MS / 2,
     waveSpanMs: SPAN_MS,
     reducedMotion: false,
-    cursor: getCursorAtKm(REACH / 2),
+    cursor: getCursorAtKm(FRONT_KM),
     kmPerPx: 1,
     ...overrides,
   });
 }
 
 describe('getRingHits', () => {
-  it('hits when the cursor sits on the live ring', () => {
+  it('hits when the cursor sits on the live S front', () => {
     const [hit] = getHits();
     expect(hit.earthquake.id).toBe('a');
-    expect(hit.distanceKm).toBeCloseTo(REACH / 2, 0);
+    expect(hit.distanceKm).toBeCloseTo(FRONT_KM, 0);
+  });
+
+  it('gives the real seconds since the rupture start for the S wave to reach the cursor', () => {
+    const [hit] = getHits();
+    expect(hit.secondsSinceRuptureStart).toBeCloseTo(
+      getArrivalSeconds(hit.distanceKm, 10, S_WAVE_KM_S),
+      10,
+    );
+    expect(hit.secondsSinceRuptureStart).toBeCloseTo(
+      getArrivalSeconds(REACH, 10, S_WAVE_KM_S) / 2,
+      0,
+    );
+  });
+
+  it('misses at the Epicenter before the S front reaches the surface', () => {
+    const deep = getQuake({ depthKm: 60 });
+    expect(getFeltReachKm(deep)).toBeGreaterThan(0);
+    expect(getHits({ earthquakes: [deep], tMs: 1, cursor: getCursorAtKm(0) })).toHaveLength(0);
   });
 
   it('misses beyond the tolerance and hits within it', () => {
-    expect(getHits({ cursor: getCursorAtKm(REACH / 2 + 9) })).toHaveLength(0);
-    expect(getHits({ cursor: getCursorAtKm(REACH / 2 + 7) })).toHaveLength(1);
+    expect(getHits({ cursor: getCursorAtKm(FRONT_KM + 9) })).toHaveLength(0);
+    expect(getHits({ cursor: getCursorAtKm(FRONT_KM + 7) })).toHaveLength(1);
   });
 
   it('scales the tolerance with the kilometres per pixel and a custom tolerance', () => {
-    expect(getHits({ cursor: getCursorAtKm(REACH / 2 + 9), kmPerPx: 2 })).toHaveLength(1);
-    expect(getHits({ cursor: getCursorAtKm(REACH / 2 + 9), tolerancePx: 10 })).toHaveLength(1);
+    expect(getHits({ cursor: getCursorAtKm(FRONT_KM + 9), kmPerPx: 2 })).toHaveLength(1);
+    expect(getHits({ cursor: getCursorAtKm(FRONT_KM + 9), tolerancePx: 10 })).toHaveLength(1);
   });
 
   it('ignores earthquakes after t and waves that are no longer alive', () => {
