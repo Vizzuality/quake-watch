@@ -5,9 +5,11 @@ import {
   BAND_KINDS,
   getBlockFit,
   getBlockLabels,
+  getAnchoredBoundaries,
   getBlockMeshData,
-  getBoundaryField,
   getColumnBands,
+  getColumnBoundaries,
+  getColumnField,
   getCrustalBlock,
   getCrustCellsInput,
   getDepthTicks,
@@ -36,6 +38,14 @@ const MADRID = [0.8, 0.8, 0.8, -0.2, -2.0, -2.0, -11.83, -21.65, -31.77];
 const OCEAN = [0, -4.5, -4.5, -4.8, -5.0, -5.0, -6.5, -8.5, -11.0];
 const MADRID_CELL = getCell(40.5, -3.5, MADRID);
 const MADRID_ORIGIN = { latitude: 40.4, longitude: -3.7 };
+
+function getColumnOf(boundaryElevationsKm: readonly number[]) {
+  const origin = { latitude: 0.5, longitude: 0.5 };
+  return getColumnField([getCell(0.5, 0.5, boundaryElevationsKm)], origin)({ x: 0, z: 0 });
+}
+
+const MADRID_COLUMN = getColumnOf(MADRID);
+const OCEAN_COLUMN = getColumnOf(OCEAN);
 
 function getBand(bands: Band[], kind: Band['kind']): Band {
   return bands.find((band) => band.kind === kind)!;
@@ -114,7 +124,7 @@ describe('getCrustalBlock', () => {
     const cells = [MADRID_CELL, getCell(40.5, -2.5, OCEAN)];
     const origin = { latitude: 40.5, longitude: -3 };
     const block = getCrustalBlock(cells, origin, 10);
-    const sceneMohoKm = getBoundaryField(cells, origin)({ x: 0, z: 0 })[8];
+    const sceneMohoKm = getColumnBoundaries(getColumnField(cells, origin)({ x: 0, z: 0 }))[8];
     expect(block.mohoDepthKm).toBeCloseTo(-sceneMohoKm, 6);
     expect(block.mohoDepthKm).toBeCloseTo((31.77 + 11) / 2, 6);
     expect(block.layers.at(-1)?.bottomKm).toBeCloseTo(block.mohoDepthKm, 6);
@@ -134,19 +144,34 @@ describe('getCrustalBlock', () => {
   });
 });
 
-describe('getBoundaryField', () => {
+describe('getColumnField', () => {
   const cells = [getCell(40.5, -3.5, MADRID), getCell(40.5, -2.5, OCEAN)];
   const origin = { latitude: 40.5, longitude: -3.5 };
+  const halfwayX = getLocalKm({ latitude: 40.5, longitude: -3 }, origin).x;
 
-  it('returns the cell values at a cell centre', () => {
-    const field = getBoundaryField(cells, origin);
-    field({ x: 0, z: 0 }).forEach((value, index) => expect(value).toBeCloseTo(MADRID[index], 6));
+  it('returns the cell thicknesses at a cell centre', () => {
+    const column = getColumnField(cells, origin)({ x: 0, z: 0 });
+    expect(column.groundTopKm).toBeCloseTo(0.8, 6);
+    expect(column.waterKm).toBeCloseTo(0, 6);
+    expect(column.thicknessesKm).toHaveLength(7);
+    getColumnBoundaries(column).forEach((value, index) =>
+      expect(value).toBeCloseTo(MADRID[index], 6),
+    );
   });
 
-  it('interpolates halfway between two cells', () => {
-    const field = getBoundaryField(cells, origin);
-    const x = getLocalKm({ latitude: 40.5, longitude: -3 }, origin).x;
-    expect(field({ x, z: 0 })[8]).toBeCloseTo((MADRID[8] + OCEAN[8]) / 2, 6);
+  it('interpolates every layer thickness halfway between two cells', () => {
+    const column = getColumnField(cells, origin)({ x: halfwayX, z: 0 });
+    column.thicknessesKm.forEach((thicknessKm, index) =>
+      expect(thicknessKm).toBeCloseTo(
+        (MADRID_COLUMN.thicknessesKm[index] + OCEAN_COLUMN.thicknessesKm[index]) / 2,
+        6,
+      ),
+    );
+    expect(getColumnBoundaries(column)[8]).toBeCloseTo((MADRID[8] + OCEAN[8]) / 2, 6);
+  });
+
+  it('keeps water nearby wherever a neighbouring cell is at sea', () => {
+    expect(getColumnField(cells, origin)({ x: halfwayX / 2, z: 0 }).waterKm).toBeGreaterThan(0);
   });
 
   it('keeps blended coastal water between sea level and the sea floor', () => {
@@ -154,25 +179,60 @@ describe('getBoundaryField', () => {
       getCell(40.5, -3.5, MADRID),
       getCell(40.5, -2.5, [0, -0.6, -0.6, -0.8, -1, -1, -6, -10, -20]),
     ];
-    const field = getBoundaryField(coast, { latitude: 40.5, longitude: -3.5 });
-    const landward = field({
-      x: getLocalKm({ latitude: 40.5, longitude: -3.2 }, { latitude: 40.5, longitude: -3.5 }).x,
-      z: 0,
-    });
+    const field = getColumnField(coast, origin);
+    const landward = getColumnBoundaries(
+      field({ x: getLocalKm({ latitude: 40.5, longitude: -3.2 }, origin).x, z: 0 }),
+    );
     expect(landward[0]).toBe(landward[1]);
-    const seaward = field({
-      x: getLocalKm({ latitude: 40.5, longitude: -2.7 }, { latitude: 40.5, longitude: -3.5 }).x,
-      z: 0,
-    });
+    const seaward = getColumnBoundaries(
+      field({ x: getLocalKm({ latitude: 40.5, longitude: -2.7 }, origin).x, z: 0 }),
+    );
     expect(seaward[0]).toBe(0);
     expect(seaward[1]).toBeLessThan(0);
   });
 
   it('extends the nearest cell where cells are missing', () => {
-    const field = getBoundaryField([MADRID_CELL], MADRID_ORIGIN);
-    field({ x: -200, z: 300 }).forEach((value, index) =>
+    const column = getColumnField([MADRID_CELL], MADRID_ORIGIN)({ x: -200, z: 300 });
+    getColumnBoundaries(column).forEach((value, index) =>
       expect(value).toBeCloseTo(MADRID[index], 6),
     );
+  });
+});
+
+describe('getAnchoredBoundaries', () => {
+  const crustKm = 0.8 + 31.77;
+
+  it('keeps the model boundaries for a surface at the model ground top', () => {
+    getAnchoredBoundaries(MADRID_COLUMN, 0.8).forEach((value, index) =>
+      expect(value).toBeCloseTo(MADRID[index + 1], 6),
+    );
+  });
+
+  it('lifts every interface with the surface and keeps the Moho in place', () => {
+    const boundaries = getAnchoredBoundaries(MADRID_COLUMN, 10.8);
+    const scale = (10.8 + 31.77) / crustKm;
+    expect(boundaries[0]).toBe(10.8);
+    boundaries.forEach((value, index) =>
+      expect(value).toBeCloseTo(-31.77 + (MADRID[index + 1] + 31.77) * scale, 6),
+    );
+    expect(boundaries.at(-1)).toBeCloseTo(-31.77, 6);
+  });
+
+  it('thins the layers under a lowered surface without removing any', () => {
+    const boundaries = getAnchoredBoundaries(MADRID_COLUMN, -5);
+    const scale = (-5 + 31.77) / crustKm;
+    expect(boundaries[0]).toBe(-5);
+    expect(boundaries.at(-1)).toBeCloseTo(-31.77, 6);
+    MADRID_COLUMN.thicknessesKm.forEach((thicknessKm, index) =>
+      expect(boundaries[index] - boundaries[index + 1]).toBeCloseTo(thicknessKm * scale, 6),
+    );
+  });
+
+  it('pushes the Moho down instead of consuming the crust under deep water', () => {
+    const boundaries = getAnchoredBoundaries(OCEAN_COLUMN, -20);
+    expect(boundaries[0]).toBe(-20);
+    expect(boundaries.at(-1)).toBeCloseTo(-20 - 6.5 / 2, 6);
+    expect(boundaries[1] - boundaries[2]).toBeCloseTo(0.3 / 2, 6);
   });
 });
 
@@ -265,52 +325,59 @@ describe('getSurfaceKm', () => {
 
 describe('getColumnBands', () => {
   it('returns every band kind in drawing order', () => {
-    expect(getColumnBands(MADRID, 0.8, false, 60).map((band) => band.kind)).toEqual(BAND_KINDS);
+    expect(getColumnBands(MADRID_COLUMN, 0.8, false, 60).map((band) => band.kind)).toEqual(
+      BAND_KINDS,
+    );
   });
 
   it('follows CRUST1.0 below a surface at the ground top', () => {
-    const bands = getColumnBands(MADRID, 0.8, false, 60);
+    const bands = getColumnBands(MADRID_COLUMN, 0.8, false, 60);
     expect(getBand(bands, 'upper-sediments')).toEqual({
       kind: 'upper-sediments',
-      topKm: 0.8,
-      bottomKm: -0.2,
+      topKm: expect.closeTo(0.8, 6),
+      bottomKm: expect.closeTo(-0.2, 6),
     });
     expect(getBand(bands, 'upper-crust')).toEqual({
       kind: 'upper-crust',
-      topKm: -2,
-      bottomKm: -11.83,
+      topKm: expect.closeTo(-2, 6),
+      bottomKm: expect.closeTo(-11.83, 6),
     });
     expect(getThickness(getBand(bands, 'water'))).toBe(0);
     expect(getThickness(getBand(bands, 'ice'))).toBe(0);
   });
 
-  it('stretches the topmost layer up to a raised surface', () => {
-    const bands = getColumnBands(MADRID, 2, false, 60);
+  it('raises the layer interfaces with a raised surface', () => {
+    const bands = getColumnBands(MADRID_COLUMN, 2, false, 60);
     expect(getBand(bands, 'upper-sediments').topKm).toBe(2);
+    expect(getBand(bands, 'upper-crust').topKm).toBeGreaterThan(-2);
+    expect(getBand(bands, 'upper-mantle').topKm).toBeCloseTo(-31.77, 6);
     expect(getThickness(getBand(bands, 'ice'))).toBe(0);
   });
 
-  it('cuts layers above a lowered surface', () => {
-    const bands = getColumnBands(MADRID, -1, false, 60);
-    expect(getThickness(getBand(bands, 'upper-sediments'))).toBe(0);
-    expect(getBand(bands, 'middle-sediments').topKm).toBe(-1);
+  it('keeps every layer under a lowered surface', () => {
+    const bands = getColumnBands(MADRID_COLUMN, -1, false, 60);
+    expect(getBand(bands, 'upper-sediments').topKm).toBe(-1);
+    expect(getThickness(getBand(bands, 'upper-sediments'))).toBeGreaterThan(0);
+    expect(getThickness(getBand(bands, 'middle-sediments'))).toBeGreaterThan(0);
   });
 
-  it('fills water from sea level down to the sea floor', () => {
-    const bands = getColumnBands(OCEAN, -6, true, 60);
+  it('fills water from sea level down to the sea floor and keeps the crust below it', () => {
+    const bands = getColumnBands(OCEAN_COLUMN, -6, true, 60);
     expect(getBand(bands, 'water')).toEqual({ kind: 'water', topKm: 0, bottomKm: -6 });
-    expect(getThickness(getBand(bands, 'upper-sediments'))).toBe(0);
+    expect(getBand(bands, 'upper-sediments').topKm).toBe(-6);
+    expect(getThickness(getBand(bands, 'upper-sediments'))).toBeGreaterThan(0);
+    expect(getBand(bands, 'upper-mantle').topKm).toBeCloseTo(-11, 6);
   });
 
   it('splits the mantle at the PREM boundaries inside the block', () => {
-    const shallow = getColumnBands(MADRID, 0.8, false, 60);
+    const shallow = getColumnBands(MADRID_COLUMN, 0.8, false, 60);
     expect(getBand(shallow, 'upper-mantle')).toEqual({
       kind: 'upper-mantle',
-      topKm: -31.77,
+      topKm: expect.closeTo(-31.77, 6),
       bottomKm: -60,
     });
     expect(getThickness(getBand(shallow, 'transition-zone'))).toBe(0);
-    const deep = getColumnBands(OCEAN, -4.5, true, 840);
+    const deep = getColumnBands(OCEAN_COLUMN, -4.5, true, 840);
     expect(getBand(deep, 'transition-zone')).toEqual({
       kind: 'transition-zone',
       topKm: -400,
@@ -370,6 +437,22 @@ describe('getBlockMeshData', () => {
     expect(mesh.water.indices).toHaveLength(0);
   });
 
+  it('draws water and keeps the crust where the relief dips under the sea at a coast', () => {
+    const relief = { segments: 4, sideKm: 60, elevationsM: new Float32Array(25).fill(-500) };
+    const mesh = getBlockMeshData({
+      ...input,
+      cells: [MADRID_CELL, getCell(40.5, -2.5, OCEAN)],
+      origin: { latitude: 40.5, longitude: -3 },
+      relief,
+    });
+    expect(mesh.water.indices.length).toBeGreaterThan(0);
+    const [water, ...solidBands] = mesh.labelCornerBands;
+    expect(water.bottomKm).toBeLessThan(0);
+    expect(solidBands[0].topKm).toBe(water.bottomKm);
+    expect(getThickness(getBand(mesh.labelCornerBands, 'upper-sediments'))).toBeGreaterThan(0);
+    expect(getThickness(getBand(mesh.labelCornerBands, 'upper-crust'))).toBeGreaterThan(0);
+  });
+
   it('lifts the surface with the relief grid', () => {
     const relief = { segments: 4, sideKm: 60, elevationsM: new Float32Array(25).fill(900) };
     const mesh = getBlockMeshData({ ...input, relief });
@@ -385,13 +468,13 @@ describe('getBlockMeshData', () => {
 
 describe('getBlockLabels', () => {
   it('labels crust, Moho and mantle from the top down', () => {
-    const labels = getBlockLabels(getColumnBands(MADRID, 0.8, false, 60), 4);
+    const labels = getBlockLabels(getColumnBands(MADRID_COLUMN, 0.8, false, 60), 4);
     expect(labels.map((label) => label.kind)).toEqual(['crust', 'moho', 'upper-mantle']);
     expect(labels[1].yKm).toBeCloseTo(-31.77, 6);
   });
 
   it('drops lower-priority labels that would overlap', () => {
-    const labels = getBlockLabels(getColumnBands(OCEAN, -4.5, true, 840), 40);
+    const labels = getBlockLabels(getColumnBands(OCEAN_COLUMN, -4.5, true, 840), 40);
     expect(labels.map((label) => label.kind)).toEqual([
       'moho',
       'upper-mantle',
@@ -401,7 +484,7 @@ describe('getBlockLabels', () => {
   });
 
   it('labels the water at sea', () => {
-    const labels = getBlockLabels(getColumnBands(OCEAN, -4.5, true, 60), 1);
+    const labels = getBlockLabels(getColumnBands(OCEAN_COLUMN, -4.5, true, 60), 1);
     expect(labels[0].kind).toBe('water');
   });
 });
