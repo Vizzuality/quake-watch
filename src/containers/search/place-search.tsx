@@ -99,8 +99,11 @@ export function PlaceSearch({ id }: { id: string }) {
         >
           <Combobox.Input
             id={id}
+            name="place"
+            autoComplete="off"
+            spellCheck={false}
             placeholder={getPlacePlaceholder(search)}
-            className="h-8 flex-1 rounded-md border border-line-strong bg-surface px-2 text-sm text-fg placeholder:text-muted"
+            className="h-10 flex-1 rounded-md border border-line-strong bg-surface px-2 text-sm text-fg placeholder:text-muted sm:h-8"
           />
           <Combobox.Portal>
             <Combobox.Positioner sideOffset={4} align="start" className="z-50">

@@ -1,3 +1,5 @@
+import { SlidersHorizontalIcon } from 'lucide-react';
+
 import { buttonVariants } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { Filters } from '@/containers/search/filters';
@@ -11,15 +13,16 @@ export function SearchToolbar() {
 
   return (
     <>
-      <div className="hidden md:block">
+      <div className="hidden rounded-md border border-line bg-surface px-4 py-3 md:block">
         <Filters idPrefix="toolbar" />
       </div>
       <div className="md:hidden">
         <Sheet>
-          <SheetTrigger className={buttonVariants()}>
+          <SheetTrigger className={buttonVariants({ className: 'h-10 px-4' })}>
+            <SlidersHorizontalIcon aria-hidden="true" className="size-4" />
             {m.filters_button()}
             {activeFilterCount > 0 ? (
-              <span className="rounded-full bg-fg px-1.5 text-xs text-canvas">
+              <span className="rounded-xs bg-fg px-1.5 font-mono text-xs text-canvas tabular-nums">
                 {activeFilterCount}
               </span>
             ) : null}

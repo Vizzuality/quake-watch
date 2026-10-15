@@ -16,12 +16,12 @@ export function Pagination<TData extends RowData>({
   return (
     <nav
       aria-label={m.pagination_label()}
-      className="flex items-center justify-end gap-3 text-xs text-muted"
+      className="flex items-center justify-between gap-3 text-sm text-muted sm:justify-end"
     >
       <Button onClick={() => table.previousPage()} disabled={!table.getCanPreviousPage()}>
         {m.pagination_previous()}
       </Button>
-      <span aria-live="polite">
+      <span aria-live="polite" className="font-mono text-xs tabular-nums">
         {m.pagination_status({ page: String(page), pageCount: String(pageCount) })}
       </span>
       <Button onClick={() => table.nextPage()} disabled={!table.getCanNextPage()}>

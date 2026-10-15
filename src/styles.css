@@ -34,6 +34,17 @@
   --text-2xs--line-height: 1rem;
 
   --ease-out-quart: cubic-bezier(0.25, 1, 0.5, 1);
+
+  --animate-arrive: arrive 2.4s var(--ease-out-quart) both;
+
+  @keyframes arrive {
+    from {
+      background-color: color-mix(in srgb, var(--color-mag-4) 24%, transparent);
+    }
+    to {
+      background-color: transparent;
+    }
+  }
 }
 
 @layer base {

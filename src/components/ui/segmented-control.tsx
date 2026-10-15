@@ -20,7 +20,7 @@ export function SegmentedControl<T extends string>({
   return (
     <fieldset
       aria-label={label}
-      className="m-0 inline-flex h-8 rounded-md border border-line-strong bg-surface p-0.5"
+      className="m-0 inline-flex h-10 rounded-md border border-line-strong bg-surface p-0.5 sm:h-8"
     >
       {options.map((option) => (
         <button
@@ -29,7 +29,7 @@ export function SegmentedControl<T extends string>({
           aria-pressed={option.value === value}
           onClick={() => onValueChange(option.value)}
           className={cn(
-            'rounded px-2 text-xs font-medium',
+            'rounded-xs px-3 text-xs font-medium sm:px-2',
             getSegmentClassName(option.value === value),
           )}
         >

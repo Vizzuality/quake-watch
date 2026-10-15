@@ -1,6 +1,6 @@
 # Seismograph design system with light and dark themes
 
-The interface had one dark palette of six colors, the system font and a yellow-to-red Magnitude scale. Its two strongest classes were nearly identical (M7 and M8 shared one color), and on the dark map they had the least contrast. We adopt the Seismograph direction: IBM Plex Sans for text, IBM Plex Mono for every measurement, cool neutrals, and a single magenta hue for Magnitude.
+The interface had one dark palette of six colors, the system font and a yellow-to-red Magnitude scale. Its two strongest classes were nearly identical (M7 and M8 shared one color), and on the dark map they had the least contrast. We adopt the Seismograph direction: IBM Plex Sans for text, IBM Plex Mono for Magnitude and other short codes, and tabular figures for every other number, cool neutrals, and a single magenta hue for Magnitude.
 
 The interface ships a light and a dark theme. It follows the device setting until the person picks one with the theme switch; the choice is kept in `localStorage` and applied by an inline script before first paint, so the page never flashes the wrong theme. Every color is a token in `src/styles.css`, redefined per theme. MapLibre can't read CSS variables, so `getMapPalette` reads the resolved token values for map layers.
 

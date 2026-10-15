@@ -1,5 +1,6 @@
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 
+import { Wordmark } from '@/components/brand/wordmark';
 import { LanguageSwitch } from '@/containers/shell/language-switch';
 import { ThemeSwitch } from '@/containers/shell/theme-switch';
 import { TruncatedNotice } from '@/containers/shell/truncated-notice';
@@ -36,9 +37,7 @@ export function MapHeader() {
   return (
     <header className="absolute top-3 left-3 max-w-[calc(100%-1.5rem)] rounded-lg bg-canvas/70 px-3 py-2 backdrop-blur">
       <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
-        <h1 className="text-base font-semibold tracking-tight whitespace-nowrap">
-          {m.app_title()}
-        </h1>
+        <Wordmark />
         <div className="flex items-center gap-2 sm:gap-3">
           <ViewTabs current="map" />
           <LanguageSwitch />
