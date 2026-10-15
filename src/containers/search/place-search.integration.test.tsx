@@ -1,6 +1,8 @@
-import { describe, expect, it, vi } from 'vitest';
+import { flushSync } from 'react-dom';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { userEvent } from 'vitest/browser';
 
+import { PLACE_QUERY_DEBOUNCE_MS } from '@/lib/places/query-options';
 import { getPhotonCollection } from '@/test/fixtures/places';
 import { renderWithRouter } from '@/test/render-with-router';
 import { stubFetch } from '@/test/stub-fetch';
@@ -16,15 +18,21 @@ function stubPhoton(respond: () => Response) {
 }
 
 describe('PlaceSearch', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it('asks Photon once per pause and only from three characters', async () => {
     const fetchMock = stubPhoton(() => Response.json(getPhotonCollection()));
     const { screen } = await renderWithRouter(PlaceSearchUnderTest);
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
     await userEvent.type(screen.getByLabelText('Place'), 'gr');
-    await new Promise((resolve) => setTimeout(resolve, 500));
+    flushSync(() => vi.advanceTimersByTime(500));
     expect(fetchMock).not.toHaveBeenCalled();
     await userEvent.type(screen.getByLabelText('Place'), 'anada');
+    flushSync(() => vi.advanceTimersByTime(PLACE_QUERY_DEBOUNCE_MS));
     await expect.poll(() => fetchMock.mock.calls.length).toBe(1);
-    await new Promise((resolve) => setTimeout(resolve, 500));
+    flushSync(() => vi.advanceTimersByTime(500));
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
