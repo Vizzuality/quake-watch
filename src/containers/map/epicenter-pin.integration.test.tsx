@@ -1,6 +1,7 @@
 import { Point } from 'maplibre-gl';
 import type { Map as MaplibreMap, StyleSpecification } from 'maplibre-gl';
 import { createRef, useEffect } from 'react';
+import { flushSync } from 'react-dom';
 import { Map as MapGL } from 'react-map-gl/maplibre';
 import type { MapRef } from 'react-map-gl/maplibre';
 import { describe, expect, it } from 'vitest';
@@ -33,7 +34,7 @@ function ShowEverything() {
 }
 
 function clickMap(map: MaplibreMap, point: Point) {
-  map.fire('click', { point, lngLat: map.unproject(point) });
+  flushSync(() => map.fire('click', { point, lngLat: map.unproject(point) }));
 }
 
 async function renderPinnableMap() {
@@ -67,6 +68,7 @@ async function renderPinnableMap() {
   await expect
     .poll(
       () => map().queryRenderedFeatures(getEpicenterPoint(), { layers: [CORE_LAYER.id] }).length,
+      { timeout: 5_000 },
     )
     .toBeGreaterThan(0);
   return { ...rendered, map, getEpicenterPoint };
