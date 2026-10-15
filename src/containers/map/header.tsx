@@ -1,6 +1,7 @@
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 
 import { LanguageSwitch } from '@/containers/shell/language-switch';
+import { ThemeSwitch } from '@/containers/shell/theme-switch';
 import { TruncatedNotice } from '@/containers/shell/truncated-notice';
 import { ViewTabs } from '@/containers/shell/view-tabs';
 import { useEarthquakeSearch } from '@/hooks/use-earthquake-search';
@@ -33,12 +34,15 @@ export function MapHeader() {
       : m.loading_earthquakes();
 
   return (
-    <header className="absolute top-3 left-3 max-w-[calc(100%-1.5rem)] rounded-lg bg-ink/70 px-3 py-2 backdrop-blur">
-      <div className="flex items-center justify-between gap-4">
-        <h1 className="text-base font-semibold tracking-tight">{m.app_title()}</h1>
-        <div className="flex items-center gap-3">
+    <header className="absolute top-3 left-3 max-w-[calc(100%-1.5rem)] rounded-lg bg-canvas/70 px-3 py-2 backdrop-blur">
+      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+        <h1 className="text-base font-semibold tracking-tight whitespace-nowrap">
+          {m.app_title()}
+        </h1>
+        <div className="flex items-center gap-2 sm:gap-3">
           <ViewTabs current="map" />
           <LanguageSwitch />
+          <ThemeSwitch />
         </div>
       </div>
       {data ? (
@@ -49,7 +53,7 @@ export function MapHeader() {
       {data?.isTruncated ? <TruncatedNotice className="max-w-sm border-0 px-0 py-1" /> : null}
       {isPending ? <p className="text-xs text-muted">{m.loading_earthquakes()}</p> : null}
       {isError ? (
-        <p role="alert" className="text-xs text-danger">
+        <p role="alert" className="text-xs text-alert">
           {m.error_source_retrying({ source })}
         </p>
       ) : null}

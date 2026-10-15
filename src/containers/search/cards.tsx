@@ -52,12 +52,12 @@ export function EarthquakeCards({
           <div className="flex min-w-0 flex-1 flex-col gap-0.5">
             <Link
               {...getEarthquakeDetailLinkOptions(earthquake)}
-              className="group flex min-w-0 items-center gap-1 rounded font-medium focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-paper"
+              className="group flex min-w-0 items-center gap-1 rounded font-medium focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fg"
             >
               <span className="truncate">{earthquake.place ?? m.place_unknown()}</span>
               <ArrowUpRightIcon
                 aria-hidden="true"
-                className="size-4 shrink-0 text-muted transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:text-paper"
+                className="size-4 shrink-0 text-muted transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:text-fg"
               />
             </Link>
             <span className="text-xs text-muted">

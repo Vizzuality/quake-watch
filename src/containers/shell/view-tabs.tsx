@@ -8,7 +8,7 @@ type View = 'table' | 'map';
 function getTabClassName(isCurrent: boolean): string {
   return cn(
     'rounded px-2.5 py-1 text-xs font-medium',
-    isCurrent ? 'bg-paper text-ink' : 'text-muted hover:text-paper',
+    isCurrent ? 'bg-fg text-canvas' : 'text-muted hover:text-fg',
   );
 }
 

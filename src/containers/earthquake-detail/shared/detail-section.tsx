@@ -17,7 +17,7 @@ export function DetailSection({
   return (
     <section aria-labelledby={headingId} className="flex flex-col gap-3">
       <div className="flex flex-col gap-1">
-        <h2 id={headingId} className="text-lg font-semibold text-paper">
+        <h2 id={headingId} className="text-lg font-semibold text-fg">
           {title}
         </h2>
         <SectionExplainer>{explainer}</SectionExplainer>

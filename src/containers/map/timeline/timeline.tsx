@@ -166,7 +166,7 @@ export function Timeline() {
     <section
       aria-label={m.timeline_label()}
       onKeyDown={handleKeyDown}
-      className="absolute inset-x-3 bottom-[max(4.5rem,calc(env(safe-area-inset-bottom)+4rem))] rounded-lg bg-ink/70 px-3 py-2 text-xs text-muted backdrop-blur sm:inset-x-auto sm:bottom-8 sm:left-1/2 sm:w-full sm:max-w-3xl sm:-translate-x-1/2"
+      className="absolute inset-x-3 bottom-[max(4.5rem,calc(env(safe-area-inset-bottom)+4rem))] rounded-lg bg-canvas/70 px-3 py-2 text-xs text-muted backdrop-blur sm:inset-x-auto sm:bottom-8 sm:left-1/2 sm:w-full sm:max-w-3xl sm:-translate-x-1/2"
     >
       {isPending && <Skeleton className="h-28" />}
       {showEmpty && (

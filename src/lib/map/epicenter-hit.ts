@@ -1,6 +1,6 @@
 import type { Map as MaplibreMap, PointLike } from 'maplibre-gl';
 
-import { CORE_LAYER } from '@/components/map/layers';
+import { CORE_LAYER_ID } from '@/components/map/layers';
 
 import type { PlaybackClock } from './playback-clock';
 
@@ -16,8 +16,8 @@ export function getVisibleEpicenterId(
   point: PointLike,
   clock: EpicenterClock,
 ): string | null {
-  if (!map.getLayer(CORE_LAYER.id)) return null;
-  const features = map.queryRenderedFeatures(point, { layers: [CORE_LAYER.id] });
+  if (!map.getLayer(CORE_LAYER_ID)) return null;
+  const features = map.queryRenderedFeatures(point, { layers: [CORE_LAYER_ID] });
   const visible = features.find(({ properties }) => getIsEpicenterVisible(properties.time, clock));
   return visible ? String(visible.properties.id) : null;
 }

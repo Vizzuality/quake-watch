@@ -147,7 +147,7 @@ describe('bar helpers', () => {
     expect(getBarHeight(1, 1000, 56)).toBe(2);
   });
   it('highlights the hovered bar', () => {
-    expect(getBarClassName(true)).toBe('fill-paper');
+    expect(getBarClassName(true)).toBe('fill-fg');
     expect(getBarClassName(false)).toBe('fill-muted');
   });
 });

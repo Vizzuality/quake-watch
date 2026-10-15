@@ -4,7 +4,7 @@ export function Alert({ children, action }: { children: ReactNode; action?: Reac
   return (
     <div
       role="alert"
-      className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-danger/40 bg-danger/10 px-3 py-2 text-sm text-danger"
+      className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-alert/40 bg-alert/10 px-3 py-2 text-sm text-alert"
     >
       <p>{children}</p>
       {action}

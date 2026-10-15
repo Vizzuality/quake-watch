@@ -19,7 +19,7 @@ export function SearchToolbar() {
           <SheetTrigger className={buttonVariants()}>
             {m.filters_button()}
             {activeFilterCount > 0 ? (
-              <span className="rounded-full bg-paper px-1.5 text-xs text-ink">
+              <span className="rounded-full bg-fg px-1.5 text-xs text-canvas">
                 {activeFilterCount}
               </span>
             ) : null}

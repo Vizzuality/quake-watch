@@ -1,26 +1,95 @@
 @import 'tailwindcss';
+@import '@fontsource-variable/ibm-plex-sans';
+@import '@fontsource/ibm-plex-mono/400.css';
+@import '@fontsource/ibm-plex-mono/500.css';
+@import '@fontsource/ibm-plex-mono/600.css';
 
-@theme {
-  --color-ink: #0b0d10;
-  --color-paper: #f4f1ea;
-  --color-muted: #8a8f98;
-  --color-surface: #161b23;
-  --color-line: #2a323e;
-  --color-danger: #f87171;
-  --font-sans: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+@theme static {
+  --color-canvas: #f3f4f6;
+  --color-surface: #ffffff;
+  --color-raised: #e9ebef;
+  --color-fg: #12151b;
+  --color-muted: #576070;
+  --color-line: #d6dae1;
+  --color-line-strong: #7a8393;
+  --color-alert: #9a5800;
+
+  --color-mag-1: #fe6ec7;
+  --color-mag-2: #ea4bb2;
+  --color-mag-3: #d02e9a;
+  --color-mag-4: #b50283;
+  --color-mag-5: #920269;
+  --color-mag-6: #700150;
+  --color-on-mag-1: #12151b;
+  --color-on-mag-2: #12151b;
+  --color-on-mag-3: #ffffff;
+  --color-on-mag-4: #ffffff;
+  --color-on-mag-5: #ffffff;
+  --color-on-mag-6: #ffffff;
+
+  --font-sans: 'IBM Plex Sans Variable', 'IBM Plex Sans', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace;
+
+  --text-2xs: 0.6875rem;
+  --text-2xs--line-height: 1rem;
+
+  --ease-out-quart: cubic-bezier(0.25, 1, 0.5, 1);
 }
 
-html,
-body {
-  height: 100%;
-  background: var(--color-ink);
-  color: var(--color-paper);
+@layer base {
+  :root {
+    color-scheme: light;
+    --map-control-invert: 0;
+  }
+
+  :root[data-resolved-theme='dark'] {
+    color-scheme: dark;
+    --map-control-invert: 1;
+    --color-canvas: #0e1116;
+    --color-surface: #161a21;
+    --color-raised: #1d222b;
+    --color-fg: #e8eaee;
+    --color-muted: #8b93a1;
+    --color-line: #2a313c;
+    --color-line-strong: #667080;
+    --color-alert: #f2a93b;
+    --color-mag-1: #ae017e;
+    --color-mag-2: #cc2997;
+    --color-mag-3: #e849b0;
+    --color-mag-4: #fe6ec7;
+    --color-mag-5: #fea2d7;
+    --color-mag-6: #fecee8;
+    --color-on-mag-1: #ffffff;
+    --color-on-mag-2: #ffffff;
+    --color-on-mag-3: #0e1116;
+    --color-on-mag-4: #0e1116;
+    --color-on-mag-5: #0e1116;
+    --color-on-mag-6: #0e1116;
+  }
+
+  html,
+  body {
+    height: 100%;
+    background: var(--color-canvas);
+    color: var(--color-fg);
+    caret-color: var(--color-fg);
+    scrollbar-color: var(--color-line) var(--color-canvas);
+  }
+
+  ::selection {
+    background: color-mix(in srgb, var(--color-mag-4) 35%, transparent);
+    color: var(--color-fg);
+  }
+}
+
+html .maplibregl-map {
+  font-family: var(--font-sans);
 }
 
 .maplibregl-map .maplibregl-ctrl-attrib.maplibregl-ctrl {
-  background: color-mix(in srgb, var(--color-ink) 70%, transparent);
+  background: color-mix(in srgb, var(--color-canvas) 80%, transparent);
   color: var(--color-muted);
-  font-size: 0.6875rem;
+  font-size: var(--text-2xs);
 }
 
 .maplibregl-map .maplibregl-ctrl-attrib.maplibregl-ctrl a {
@@ -28,11 +97,11 @@ body {
 }
 
 .maplibregl-map .maplibregl-ctrl-attrib.maplibregl-ctrl a:hover {
-  color: var(--color-paper);
+  color: var(--color-fg);
 }
 
 .maplibregl-map .maplibregl-ctrl-attrib.maplibregl-ctrl .maplibregl-ctrl-attrib-button {
-  filter: invert(1);
+  filter: invert(var(--map-control-invert));
 }
 
 .maplibregl-popup.quake-tooltip {
@@ -50,5 +119,5 @@ body {
 }
 
 .maplibregl-popup.quake-tooltip.maplibregl-popup-anchor-bottom .maplibregl-popup-tip {
-  border-top-color: color-mix(in srgb, var(--color-ink) 90%, transparent);
+  border-top-color: color-mix(in srgb, var(--color-canvas) 90%, transparent);
 }

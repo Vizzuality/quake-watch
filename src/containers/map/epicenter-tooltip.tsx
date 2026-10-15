@@ -4,7 +4,7 @@ import type { MapMouseEvent } from 'maplibre-gl';
 import { useEffect, useMemo, useState } from 'react';
 import { useMap } from 'react-map-gl/maplibre';
 
-import { CORE_LAYER } from '@/components/map/layers';
+import { CORE_LAYER_ID } from '@/components/map/layers';
 import { useEarthquakeSearch } from '@/hooks/use-earthquake-search';
 import { getEarthquakeDetailLinkOptions } from '@/lib/earthquakes/detail-link';
 import { getDistanceKm } from '@/lib/earthquakes/distance';
@@ -69,7 +69,7 @@ export function EpicenterTooltipContent({
       {isPinned && (
         <Link
           {...getEarthquakeDetailLinkOptions(earthquake)}
-          className="mt-1 rounded font-medium underline underline-offset-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-paper"
+          className="mt-1 rounded font-medium underline underline-offset-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fg"
         >
           {m.epicenter_tooltip_view_details({}, { locale })}
         </Link>
@@ -111,8 +111,8 @@ export function EpicenterTooltip() {
       setPinnedId(getVisibleEpicenterId(instance, event.point, clock));
     };
 
-    instance.on('mousemove', CORE_LAYER.id, show);
-    instance.on('mouseleave', CORE_LAYER.id, clear);
+    instance.on('mousemove', CORE_LAYER_ID, show);
+    instance.on('mouseleave', CORE_LAYER_ID, clear);
     instance.on('click', pin);
     const unsubscribe = clock.subscribe(() => {
       setHovered((previous) =>
@@ -124,8 +124,8 @@ export function EpicenterTooltip() {
       });
     });
     return () => {
-      instance.off('mousemove', CORE_LAYER.id, show);
-      instance.off('mouseleave', CORE_LAYER.id, clear);
+      instance.off('mousemove', CORE_LAYER_ID, show);
+      instance.off('mouseleave', CORE_LAYER_ID, clear);
       instance.off('click', pin);
       unsubscribe();
       clear();

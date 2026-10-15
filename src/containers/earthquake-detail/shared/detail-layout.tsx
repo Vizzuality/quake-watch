@@ -4,6 +4,7 @@ import type { ReactNode } from 'react';
 
 import { buttonVariants } from '@/components/ui/button';
 import { LanguageSwitch } from '@/containers/shell/language-switch';
+import { ThemeSwitch } from '@/containers/shell/theme-switch';
 import { cn } from '@/lib/utils';
 import { m } from '@/paraglide/messages';
 
@@ -15,7 +16,10 @@ export function DetailLayout({ children }: { children: ReactNode }) {
           <ArrowLeft aria-hidden className="size-4" />
           {m.detail_back_to_list()}
         </Link>
-        <LanguageSwitch />
+        <div className="flex items-center gap-4">
+          <LanguageSwitch />
+          <ThemeSwitch />
+        </div>
       </div>
       {children}
     </main>

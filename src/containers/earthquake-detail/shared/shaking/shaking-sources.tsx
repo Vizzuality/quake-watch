@@ -4,7 +4,7 @@ import { m } from '@/paraglide/messages';
 const IRIS_WAVES_URL = 'https://www.iris.edu/hq/inclass/animation/p_wave_vs_s_wave';
 const BGS_WAVES_URL =
   'https://www.bgs.ac.uk/discovering-geology/earth-hazards/earthquakes/how-are-earthquakes-detected/';
-const SOURCE_LINK_CLASS_NAME = 'text-paper underline underline-offset-2';
+const SOURCE_LINK_CLASS_NAME = 'text-fg underline underline-offset-2';
 
 export function SourceLink({ href, children }: { href: string; children: string }) {
   return (

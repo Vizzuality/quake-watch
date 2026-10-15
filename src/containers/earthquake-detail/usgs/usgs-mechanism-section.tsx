@@ -41,7 +41,7 @@ function NodalPlaneCard({
 
   return (
     <div className="flex flex-col gap-1 rounded-lg border border-line bg-surface p-3">
-      <h3 className="text-sm font-semibold text-paper">{m.detail_plane_title({ index })}</h3>
+      <h3 className="text-sm font-semibold text-fg">{m.detail_plane_title({ index })}</h3>
       <DatumList>
         <Datum
           label={m.detail_label_fault_type()}

@@ -1,8 +1,8 @@
 import { ExternalLink } from 'lucide-react';
 import type { ReactNode } from 'react';
 
+import { MagnitudeBadge } from '@/components/magnitude-badge';
 import { buttonVariants } from '@/components/ui/button';
-import { getMagnitudeColor } from '@/lib/earthquakes/magnitude';
 import { SOURCE_ADAPTERS } from '@/lib/earthquakes/query-options';
 import type { Earthquake } from '@/lib/earthquakes/types';
 import { getCoordinatesLabel, getFullDateTimeLabel, getKmLabel } from '@/lib/format';
@@ -13,7 +13,7 @@ function HeaderFact({ label, children }: { label: string; children: ReactNode })
   return (
     <div className="flex flex-col gap-0.5">
       <dt className="text-xs tracking-wide text-muted uppercase">{label}</dt>
-      <dd className="text-sm text-paper">{children}</dd>
+      <dd className="text-sm text-fg">{children}</dd>
     </div>
   );
 }
@@ -25,11 +25,11 @@ export function DetailHeader({ earthquake }: { earthquake: Earthquake }) {
   return (
     <header className="flex flex-col gap-4 sm:flex-row sm:items-start sm:gap-6">
       <div className="flex shrink-0 items-baseline gap-2 sm:flex-col sm:items-start sm:gap-0">
-        <p
-          className="text-6xl leading-none font-semibold tabular-nums"
-          style={{ color: getMagnitudeColor(earthquake.magnitude) }}
-        >
-          {earthquake.magnitude.toFixed(1)}
+        <p>
+          <MagnitudeBadge
+            magnitude={earthquake.magnitude}
+            className="rounded-sm px-2 py-1 font-sans text-5xl leading-none tracking-tight"
+          />
         </p>
         <p className="text-sm text-muted">
           {earthquake.magnitudeType

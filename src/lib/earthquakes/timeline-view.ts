@@ -92,7 +92,7 @@ export function getBarHeight(count: number, maxCount: number, plotHeight: number
 }
 
 export function getBarClassName(isHovered: boolean): string {
-  return isHovered ? 'fill-paper' : 'fill-muted';
+  return isHovered ? 'fill-fg' : 'fill-muted';
 }
 
 export function getShouldRefreshValueText(input: {

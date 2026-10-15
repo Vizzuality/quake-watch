@@ -7,7 +7,7 @@ import type { MapRef } from 'react-map-gl/maplibre';
 import { describe, expect, it } from 'vitest';
 
 import '@/components/map/maplibre-worker';
-import { CORE_LAYER } from '@/components/map/layers';
+import { CORE_LAYER_ID } from '@/components/map/layers';
 import { getEmscFeature, getFeatureCollection } from '@/test/fixtures/earthquakes';
 import { renderWithRouter } from '@/test/render-with-router';
 import { stubFetch } from '@/test/stub-fetch';
@@ -67,7 +67,7 @@ async function renderPinnableMap() {
   const getEpicenterPoint = () => map().project([EPICENTER.lng, EPICENTER.lat]);
   await expect
     .poll(
-      () => map().queryRenderedFeatures(getEpicenterPoint(), { layers: [CORE_LAYER.id] }).length,
+      () => map().queryRenderedFeatures(getEpicenterPoint(), { layers: [CORE_LAYER_ID] }).length,
       { timeout: 5_000 },
     )
     .toBeGreaterThan(0);

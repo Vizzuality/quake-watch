@@ -207,7 +207,7 @@ function RuptureStart({
       <Label position={[0, -depthKm, 0]}>
         <span
           aria-hidden="true"
-          className="block translate-x-4 -translate-y-1/2 rounded bg-ink/85 px-1.5 py-0.5 text-xs whitespace-nowrap text-paper ring-1 ring-paper/25"
+          className="block translate-x-4 -translate-y-1/2 rounded bg-canvas/85 px-1.5 py-0.5 text-xs whitespace-nowrap text-fg ring-1 ring-fg/25"
         >
           {getRuptureStartLabel(depthKm, compact)}
         </span>
@@ -215,7 +215,7 @@ function RuptureStart({
       <Label position={[0, surfaceKm, 0]}>
         <span
           aria-hidden="true"
-          className="block -translate-x-1/2 -translate-y-[calc(100%+12px)] text-[11px] font-medium tracking-wide whitespace-nowrap text-paper"
+          className="block -translate-x-1/2 -translate-y-[calc(100%+12px)] text-[11px] font-medium tracking-wide whitespace-nowrap text-fg"
         >
           {m.crustal_block_epicenter()}
         </span>
@@ -242,9 +242,9 @@ function BlockLabels({
         <Label key={label.kind} position={[halfSideKm, label.yKm, -halfSideKm]}>
           <span
             aria-hidden="true"
-            className="flex translate-x-1 -translate-y-1/2 items-center gap-1.5 text-[11px] font-medium tracking-wide whitespace-nowrap text-paper/90"
+            className="flex translate-x-1 -translate-y-1/2 items-center gap-1.5 text-[11px] font-medium tracking-wide whitespace-nowrap text-fg/90"
           >
-            <span className="h-px w-3 bg-paper/50" />
+            <span className="h-px w-3 bg-fg/50" />
             {LABEL_TEXTS[label.kind]()}
           </span>
         </Label>
@@ -333,7 +333,7 @@ export default function CrustalBlockScene(props: CrustalBlockProps) {
     <div
       aria-hidden="true"
       className={cn(
-        'relative overflow-hidden rounded-lg border border-line bg-[radial-gradient(ellipse_at_50%_30%,var(--color-surface),var(--color-ink))]',
+        'relative overflow-hidden rounded-lg border border-line bg-[radial-gradient(ellipse_at_50%_30%,var(--color-surface),var(--color-canvas))]',
         CRUSTAL_BLOCK_HEIGHT,
       )}
     >

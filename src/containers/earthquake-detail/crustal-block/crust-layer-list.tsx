@@ -21,7 +21,7 @@ type Swatch = { color: string; shape: 'square' | 'dot' };
 
 const SWATCH_SHAPES: Record<Swatch['shape'], string> = {
   square: 'rounded-sm',
-  dot: 'rounded-full ring-2 ring-paper/30',
+  dot: 'rounded-full ring-2 ring-fg/30',
 };
 
 const RUPTURE_START_COLOR = '#ffffff';
@@ -83,7 +83,7 @@ export function CrustLayerList(props: CrustalBlockProps) {
 
   return (
     <div className="flex flex-col gap-2">
-      <h3 className="text-sm font-medium text-paper">{m.crustal_block_list_title()}</h3>
+      <h3 className="text-sm font-medium text-fg">{m.crustal_block_list_title()}</h3>
       <DatumList>
         {rows.map((row) => (
           <Datum
@@ -91,7 +91,7 @@ export function CrustLayerList(props: CrustalBlockProps) {
             label={row.label}
             value={<LayerValue row={row} />}
             explanation={row.explanation}
-            className={row.highlighted ? 'bg-paper/5 px-2' : undefined}
+            className={row.highlighted ? 'bg-fg/5 px-2' : undefined}
           />
         ))}
       </DatumList>

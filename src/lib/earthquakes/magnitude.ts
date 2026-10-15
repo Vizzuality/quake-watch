@@ -11,14 +11,13 @@ export const MAGNITUDE_RADIUS_STOPS: ReadonlyArray<readonly [number, number]> = 
   [8, 40],
 ];
 
-export const MAGNITUDE_COLOR_STOPS: ReadonlyArray<readonly [number, string]> = [
-  [2.5, '#fde68a'],
-  [4, '#fbbf24'],
-  [5, '#f97316'],
-  [6, '#ef4444'],
-  [7, '#e11d48'],
-  [8, '#e11d48'],
-];
+export const MAGNITUDE_CLASS_BREAKS = [3, 4, 5, 6, 7] as const;
+
+export const MAGNITUDE_CLASSES = [1, 2, 3, 4, 5, 6] as const;
+
+export type MagnitudeClass = (typeof MAGNITUDE_CLASSES)[number];
+
+export type MagnitudeColors = readonly [string, string, string, string, string, string];
 
 export type QuakeFeatureProperties = {
   id: string;
@@ -44,21 +43,34 @@ export function getMagnitudeRadiusExpression(): ExpressionSpecification {
   return ['interpolate', ['linear'], ['get', 'magnitude'], ...MAGNITUDE_RADIUS_STOPS.flat()];
 }
 
-export function getMagnitudeColorExpression(): ExpressionSpecification {
-  return ['interpolate', ['linear'], ['get', 'magnitude'], ...MAGNITUDE_COLOR_STOPS.flat()];
+export function getMagnitudeColorExpression(colors: MagnitudeColors): ExpressionSpecification {
+  const [below, ...above] = colors;
+  return [
+    'step',
+    ['get', 'magnitude'],
+    below,
+    ...MAGNITUDE_CLASS_BREAKS.flatMap((magnitude, index) => [magnitude, above[index]!]),
+  ];
 }
 
-function getStopValue<T>(stops: ReadonlyArray<readonly [number, T]>, magnitude: number): T {
-  const stop = stops.find(([stopMagnitude]) => stopMagnitude === magnitude);
-  if (!stop) throw new Error(`No map stop defined for magnitude ${magnitude}`);
-  return stop[1];
+export function getMagnitudeClass(magnitude: number): MagnitudeClass {
+  return MAGNITUDE_CLASSES[MAGNITUDE_CLASS_BREAKS.filter((min) => magnitude >= min).length]!;
 }
 
-export function getMagnitudeSwatch(magnitude: number): { diameter: number; color: string } {
-  return {
-    diameter: getStopValue(MAGNITUDE_RADIUS_STOPS, magnitude) * 2,
-    color: getStopValue(MAGNITUDE_COLOR_STOPS, magnitude),
-  };
+export function getMagnitudeClassMinimum(magnitudeClass: MagnitudeClass): number | null {
+  return magnitudeClass === 1 ? null : MAGNITUDE_CLASS_BREAKS[magnitudeClass - 2]!;
+}
+
+export function getMagnitudeRadius(magnitude: number): number {
+  const [first] = MAGNITUDE_RADIUS_STOPS;
+  const last = MAGNITUDE_RADIUS_STOPS.at(-1)!;
+  if (magnitude <= first![0]) return first![1];
+  if (magnitude >= last[0]) return last[1];
+  const upperIndex = MAGNITUDE_RADIUS_STOPS.findIndex(([stop]) => stop >= magnitude);
+  const [lowMagnitude, lowRadius] = MAGNITUDE_RADIUS_STOPS[upperIndex - 1]!;
+  const [highMagnitude, highRadius] = MAGNITUDE_RADIUS_STOPS[upperIndex]!;
+  const progress = (magnitude - lowMagnitude) / (highMagnitude - lowMagnitude);
+  return lowRadius + (highRadius - lowRadius) * progress;
 }
 
 export function getEarthquakesGeoJson(quakes: Earthquake[]): QuakeFeatureCollection {
@@ -82,11 +94,4 @@ export function getEarthquakesGeoJson(quakes: Earthquake[]): QuakeFeatureCollect
     );
 
   return { type: 'FeatureCollection', features };
-}
-
-export function getMagnitudeColor(magnitude: number): string {
-  const [firstStop] = MAGNITUDE_COLOR_STOPS;
-  const stop =
-    MAGNITUDE_COLOR_STOPS.findLast(([stopMagnitude]) => stopMagnitude <= magnitude) ?? firstStop;
-  return stop[1];
 }

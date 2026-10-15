@@ -28,7 +28,7 @@ export function ShakingLegend({
   return (
     <div className="flex flex-col gap-3 text-xs text-muted">
       <div className="flex flex-col gap-2">
-        <span id={titleId} className="font-medium text-paper">
+        <span id={titleId} className="font-medium text-fg">
           {title}
         </span>
         <ol aria-labelledby={titleId} className="grid grid-cols-2 gap-x-4 gap-y-1.5 sm:grid-cols-5">
@@ -46,16 +46,16 @@ export function ShakingLegend({
         {children}
       </div>
       <div className="flex flex-col gap-2">
-        <span id={wavesId} className="font-medium text-paper">
+        <span id={wavesId} className="font-medium text-fg">
           {m.detail_shakemap_waves_title()}
         </span>
         <ul aria-labelledby={wavesId} className="flex flex-col gap-1.5">
           <li className="flex items-center gap-2">
-            <span aria-hidden="true" className="h-px w-5 shrink-0 bg-paper/60" />
+            <span aria-hidden="true" className="h-px w-5 shrink-0 bg-fg/60" />
             {m.detail_shakemap_wave_p()}
           </li>
           <li className="flex items-center gap-2">
-            <span aria-hidden="true" className="h-[3px] w-5 shrink-0 rounded-full bg-paper" />
+            <span aria-hidden="true" className="h-[3px] w-5 shrink-0 rounded-full bg-fg" />
             {m.detail_shakemap_wave_s()}
           </li>
         </ul>

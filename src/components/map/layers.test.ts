@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
-import { CORE_LAYER, HALO_LAYER, getAgeOpacityExpression } from '@/components/map/layers';
+import { getAgeOpacityExpression, getCoreLayer, getHaloLayer } from '@/components/map/layers';
 import { AGE_OPACITY_FLOOR, getAgeOpacity } from '@/lib/earthquakes/timeline';
+import type { MapPalette } from '@/lib/theme/map-palette';
 
 type Expr = number | string | Expr[];
 type Scope = { time: number; t: number; windowStart: number; windowMs: number };
@@ -73,11 +74,24 @@ describe('getAgeOpacityExpression', () => {
   });
 });
 
+const PALETTE: MapPalette = {
+  canvas: '#000000',
+  fg: '#ffffff',
+  magnitude: ['#000001', '#000002', '#000003', '#000004', '#000005', '#000006'],
+};
+
 describe('earthquake layers', () => {
+  const HALO_LAYER = getHaloLayer(PALETTE);
+  const CORE_LAYER = getCoreLayer(PALETTE);
+
   it('scale their opacity by age', () => {
     const age = getAgeOpacityExpression();
     expect(HALO_LAYER.paint?.['circle-opacity']).toEqual(['*', 0.35, age]);
     expect(CORE_LAYER.paint?.['circle-opacity']).toEqual(['*', 0.9, age]);
-    expect(CORE_LAYER.paint?.['circle-stroke-opacity']).toEqual(age);
+    expect(CORE_LAYER.paint?.['circle-stroke-opacity']).toEqual(['*', 0.5, age]);
+  });
+
+  it('ring each Earthquake in the text color so the lightest class stays visible', () => {
+    expect(CORE_LAYER.paint?.['circle-stroke-color']).toBe(PALETTE.fg);
   });
 });

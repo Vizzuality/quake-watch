@@ -40,6 +40,6 @@ export function getPlayLabel(playing: boolean): string {
 
 export function getSwatchClassName(filled: boolean): string {
   return filled
-    ? 'size-3 shrink-0 rounded-sm ring-1 ring-ink/40'
+    ? 'size-3 shrink-0 rounded-sm ring-1 ring-canvas/40'
     : 'h-[3px] w-3 shrink-0 rounded-full';
 }

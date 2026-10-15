@@ -3,7 +3,7 @@ import { cn } from '@/lib/utils';
 type SegmentedOption<T extends string> = { value: T; label: string };
 
 function getSegmentClassName(isSelected: boolean): string {
-  return isSelected ? 'bg-paper text-ink' : 'text-muted hover:text-paper';
+  return isSelected ? 'bg-fg text-canvas' : 'text-muted hover:text-fg';
 }
 
 export function SegmentedControl<T extends string>({
@@ -20,7 +20,7 @@ export function SegmentedControl<T extends string>({
   return (
     <fieldset
       aria-label={label}
-      className="m-0 inline-flex h-8 rounded-md border border-line bg-surface p-0.5"
+      className="m-0 inline-flex h-8 rounded-md border border-line-strong bg-surface p-0.5"
     >
       {options.map((option) => (
         <button

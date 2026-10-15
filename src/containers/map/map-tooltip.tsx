@@ -26,7 +26,7 @@ export function MapTooltip({
       className={interactive ? 'quake-tooltip quake-tooltip-interactive' : 'quake-tooltip'}
       maxWidth="none"
     >
-      <div role="tooltip" className="rounded-lg bg-ink/90 px-3 py-2 text-xs text-paper">
+      <div role="tooltip" className="rounded-lg bg-canvas/90 px-3 py-2 text-xs text-fg">
         {children}
       </div>
     </Popup>

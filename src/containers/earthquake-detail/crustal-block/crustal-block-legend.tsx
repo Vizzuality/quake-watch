@@ -12,7 +12,7 @@ const CRUST1_URL = 'https://igppweb.ucsd.edu/~gabi/crust1.html';
 const TERRAIN_ATTRIBUTION_URL = 'https://github.com/tilezen/joerd/blob/master/docs/attribution.md';
 
 const LINK_CLASS_NAME =
-  'underline-offset-2 hover:text-paper hover:underline focus-visible:outline-2 focus-visible:outline-paper';
+  'underline-offset-2 hover:text-fg hover:underline focus-visible:outline-2 focus-visible:outline-fg';
 
 export function CrustalBlockLegend(props: CrustalBlockProps) {
   const titleId = useId();
@@ -27,7 +27,7 @@ export function CrustalBlockLegend(props: CrustalBlockProps) {
   return (
     <div className="flex flex-col gap-3 text-xs text-muted">
       <div className="flex flex-col gap-2">
-        <span id={titleId} className="font-medium text-paper">
+        <span id={titleId} className="font-medium text-fg">
           {m.crustal_block_legend_title()}
         </span>
         <ul aria-labelledby={titleId} className="grid grid-cols-2 gap-x-4 gap-y-1.5 lg:grid-cols-1">
@@ -35,7 +35,7 @@ export function CrustalBlockLegend(props: CrustalBlockProps) {
             <li key={kind} className="flex items-center gap-2">
               <span
                 aria-hidden="true"
-                className="size-3 shrink-0 rounded-sm ring-1 ring-ink/40"
+                className="size-3 shrink-0 rounded-sm ring-1 ring-canvas/40"
                 style={{ backgroundColor: CRUST_PALETTE[kind] }}
               />
               {BAND_NAMES[kind]()}
@@ -45,7 +45,7 @@ export function CrustalBlockLegend(props: CrustalBlockProps) {
       </div>
       <p>{m.crustal_block_relief_note()}</p>
       <div className="flex flex-col gap-1">
-        <span className="font-medium text-paper">{m.crustal_block_sources()}</span>
+        <span className="font-medium text-fg">{m.crustal_block_sources()}</span>
         <a href={CRUST1_URL} target="_blank" rel="noreferrer" className={LINK_CLASS_NAME}>
           {m.crustal_block_attribution_crust()}
         </a>

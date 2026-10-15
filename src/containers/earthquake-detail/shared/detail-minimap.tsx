@@ -4,6 +4,7 @@ import { Layer, Source } from 'react-map-gl/maplibre';
 
 import { QuakeMap } from '@/components/map/quake-map';
 import { buttonVariants } from '@/components/ui/button';
+import { useMapPalette } from '@/hooks/use-theme';
 import { getEarthquakesGeoJson, getMagnitudeColorExpression } from '@/lib/earthquakes/magnitude';
 import { SOURCE_ADAPTERS } from '@/lib/earthquakes/query-options';
 import type { Earthquake } from '@/lib/earthquakes/types';
@@ -18,6 +19,7 @@ function getMapDate(time: number): string {
 
 export function DetailMinimap({ earthquake }: { earthquake: Earthquake }) {
   const geojson = useMemo(() => getEarthquakesGeoJson([earthquake]), [earthquake]);
+  const palette = useMapPalette();
   const date = getMapDate(earthquake.time);
 
   return (
@@ -41,7 +43,7 @@ export function DetailMinimap({ earthquake }: { earthquake: Earthquake }) {
               type="circle"
               paint={{
                 'circle-radius': 14,
-                'circle-color': getMagnitudeColorExpression(),
+                'circle-color': getMagnitudeColorExpression(palette.magnitude),
                 'circle-blur': 0.6,
                 'circle-opacity': 0.3,
               }}
@@ -51,10 +53,10 @@ export function DetailMinimap({ earthquake }: { earthquake: Earthquake }) {
               type="circle"
               paint={{
                 'circle-radius': 6,
-                'circle-color': getMagnitudeColorExpression(),
+                'circle-color': getMagnitudeColorExpression(palette.magnitude),
                 'circle-opacity': 1,
                 'circle-stroke-width': 2,
-                'circle-stroke-color': '#ffffff',
+                'circle-stroke-color': palette.canvas,
               }}
             />
           </Source>

@@ -9,6 +9,7 @@ import {
   getMagnitudeRadiusExpression,
 } from '@/lib/earthquakes/magnitude';
 import { AGE_OPACITY_FLOOR } from '@/lib/earthquakes/timeline';
+import type { MapPalette } from '@/lib/theme/map-palette';
 
 export const QUAKE_SOURCE_ID = 'earthquakes';
 
@@ -28,52 +29,68 @@ export function getAgeOpacityExpression(): ExpressionSpecification {
   ];
 }
 
-export const HALO_LAYER: Omit<CircleLayerSpecification, 'source'> = {
-  id: 'earthquakes-halo',
-  type: 'circle',
-  paint: {
-    'circle-radius': ['*', 2.2, getMagnitudeRadiusExpression()],
-    'circle-color': getMagnitudeColorExpression(),
-    'circle-blur': 1,
-    'circle-opacity': ['*', 0.35, getAgeOpacityExpression()],
-  },
-};
+export const HALO_LAYER_ID = 'earthquakes-halo';
+export const CORE_LAYER_ID = 'earthquakes-core';
 
-export const CORE_LAYER: Omit<CircleLayerSpecification, 'source'> = {
-  id: 'earthquakes-core',
-  type: 'circle',
-  paint: {
-    'circle-radius': getMagnitudeRadiusExpression(),
-    'circle-color': getMagnitudeColorExpression(),
-    'circle-opacity': ['*', 0.9, getAgeOpacityExpression()],
-    'circle-stroke-width': 1,
-    'circle-stroke-color': 'rgba(255, 255, 255, 0.35)',
-    'circle-stroke-opacity': getAgeOpacityExpression(),
-  },
-};
+export function getHaloLayer(palette: MapPalette): Omit<CircleLayerSpecification, 'source'> {
+  return {
+    id: HALO_LAYER_ID,
+    type: 'circle',
+    paint: {
+      'circle-radius': ['*', 2.2, getMagnitudeRadiusExpression()],
+      'circle-color': getMagnitudeColorExpression(palette.magnitude),
+      'circle-blur': 1,
+      'circle-opacity': ['*', 0.35, getAgeOpacityExpression()],
+    },
+  };
+}
+
+export function getCoreLayer(palette: MapPalette): Omit<CircleLayerSpecification, 'source'> {
+  return {
+    id: CORE_LAYER_ID,
+    type: 'circle',
+    paint: {
+      'circle-radius': getMagnitudeRadiusExpression(),
+      'circle-color': getMagnitudeColorExpression(palette.magnitude),
+      'circle-opacity': ['*', 0.9, getAgeOpacityExpression()],
+      'circle-stroke-width': 1,
+      'circle-stroke-color': palette.fg,
+      'circle-stroke-opacity': ['*', 0.5, getAgeOpacityExpression()],
+    },
+  };
+}
 
 export const SEARCH_AREA_SOURCE_ID = 'search-area';
+export const SEARCH_AREA_LINE_LAYER_ID = 'search-area-line';
 
-export const SEARCH_AREA_LINE_LAYER: Omit<LineLayerSpecification, 'source'> = {
-  id: 'search-area-line',
-  type: 'line',
-  filter: ['==', ['get', 'kind'], 'area'],
-  paint: {
-    'line-color': '#f4f1ea',
-    'line-opacity': 0.6,
-    'line-width': 1.5,
-    'line-dasharray': [2, 2],
-  },
-};
+export function getSearchAreaLineLayer(
+  palette: MapPalette,
+): Omit<LineLayerSpecification, 'source'> {
+  return {
+    id: SEARCH_AREA_LINE_LAYER_ID,
+    type: 'line',
+    filter: ['==', ['get', 'kind'], 'area'],
+    paint: {
+      'line-color': palette.fg,
+      'line-opacity': 0.6,
+      'line-width': 1.5,
+      'line-dasharray': [2, 2],
+    },
+  };
+}
 
-export const PLACE_OF_INTEREST_LAYER: Omit<CircleLayerSpecification, 'source'> = {
-  id: 'place-of-interest',
-  type: 'circle',
-  filter: ['==', ['get', 'kind'], 'place'],
-  paint: {
-    'circle-radius': 5,
-    'circle-color': '#f4f1ea',
-    'circle-stroke-width': 2,
-    'circle-stroke-color': '#0b0d10',
-  },
-};
+export function getPlaceOfInterestLayer(
+  palette: MapPalette,
+): Omit<CircleLayerSpecification, 'source'> {
+  return {
+    id: 'place-of-interest',
+    type: 'circle',
+    filter: ['==', ['get', 'kind'], 'place'],
+    paint: {
+      'circle-radius': 5,
+      'circle-color': palette.fg,
+      'circle-stroke-width': 2,
+      'circle-stroke-color': palette.canvas,
+    },
+  };
+}

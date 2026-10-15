@@ -88,7 +88,7 @@ export function Filters({ idPrefix }: { idPrefix: string }) {
               type="date"
               value={search.from ?? ''}
               onChange={(event) => setSearch({ from: event.target.value || undefined })}
-              className="h-8 rounded-md border border-line bg-surface px-2 text-sm text-paper"
+              className="h-8 rounded-md border border-line-strong bg-surface px-2 text-sm text-fg"
             />
           </Field>
           <Field id={`${idPrefix}-to`} label={m.filter_to()}>
@@ -97,7 +97,7 @@ export function Filters({ idPrefix }: { idPrefix: string }) {
               type="date"
               value={search.to ?? ''}
               onChange={(event) => setSearch({ to: event.target.value || undefined })}
-              className="h-8 rounded-md border border-line bg-surface px-2 text-sm text-paper"
+              className="h-8 rounded-md border border-line-strong bg-surface px-2 text-sm text-fg"
             />
           </Field>
         </>

@@ -2,13 +2,14 @@ import { describe, expect, it } from 'vitest';
 
 import {
   getEarthquakesGeoJson,
-  getMagnitudeColor,
-  getMagnitudeSwatch,
-  MAGNITUDE_COLOR_STOPS,
-  MAGNITUDE_RADIUS_STOPS,
+  getMagnitudeClass,
+  getMagnitudeClassMinimum,
   getMagnitudeColorExpression,
+  getMagnitudeRadius,
   getMagnitudeRadiusExpression,
+  MAGNITUDE_RADIUS_STOPS,
 } from '@/lib/earthquakes/magnitude';
+import type { MagnitudeColors } from '@/lib/earthquakes/magnitude';
 import type { Earthquake } from '@/lib/earthquakes/types';
 
 function getStopInputs(expression: unknown[]): number[] {
@@ -30,11 +31,8 @@ function makeQuake(id: string, magnitude: number): Earthquake {
   };
 }
 
-describe.each([
-  ['radius', getMagnitudeRadiusExpression, MAGNITUDE_RADIUS_STOPS],
-  ['color', getMagnitudeColorExpression, MAGNITUDE_COLOR_STOPS],
-])('%s expression', (_name, getExpression, stops) => {
-  const expression = getExpression() as unknown[];
+describe('radius expression', () => {
+  const expression = getMagnitudeRadiusExpression() as unknown[];
 
   it('interpolates on the magnitude property', () => {
     expect(expression[0]).toBe('interpolate');
@@ -42,7 +40,7 @@ describe.each([
   });
 
   it('is built from the exported stops', () => {
-    expect(expression.slice(3)).toEqual(stops.flat());
+    expect(expression.slice(3)).toEqual(MAGNITUDE_RADIUS_STOPS.flat());
   });
 
   it('has ascending stops from 2.5 to 8', () => {
@@ -53,14 +51,66 @@ describe.each([
   });
 });
 
-describe('getMagnitudeSwatch', () => {
-  it('returns the map diameter and colour for a stop magnitude', () => {
-    expect(getMagnitudeSwatch(5)).toEqual({ diameter: 20, color: '#f97316' });
-    expect(getMagnitudeSwatch(4)).toEqual({ diameter: 12, color: '#fbbf24' });
+describe('getMagnitudeColorExpression', () => {
+  const colors: MagnitudeColors = ['c1', 'c2', 'c3', 'c4', 'c5', 'c6'];
+
+  it('steps through one color per magnitude class', () => {
+    expect(getMagnitudeColorExpression(colors)).toEqual([
+      'step',
+      ['get', 'magnitude'],
+      'c1',
+      3,
+      'c2',
+      4,
+      'c3',
+      5,
+      'c4',
+      6,
+      'c5',
+      7,
+      'c6',
+    ]);
+  });
+});
+
+describe('getMagnitudeClass', () => {
+  it.each([
+    [1.2, 1],
+    [2.9, 1],
+    [3, 2],
+    [3.9, 2],
+    [4, 3],
+    [5.3, 4],
+    [6.99, 5],
+    [7, 6],
+    [9.1, 6],
+  ])('M%s is class %s', (magnitude, magnitudeClass) => {
+    expect(getMagnitudeClass(magnitude)).toBe(magnitudeClass);
+  });
+});
+
+describe('getMagnitudeClassMinimum', () => {
+  it('has no minimum for the lowest class and the break for the others', () => {
+    expect(getMagnitudeClassMinimum(1)).toBeNull();
+    expect(getMagnitudeClassMinimum(2)).toBe(3);
+    expect(getMagnitudeClassMinimum(6)).toBe(7);
+  });
+});
+
+describe('getMagnitudeRadius', () => {
+  it('matches the map radius at each stop', () => {
+    for (const [magnitude, radius] of MAGNITUDE_RADIUS_STOPS) {
+      expect(getMagnitudeRadius(magnitude)).toBe(radius);
+    }
   });
 
-  it('throws for a magnitude without a stop', () => {
-    expect(() => getMagnitudeSwatch(3)).toThrow('No map stop defined for magnitude 3');
+  it('interpolates linearly between stops', () => {
+    expect(getMagnitudeRadius(3.25)).toBe(4.5);
+  });
+
+  it('clamps outside the stops', () => {
+    expect(getMagnitudeRadius(1)).toBe(3);
+    expect(getMagnitudeRadius(9.5)).toBe(40);
   });
 });
 
@@ -91,18 +141,5 @@ describe('getEarthquakesGeoJson', () => {
     const input = [makeQuake('a', 6), makeQuake('b', 3)];
     getEarthquakesGeoJson(input);
     expect(input.map((q) => q.id)).toEqual(['a', 'b']);
-  });
-});
-
-describe('getMagnitudeColor', () => {
-  it.each([
-    [1.2, '#fde68a'],
-    [2.5, '#fde68a'],
-    [4.3, '#fbbf24'],
-    [5, '#f97316'],
-    [6.9, '#ef4444'],
-    [9.1, '#e11d48'],
-  ])('M%s → %s', (magnitude, color) => {
-    expect(getMagnitudeColor(magnitude)).toBe(color);
   });
 });

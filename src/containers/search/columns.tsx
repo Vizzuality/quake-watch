@@ -43,12 +43,12 @@ export function getEarthquakeColumns({
       cell: ({ row }) => (
         <Link
           {...getEarthquakeDetailLinkOptions(row.original)}
-          className="group inline-flex items-center gap-1 rounded font-medium focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-paper"
+          className="group inline-flex items-center gap-1 rounded font-medium focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fg"
         >
           {row.original.place ?? m.place_unknown()}
           <ArrowUpRightIcon
             aria-hidden="true"
-            className="size-4 shrink-0 text-muted transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:text-paper"
+            className="size-4 shrink-0 text-muted transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:text-fg"
           />
         </Link>
       ),
