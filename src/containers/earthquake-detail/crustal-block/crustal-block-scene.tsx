@@ -1,16 +1,13 @@
-import { Html, OrbitControls } from '@react-three/drei';
+import { Html } from '@react-three/drei';
 import { Canvas, useThree } from '@react-three/fiber';
 import {
   createContext,
-  type PointerEvent,
   type ReactNode,
   type RefObject,
   useContext,
   useEffect,
   useMemo,
   useRef,
-  useState,
-  useSyncExternalStore,
 } from 'react';
 import { BufferAttribute, BufferGeometry, Color, DoubleSide, SRGBColorSpace } from 'three';
 
@@ -24,7 +21,7 @@ import {
   getDepthTicks,
   type MeshData,
 } from '@/lib/crust/scene';
-import { getOrbitLimits, ISOMETRIC_CAMERA } from '@/lib/crust/terrarium';
+import { ISOMETRIC_CAMERA } from '@/lib/crust/terrarium';
 import { cn } from '@/lib/utils';
 import { m } from '@/paraglide/messages';
 
@@ -44,7 +41,6 @@ const CAMERA_POSITION: Vector3 = [
   CAMERA_DISTANCE * Math.cos(ISOMETRIC_CAMERA.azimuthRad) * Math.cos(ISOMETRIC_CAMERA.elevationRad),
 ];
 const CAMERA = { position: CAMERA_POSITION, zoom: 1, near: 1, far: CAMERA_DISTANCE * 4 };
-const ORBIT_LIMITS = getOrbitLimits();
 const LABEL_HEIGHT_PX = 18;
 const GUTTER_Y_PX = 36;
 const MAX_LEFT_GUTTER_PX = 72;
@@ -63,8 +59,6 @@ const OUTLINE_COLOR = '#0b0d10';
 const BOUNDARY_COLOR = '#f4f1ea';
 const MARKER_COLOR = '#ffffff';
 
-const COARSE_POINTER_QUERY = '(pointer: coarse)';
-
 const LabelPortalContext = createContext<RefObject<HTMLDivElement | null> | undefined>(undefined);
 
 const LABEL_TEXTS: Record<BlockLabelKind, () => string> = {
@@ -75,31 +69,6 @@ const LABEL_TEXTS: Record<BlockLabelKind, () => string> = {
   'transition-zone': BAND_NAMES['transition-zone'],
   'lower-mantle': BAND_NAMES['lower-mantle'],
 };
-
-function subscribeToCoarsePointer(onChange: () => void) {
-  const query = window.matchMedia(COARSE_POINTER_QUERY);
-  query.addEventListener('change', onChange);
-  return () => query.removeEventListener('change', onChange);
-}
-
-function isCoarsePointer(): boolean {
-  return window.matchMedia(COARSE_POINTER_QUERY).matches;
-}
-
-function isCoarsePointerOnServer(): boolean {
-  return false;
-}
-
-function getTouchAction(controlsEnabled: boolean): string {
-  return controlsEnabled ? 'none' : 'auto';
-}
-
-function getHintText(coarsePointer: boolean, active: boolean): string {
-  if (coarsePointer) {
-    return active ? m.crustal_block_hint_touch_active() : m.crustal_block_hint_touch_idle();
-  }
-  return active ? m.crustal_block_hint_active() : m.crustal_block_hint_idle();
-}
 
 function getLinearColors(colors: Float32Array): Float32Array {
   const color = new Color();
@@ -303,19 +272,8 @@ function getShiftedPosition(position: readonly number[], shiftPx: number): Vecto
   ];
 }
 
-function BlockContents({
-  block,
-  mesh,
-  controlsEnabled,
-  zoomEnabled,
-}: {
-  block: CrustalBlock;
-  mesh: BlockMeshData;
-  controlsEnabled: boolean;
-  zoomEnabled: boolean;
-}) {
+function BlockContents({ block, mesh }: { block: CrustalBlock; mesh: BlockMeshData }) {
   const size = useThree((state) => state.size);
-  const eventTarget = useThree((state) => state.events.connected) as HTMLElement | undefined;
   const leftGutter = Math.min(MAX_LEFT_GUTTER_PX, size.width * LEFT_GUTTER_RATIO);
   const rightGutter = Math.min(MAX_RIGHT_GUTTER_PX, size.width * RIGHT_GUTTER_RATIO);
   const fit = getBlockFit({
@@ -328,10 +286,6 @@ function BlockContents({
     gutterY: GUTTER_Y_PX,
     view: ISOMETRIC_CAMERA,
   });
-
-  useEffect(() => {
-    eventTarget?.style.setProperty('touch-action', getTouchAction(controlsEnabled));
-  }, [eventTarget, controlsEnabled]);
 
   return (
     <>
@@ -350,12 +304,6 @@ function BlockContents({
         />
         <BlockLabels block={block} mesh={mesh} scale={fit.scale} />
       </group>
-      <OrbitControls
-        makeDefault
-        enabled={controlsEnabled}
-        enableZoom={zoomEnabled}
-        {...ORBIT_LIMITS}
-      />
     </>
   );
 }
@@ -379,67 +327,22 @@ export default function CrustalBlockScene(props: CrustalBlockProps) {
       }),
     [block, origin, relief],
   );
-  const coarsePointer = useSyncExternalStore(
-    subscribeToCoarsePointer,
-    isCoarsePointer,
-    isCoarsePointerOnServer,
-  );
-  const containerRef = useRef<HTMLDivElement>(null);
   const labelsRef = useRef<HTMLDivElement>(null);
-  const [active, setActive] = useState(false);
-  const controlsEnabled = !coarsePointer || active;
-
-  function handlePointerLeave(event: PointerEvent<HTMLDivElement>) {
-    if (event.pointerType === 'mouse') setActive(false);
-  }
-
-  useEffect(() => {
-    if (!active) return;
-    function handleDocumentPointerDown(event: globalThis.PointerEvent) {
-      if (!containerRef.current?.contains(event.target as Node)) setActive(false);
-    }
-    function handleBlur() {
-      setActive(false);
-    }
-    document.addEventListener('pointerdown', handleDocumentPointerDown);
-    window.addEventListener('blur', handleBlur);
-    return () => {
-      document.removeEventListener('pointerdown', handleDocumentPointerDown);
-      window.removeEventListener('blur', handleBlur);
-    };
-  }, [active]);
 
   return (
     <div
-      ref={containerRef}
       aria-hidden="true"
       className={cn(
         'relative overflow-hidden rounded-lg border border-line bg-[radial-gradient(ellipse_at_50%_30%,var(--color-surface),var(--color-ink))]',
         CRUSTAL_BLOCK_HEIGHT,
       )}
     >
-      <Canvas
-        orthographic
-        flat
-        frameloop="demand"
-        dpr={[1, 2]}
-        camera={CAMERA}
-        onClick={() => setActive(true)}
-        onPointerLeave={handlePointerLeave}
-      >
+      <Canvas orthographic flat frameloop="demand" dpr={[1, 2]} camera={CAMERA}>
         <LabelPortalContext value={labelsRef}>
-          <BlockContents
-            block={block}
-            mesh={mesh}
-            controlsEnabled={controlsEnabled}
-            zoomEnabled={active}
-          />
+          <BlockContents block={block} mesh={mesh} />
         </LabelPortalContext>
       </Canvas>
       <div ref={labelsRef} className="pointer-events-none absolute inset-0 overflow-hidden" />
-      <p className="pointer-events-none absolute right-3 bottom-2 text-[11px] text-muted">
-        {getHintText(coarsePointer, active)}
-      </p>
     </div>
   );
 }

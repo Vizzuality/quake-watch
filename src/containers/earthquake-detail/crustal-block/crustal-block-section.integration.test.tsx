@@ -1,5 +1,5 @@
 import { createElement } from 'react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { CrustCell } from '@/lib/crust/types';
 import { renderWithRouter } from '@/test/render-with-router';
@@ -36,6 +36,8 @@ const MADRID_CELL: CrustCell = {
 
 const MADRID = { latitude: 40.4, longitude: -3.7, depthKm: 10 };
 
+const SCENE_LOAD = { timeout: 5_000 };
+
 function canCreateWebGL2Context(): boolean {
   return document.createElement('canvas').getContext('webgl2') !== null;
 }
@@ -54,6 +56,9 @@ async function renderSection(props: CrustalBlockProps = MADRID) {
 }
 
 describe('CrustalBlockSection', () => {
+  // A cold Vite transform of three/R3F can outlast any per-assertion wait, so load it once up front.
+  beforeAll(() => import('./crustal-block-scene'), 60_000);
+
   beforeEach(() => {
     mocks.getCrustCells.mockReset();
     mocks.getCrustCells.mockResolvedValue([MADRID_CELL]);
@@ -147,7 +152,7 @@ describe('CrustalBlockSection', () => {
     mocks.isWebGL2Available.mockReturnValue(true);
     mocks.sceneFailure.current = new Error('Error creating WebGL context.');
     const { screen } = await renderSection();
-    await expect.element(screen.getByText(/3D view isn't available/)).toBeVisible();
+    await expect.element(screen.getByText(/3D view isn't available/), SCENE_LOAD).toBeVisible();
     await expect.element(screen.getByText('Layers under the Epicenter')).toBeVisible();
     expect(screen.container.querySelector('canvas')).toBeNull();
   });
@@ -159,12 +164,12 @@ describe('CrustalBlockSection', () => {
     );
     const { screen } = await renderSection();
     await expect
-      .element(screen.getByRole('alert'))
+      .element(screen.getByRole('alert'), SCENE_LOAD)
       .toMatchTextContent("Couldn't load the 3D view.");
     await expect.element(screen.getByText('Layers under the Epicenter')).toBeVisible();
     mocks.sceneFailure.current = new Error('Error creating WebGL context.');
     await screen.getByRole('button', { name: 'Retry' }).click();
-    await expect.element(screen.getByText(/3D view isn't available/)).toBeVisible();
+    await expect.element(screen.getByText(/3D view isn't available/), SCENE_LOAD).toBeVisible();
     expect(screen.getByRole('alert').elements()).toHaveLength(0);
   });
 
@@ -183,41 +188,10 @@ describe('CrustalBlockSection', () => {
     stubTerrariumTiles();
     mocks.isWebGL2Available.mockReturnValue(true);
     const { screen } = await renderSection();
-    await expect.poll(() => screen.container.querySelector('canvas')).not.toBeNull();
-    await expect.element(screen.getByText('Rupture start · 10 km')).toBeInTheDocument();
-    await expect
-      .element(screen.getByText('Drag to rotate · click, then scroll to zoom'))
-      .toBeInTheDocument();
+    await expect.poll(() => screen.container.querySelector('canvas'), SCENE_LOAD).not.toBeNull();
+    await expect.element(screen.getByText('Rupture start · 10 km'), SCENE_LOAD).toBeInTheDocument();
+    const canvas = screen.container.querySelector('canvas')!;
+    expect(getComputedStyle(canvas).touchAction).not.toBe('none');
+    expect(getComputedStyle(canvas.parentElement!.parentElement!).touchAction).not.toBe('none');
   });
-
-  it.runIf(canCreateWebGL2Context())(
-    'lets touch users scroll past until they tap the block',
-    async () => {
-      stubTerrariumTiles();
-      vi.spyOn(window, 'matchMedia').mockImplementation(
-        (query) =>
-          ({
-            matches: true,
-            media: query,
-            addEventListener: vi.fn<() => void>(),
-            removeEventListener: vi.fn<() => void>(),
-          }) as unknown as MediaQueryList,
-      );
-      mocks.isWebGL2Available.mockReturnValue(true);
-      const { screen } = await renderSection();
-      await expect.poll(() => screen.container.querySelector('canvas')).not.toBeNull();
-      const canvas = screen.container.querySelector('canvas')!;
-      const wrapper = canvas.parentElement!.parentElement!;
-      await expect.element(screen.getByText('Tap to rotate and zoom')).toBeInTheDocument();
-      await expect.poll(() => wrapper.style.touchAction).toBe('auto');
-      canvas.dispatchEvent(new MouseEvent('click', { bubbles: true }));
-      await expect
-        .element(screen.getByText('Drag to rotate · pinch to zoom · tap outside to stop'))
-        .toBeInTheDocument();
-      await expect.poll(() => wrapper.style.touchAction).toBe('none');
-      document.body.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
-      await expect.element(screen.getByText('Tap to rotate and zoom')).toBeInTheDocument();
-      await expect.poll(() => wrapper.style.touchAction).toBe('auto');
-    },
-  );
 });
