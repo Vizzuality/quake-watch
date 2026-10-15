@@ -1,8 +1,10 @@
 import { MAGNITUDE_FILL_CLASS_NAMES } from '@/components/magnitude-classes';
+import { useEarthquakeSearch } from '@/hooks/use-earthquake-search';
 import {
   MAGNITUDE_CLASS_BREAKS,
   MAGNITUDE_CLASSES,
   MAGNITUDE_RADIUS_STOPS,
+  getIsMagnitudeClassBelow,
   getMagnitudeClassMinimum,
   getMagnitudeRadius,
 } from '@/lib/earthquakes/magnitude';
@@ -11,6 +13,8 @@ import { cn } from '@/lib/utils';
 import { m } from '@/paraglide/messages';
 
 const SMALLEST_MAPPED_MAGNITUDE = MAGNITUDE_RADIUS_STOPS[0]![0];
+const LEGEND_SCALE = 0.5;
+const LEGEND_MIN_DIAMETER = 5;
 
 function getClassLabel(magnitudeClass: MagnitudeClass): string {
   const minimum = getMagnitudeClassMinimum(magnitudeClass);
@@ -22,19 +26,31 @@ function getClassLabel(magnitudeClass: MagnitudeClass): string {
 const SAMPLES = MAGNITUDE_CLASSES.map((magnitudeClass) => ({
   magnitudeClass,
   label: getClassLabel(magnitudeClass),
-  diameter:
-    getMagnitudeRadius(getMagnitudeClassMinimum(magnitudeClass) ?? SMALLEST_MAPPED_MAGNITUDE) * 2,
+  diameter: Math.max(
+    LEGEND_MIN_DIAMETER,
+    getMagnitudeRadius(getMagnitudeClassMinimum(magnitudeClass) ?? SMALLEST_MAPPED_MAGNITUDE) *
+      2 *
+      LEGEND_SCALE,
+  ),
 }));
 
 export function MagnitudeLegend() {
+  const { minmag } = useEarthquakeSearch();
+
   return (
-    <div className="pointer-events-none absolute bottom-[calc(13.5rem+env(safe-area-inset-bottom))] left-3 flex items-end gap-3 rounded-md bg-canvas/85 px-3 py-2 text-2xs text-muted backdrop-blur sm:bottom-48">
-      <span id="magnitude-legend-title" className="self-center">
+    <div className="flex items-end gap-3 text-2xs text-muted">
+      <span id="magnitude-legend-title" className="pb-px">
         {m.legend_title()}
       </span>
-      <ul aria-labelledby="magnitude-legend-title" className="flex items-end gap-2.5">
+      <ul aria-labelledby="magnitude-legend-title" className="flex items-end gap-2.5 sm:gap-3">
         {SAMPLES.map(({ magnitudeClass, label, diameter }) => (
-          <li key={magnitudeClass} className="flex flex-col items-center gap-1">
+          <li
+            key={magnitudeClass}
+            className={cn(
+              'flex items-center gap-1',
+              getIsMagnitudeClassBelow(magnitudeClass, minmag) && 'opacity-35',
+            )}
+          >
             <span
               aria-hidden="true"
               className={cn(
@@ -43,7 +59,7 @@ export function MagnitudeLegend() {
               )}
               style={{ width: diameter, height: diameter }}
             />
-            <span className="font-mono tabular-nums">{label}</span>
+            <span className="font-mono tabular-nums">{`M${label}`}</span>
           </li>
         ))}
       </ul>

@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   getEarthquakesGeoJson,
   getMagnitudeClass,
+  getIsMagnitudeClassBelow,
   getMagnitudeClassMinimum,
   getMagnitudeColorExpression,
   getMagnitudeRadius,
@@ -94,6 +95,16 @@ describe('getMagnitudeClassMinimum', () => {
     expect(getMagnitudeClassMinimum(1)).toBeNull();
     expect(getMagnitudeClassMinimum(2)).toBe(3);
     expect(getMagnitudeClassMinimum(6)).toBe(7);
+  });
+});
+
+describe('getIsMagnitudeClassBelow', () => {
+  it('marks the classes that a minimum Magnitude filters out', () => {
+    expect(getIsMagnitudeClassBelow(1, 2.5)).toBe(false);
+    expect(getIsMagnitudeClassBelow(1, 3)).toBe(true);
+    expect(getIsMagnitudeClassBelow(2, 4)).toBe(true);
+    expect(getIsMagnitudeClassBelow(3, 4)).toBe(false);
+    expect(getIsMagnitudeClassBelow(6, 6)).toBe(false);
   });
 });
 

@@ -123,7 +123,7 @@ export function Filters({ idPrefix }: { idPrefix: string }) {
         options={SOURCE_OPTIONS}
         onValueChange={(source) => setSearch({ source })}
       />
-      <Button variant="ghost" onClick={() => setSearch(CLEARED_FILTERS)}>
+      <Button variant="ghost" className="px-0 sm:px-0" onClick={() => setSearch(CLEARED_FILTERS)}>
         {m.clear_filters()}
       </Button>
     </div>

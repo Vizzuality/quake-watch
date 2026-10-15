@@ -18,7 +18,6 @@ export function MapTooltip({
     <Popup
       latitude={latitude}
       longitude={longitude}
-      anchor="bottom"
       offset={offset}
       closeButton={false}
       closeOnClick={false}
@@ -26,7 +25,10 @@ export function MapTooltip({
       className={interactive ? 'quake-tooltip quake-tooltip-interactive' : 'quake-tooltip'}
       maxWidth="none"
     >
-      <div role="tooltip" className="rounded-lg bg-canvas/90 px-3 py-2 text-xs text-fg">
+      <div
+        role="tooltip"
+        className="rounded-md border border-line-strong bg-surface px-3 py-2 text-xs text-fg"
+      >
         {children}
       </div>
     </Popup>

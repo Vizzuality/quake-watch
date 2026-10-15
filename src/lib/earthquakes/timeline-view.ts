@@ -1,4 +1,5 @@
 import type { EarthquakeSearch, Period, PlaybackWindow } from './search-schema';
+import { getPlaybackRange } from './timeline';
 import type { HistogramBin, HistogramUnit, TimeRange } from './timeline';
 
 export type WindowEndOverride = { end: number; key: string };
@@ -92,7 +93,7 @@ export function getBarHeight(count: number, maxCount: number, plotHeight: number
 }
 
 export function getBarClassName(isHovered: boolean): string {
-  return isHovered ? 'fill-fg' : 'fill-muted';
+  return isHovered ? 'fill-fg' : 'fill-muted/60';
 }
 
 export function getShouldRefreshValueText(input: {
@@ -129,4 +130,18 @@ export function getBarPath(input: {
 export function getIsSpaceToggleTarget(element: { tagName: string; type?: string }): boolean {
   if (NON_TOGGLING_TAGS.has(element.tagName)) return false;
   return element.tagName !== 'INPUT' || element.type === 'range';
+}
+
+export function getPlaybackWindowCount(input: {
+  times: readonly number[];
+  loaded: TimeRange;
+  window: PlaybackWindow;
+  windowEnd: number;
+}): number {
+  const { start, end } = getPlaybackRange({
+    loaded: input.loaded,
+    window: input.window,
+    t: input.windowEnd,
+  });
+  return input.times.filter((time) => time >= start && time <= end).length;
 }

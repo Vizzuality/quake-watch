@@ -4,17 +4,22 @@ import type { MapMouseEvent } from 'maplibre-gl';
 import { useEffect, useMemo, useState } from 'react';
 import { useMap } from 'react-map-gl/maplibre';
 
+import { MAGNITUDE_FILL_CLASS_NAMES } from '@/components/magnitude-classes';
 import { CORE_LAYER_ID } from '@/components/map/layers';
 import { useEarthquakeSearch } from '@/hooks/use-earthquake-search';
 import { getEarthquakeDetailLinkOptions } from '@/lib/earthquakes/detail-link';
 import { getDistanceKm } from '@/lib/earthquakes/distance';
+import { getMagnitudeClass } from '@/lib/earthquakes/magnitude';
+import { getEarthquakeMeaning } from '@/lib/earthquakes/meaning';
 import { earthquakesQueryOptions } from '@/lib/earthquakes/query-options';
 import { getSearchCenter } from '@/lib/earthquakes/search-schema';
 import type { Earthquake } from '@/lib/earthquakes/types';
 import { getKmLabel } from '@/lib/format';
 import { getPlaceLabel } from '@/lib/i18n/labels';
+import { getEarthquakeMeaningLabel } from '@/lib/i18n/meaning-labels';
 import { getDateTimeLabel, getNumberLabel } from '@/lib/i18n/tooltip-labels';
 import { getIsEpicenterVisible, getVisibleEpicenterId } from '@/lib/map/epicenter-hit';
+import { cn } from '@/lib/utils';
 import { m } from '@/paraglide/messages';
 import { getLocale } from '@/paraglide/runtime';
 import type { Locale } from '@/paraglide/runtime';
@@ -22,7 +27,7 @@ import type { Locale } from '@/paraglide/runtime';
 import { MapTooltip } from './map-tooltip';
 import { usePlaybackClock } from './playback-context';
 
-export type PlaceOfInterestDistance = { label: string; distanceKm: number };
+export type PlaceOfInterestDistance = { label: string; name?: string; distanceKm: number };
 
 function getMagnitudeLine(earthquake: Earthquake, locale: Locale): string {
   const magnitude = getNumberLabel(earthquake.magnitude, locale);
@@ -44,12 +49,32 @@ export function EpicenterTooltipContent({
   locale: Locale;
   isPinned?: boolean;
 }) {
+  const meaning = getEarthquakeMeaning({
+    magnitude: earthquake.magnitude,
+    depthKm: earthquake.depthKm,
+    distanceKm: placeOfInterest?.distanceKm ?? null,
+  });
+
   return (
-    <div className="flex flex-col gap-0.5">
-      <p className="font-medium">{earthquake.place ?? m.place_unknown({}, { locale })}</p>
-      <p>{getMagnitudeLine(earthquake, locale)}</p>
-      <p>{getDateTimeLabel(earthquake.time, locale)}</p>
-      <p>
+    <div className="flex max-w-64 flex-col gap-0.5 tabular-nums">
+      <p className="text-sm font-medium text-pretty">
+        {earthquake.place ?? m.place_unknown({}, { locale })}
+      </p>
+      <p className="flex items-center gap-1.5">
+        <span
+          aria-hidden="true"
+          className={cn(
+            'size-2.5 shrink-0 rounded-full ring-1 ring-fg/50',
+            MAGNITUDE_FILL_CLASS_NAMES[getMagnitudeClass(earthquake.magnitude)],
+          )}
+        />
+        {getMagnitudeLine(earthquake, locale)}
+      </p>
+      <p className="font-medium">
+        {getEarthquakeMeaningLabel(meaning, placeOfInterest?.name, locale)}
+      </p>
+      <p className="text-muted">{getDateTimeLabel(earthquake.time, locale)}</p>
+      <p className="text-muted">
         {m.epicenter_tooltip_depth(
           { depth: getKmLabel(earthquake.depthKm, locale, 1) },
           { locale },
@@ -69,7 +94,7 @@ export function EpicenterTooltipContent({
       {isPinned && (
         <Link
           {...getEarthquakeDetailLinkOptions(earthquake)}
-          className="mt-1 rounded font-medium underline underline-offset-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fg"
+          className="mt-1 inline-flex min-h-8 items-center self-start rounded-xs font-medium underline underline-offset-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fg"
         >
           {m.epicenter_tooltip_view_details({}, { locale })}
         </Link>
@@ -143,7 +168,11 @@ export function EpicenterTooltip() {
 
   if (!shown) return null;
   const placeOfInterest = center
-    ? { label: getPlaceLabel(search, locale), distanceKm: getDistanceKm(center, shown) }
+    ? {
+        label: getPlaceLabel(search, locale),
+        name: search.place,
+        distanceKm: getDistanceKm(center, shown),
+      }
     : null;
 
   return (

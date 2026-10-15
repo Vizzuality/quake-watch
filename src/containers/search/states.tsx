@@ -8,6 +8,7 @@ import { SOURCE_ADAPTERS } from '@/lib/earthquakes/query-options';
 import { SOURCES, getSearchCenter } from '@/lib/earthquakes/search-schema';
 import { getKmLabel } from '@/lib/format';
 import { getPeriodLabel } from '@/lib/i18n/labels';
+import { cn } from '@/lib/utils';
 import { m } from '@/paraglide/messages';
 import { getLocale } from '@/paraglide/runtime';
 
@@ -40,7 +41,7 @@ export function SourceErrorAlert({
   );
 }
 
-export function NoResults() {
+export function WidenActions({ className }: { className?: string }) {
   const search = useEarthquakeSearch();
   const setSearch = useSetEarthquakeSearch();
   const locale = getLocale();
@@ -48,24 +49,30 @@ export function NoResults() {
   const widerPeriod = getWiderPeriod(search.period);
 
   return (
+    <div className={cn('flex flex-wrap gap-2', className)}>
+      {widerRadius ? (
+        <Button onClick={() => setSearch({ radius: widerRadius })}>
+          {m.widen_radius({ radius: getKmLabel(widerRadius, locale) })}
+        </Button>
+      ) : null}
+      {widerPeriod ? (
+        <Button onClick={() => setSearch({ period: widerPeriod })}>
+          {m.widen_period({ period: getPeriodLabel({ ...search, period: widerPeriod }, locale) })}
+        </Button>
+      ) : null}
+    </div>
+  );
+}
+
+export function NoResults() {
+  return (
     <div className="flex flex-col items-start gap-4 border-y border-line py-10 sm:items-center sm:text-center">
       <SearchXIcon aria-hidden="true" className="size-6 text-muted" />
       <div className="flex flex-col gap-1">
         <p className="text-base font-medium text-balance">{m.no_results_title()}</p>
         <p className="text-sm text-muted">{m.no_results_hint()}</p>
       </div>
-      <div className="flex flex-wrap gap-2 sm:justify-center">
-        {widerRadius ? (
-          <Button onClick={() => setSearch({ radius: widerRadius })}>
-            {m.widen_radius({ radius: getKmLabel(widerRadius, locale) })}
-          </Button>
-        ) : null}
-        {widerPeriod ? (
-          <Button onClick={() => setSearch({ period: widerPeriod })}>
-            {m.widen_period({ period: getPeriodLabel({ ...search, period: widerPeriod }, locale) })}
-          </Button>
-        ) : null}
-      </div>
+      <WidenActions className="sm:justify-center" />
     </div>
   );
 }

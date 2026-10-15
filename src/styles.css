@@ -116,6 +116,7 @@ html .maplibregl-map {
 }
 
 .maplibregl-popup.quake-tooltip {
+  z-index: 20;
   pointer-events: none;
 }
 
@@ -129,6 +130,6 @@ html .maplibregl-map {
   box-shadow: none;
 }
 
-.maplibregl-popup.quake-tooltip.maplibregl-popup-anchor-bottom .maplibregl-popup-tip {
-  border-top-color: color-mix(in srgb, var(--color-canvas) 90%, transparent);
+.maplibregl-popup.quake-tooltip .maplibregl-popup-tip {
+  display: none;
 }

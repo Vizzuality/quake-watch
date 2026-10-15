@@ -13,7 +13,11 @@ import { m } from '@/paraglide/messages';
 import type { Locale } from '@/paraglide/runtime';
 import { getLocale } from '@/paraglide/runtime';
 
-function getHeadline(search: EarthquakeSearch, count: number, locale: Locale): string {
+export function getSummaryHeadline(
+  search: EarthquakeSearch,
+  count: number,
+  locale: Locale,
+): string {
   const countLabel = getEarthquakeCountLabel(count, locale);
   if (!getSearchCenter(search)) return m.summary_headline_world({ count: countLabel });
   const radius = getKmLabel(search.radius, locale);
@@ -23,7 +27,7 @@ function getHeadline(search: EarthquakeSearch, count: number, locale: Locale): s
   return m.summary_headline_near({ count: countLabel, radius, place: search.place });
 }
 
-function LiveMarker() {
+export function LiveMarker() {
   return (
     <span className="inline-flex items-center gap-1.5 font-medium text-fg">
       <span aria-hidden="true" className="relative flex size-2">
@@ -70,7 +74,7 @@ export function SearchSummary() {
   return (
     <div className="flex flex-col gap-1.5">
       <p aria-live="polite" className="text-lg font-medium tracking-tight text-balance sm:text-xl">
-        {getHeadline(search, data.earthquakes.length, locale)}
+        {getSummaryHeadline(search, data.earthquakes.length, locale)}
       </p>
       <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted">
         <span>

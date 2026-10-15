@@ -49,7 +49,7 @@ async function renderPinnableMap() {
     () => (
       <PlaybackProvider>
         <ShowEverything />
-        <div style={{ position: 'relative', width: 400, height: 300 }}>
+        <div style={{ position: 'relative', width: 400, height: 400 }}>
           <MapGL
             ref={mapRef}
             mapStyle={OFFLINE_STYLE}

@@ -61,6 +61,14 @@ export function getMagnitudeClassMinimum(magnitudeClass: MagnitudeClass): number
   return magnitudeClass === 1 ? null : MAGNITUDE_CLASS_BREAKS[magnitudeClass - 2]!;
 }
 
+export function getIsMagnitudeClassBelow(
+  magnitudeClass: MagnitudeClass,
+  minMagnitude: number,
+): boolean {
+  if (magnitudeClass === MAGNITUDE_CLASSES.at(-1)) return false;
+  return MAGNITUDE_CLASS_BREAKS[magnitudeClass - 1]! <= minMagnitude;
+}
+
 export function getMagnitudeRadius(magnitude: number): number {
   const [first] = MAGNITUDE_RADIUS_STOPS;
   const last = MAGNITUDE_RADIUS_STOPS.at(-1)!;

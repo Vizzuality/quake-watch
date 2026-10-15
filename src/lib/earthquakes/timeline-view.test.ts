@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { EARTHQUAKE_SEARCH_DEFAULTS } from './search-schema';
 import {
   getBarClassName,
+  getPlaybackWindowCount,
   getBarHeight,
   getBarPath,
   getBinIndexAtFraction,
@@ -148,7 +149,7 @@ describe('bar helpers', () => {
   });
   it('highlights the hovered bar', () => {
     expect(getBarClassName(true)).toBe('fill-fg');
-    expect(getBarClassName(false)).toBe('fill-muted');
+    expect(getBarClassName(false)).toBe('fill-muted/60');
   });
 });
 
@@ -160,5 +161,22 @@ describe('getShouldRefreshValueText', () => {
   it('throttles to once per second while playing', () => {
     expect(getShouldRefreshValueText({ lastMs: 0, nowMs: 999, isPlaying: true })).toBe(false);
     expect(getShouldRefreshValueText({ lastMs: 0, nowMs: 1000, isPlaying: true })).toBe(true);
+  });
+});
+
+describe('getPlaybackWindowCount', () => {
+  const HOUR = 3_600_000;
+  const loaded = { start: 0, end: 30 * 24 * HOUR };
+  const times = [1 * HOUR, 20 * 24 * HOUR, 29.5 * 24 * HOUR, 30 * 24 * HOUR];
+
+  it('counts the Earthquakes inside the playback window that ends at the window end', () => {
+    expect(getPlaybackWindowCount({ times, loaded, window: '24h', windowEnd: loaded.end })).toBe(2);
+    expect(getPlaybackWindowCount({ times, loaded, window: '7d', windowEnd: loaded.end })).toBe(2);
+  });
+
+  it('follows a window end moved back in time', () => {
+    expect(getPlaybackWindowCount({ times, loaded, window: '7d', windowEnd: 21 * 24 * HOUR })).toBe(
+      1,
+    );
   });
 });

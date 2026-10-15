@@ -3,7 +3,6 @@
   "app_description": "Terremotos de todo el mundo, en cuanto ocurren.",
   "earthquake_count_one": "{count} terremoto",
   "earthquake_count_other": "{count} terremotos",
-  "map_summary": "{count} · {period} · M{minMagnitude}+ · {source} · actualizado {time}",
   "period_24h": "últimas 24 horas",
   "period_7d": "últimos 7 días",
   "period_30d": "últimos 30 días",
@@ -352,5 +351,9 @@
   "meaning_at_point": "Probablemente intensidad {roman} ({level}) en el punto elegido",
   "meaning_at_point_not_felt": "Probablemente no se sintió en el punto elegido",
   "arrival_new": "Nuevo",
-  "summary_headline_near_point": "{count} a menos de {radius} del punto elegido"
+  "summary_headline_near_point": "{count} a menos de {radius} del punto elegido",
+  "map_meta": "{period} · M{minMagnitude}+ · {source} · actualizado {time}",
+  "settings_title": "Idioma y tema",
+  "timeline_window_visible": "En el mapa",
+  "map_shown": "{count} en el mapa · {window}"
 }
