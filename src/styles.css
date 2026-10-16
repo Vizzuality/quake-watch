@@ -97,6 +97,10 @@ html .maplibregl-map {
   font-family: var(--font-sans);
 }
 
+.maplibregl-map .maplibregl-ctrl-bottom-right {
+  z-index: 20;
+}
+
 .maplibregl-map .maplibregl-ctrl-attrib.maplibregl-ctrl {
   background: color-mix(in srgb, var(--color-canvas) 80%, transparent);
   color: var(--color-muted);

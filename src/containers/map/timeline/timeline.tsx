@@ -166,6 +166,7 @@ export function Timeline() {
     // oxlint-disable-next-line jsx-a11y/no-noninteractive-element-interactions -- Space must toggle playback from any control inside the timeline region
     <section
       aria-label={m.timeline_label()}
+      data-map-overlay="bottom"
       onKeyDown={handleKeyDown}
       className="absolute inset-x-3 bottom-[max(2.25rem,calc(env(safe-area-inset-bottom)+1.75rem))] z-10 flex flex-col gap-2 rounded-md border border-line bg-canvas/90 px-3 pt-2.5 pb-2 text-xs text-muted backdrop-blur sm:inset-x-auto sm:bottom-9 sm:left-1/2 sm:w-full sm:max-w-3xl sm:-translate-x-1/2"
     >

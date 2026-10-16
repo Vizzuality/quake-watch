@@ -21,7 +21,6 @@ import {
 import type { Earthquake } from '@/lib/earthquakes/types';
 import { getEarthquakeCountLabel } from '@/lib/i18n/earthquake-count';
 import { getPeriodLabel } from '@/lib/i18n/labels';
-import { getDateTimeFormat } from '@/lib/i18n/timeline-format';
 import { m } from '@/paraglide/messages';
 import { getLocale } from '@/paraglide/runtime';
 import type { Locale } from '@/paraglide/runtime';
@@ -46,6 +45,13 @@ function DisplaySettings() {
 const WINDOW_PERIOD_LABELS: Record<PlaybackWindow, () => string> = {
   '24h': m.period_24h,
   '7d': m.period_7d,
+};
+
+const WINDOW_END_FORMAT: Intl.DateTimeFormatOptions = {
+  month: 'short',
+  day: 'numeric',
+  hour: 'numeric',
+  minute: '2-digit',
 };
 
 const WINDOW_SPAN_LABELS: Record<PlaybackWindow, () => string> = {
@@ -77,7 +83,7 @@ function getShownLabel(
   return m.map_shown_until({
     count: countLabel,
     window: WINDOW_SPAN_LABELS[window](),
-    date: getDateTimeFormat(locale).format(windowEnd),
+    date: new Intl.DateTimeFormat(locale, WINDOW_END_FORMAT).format(windowEnd),
   });
 }
 
@@ -149,7 +155,10 @@ function MapSummary() {
 
 export function MapHeader() {
   return (
-    <header className="absolute inset-x-3 top-[max(0.75rem,env(safe-area-inset-top))] z-10 flex flex-col gap-2.5 rounded-md border border-line bg-canvas/90 px-3 py-2.5 backdrop-blur sm:right-auto sm:w-md">
+    <header
+      data-map-overlay="top"
+      className="absolute inset-x-3 top-[max(0.75rem,env(safe-area-inset-top))] z-10 flex flex-col gap-2.5 rounded-md border border-line bg-canvas/90 px-3 py-2.5 backdrop-blur sm:right-auto sm:w-md"
+    >
       <div className="flex items-center justify-between gap-3">
         <Wordmark />
         <div className="flex items-center gap-2">
