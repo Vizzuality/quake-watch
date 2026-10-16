@@ -64,18 +64,18 @@
     --color-line: #2a313c;
     --color-line-strong: #667080;
     --color-alert: #f2a93b;
-    --color-mag-1: #ae017e;
-    --color-mag-2: #cc2997;
-    --color-mag-3: #e849b0;
-    --color-mag-4: #fe6ec7;
-    --color-mag-5: #fea2d7;
-    --color-mag-6: #fecee8;
-    --color-on-mag-1: #ffffff;
-    --color-on-mag-2: #ffffff;
+    --color-mag-1: #fecee8;
+    --color-mag-2: #fea2d7;
+    --color-mag-3: #fe6ec7;
+    --color-mag-4: #e849b0;
+    --color-mag-5: #cc2997;
+    --color-mag-6: #ae017e;
+    --color-on-mag-1: #0e1116;
+    --color-on-mag-2: #0e1116;
     --color-on-mag-3: #0e1116;
     --color-on-mag-4: #0e1116;
-    --color-on-mag-5: #0e1116;
-    --color-on-mag-6: #0e1116;
+    --color-on-mag-5: #ffffff;
+    --color-on-mag-6: #ffffff;
   }
 
   html,
