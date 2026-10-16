@@ -355,5 +355,8 @@
   "map_meta": "{period} · M{minMagnitude}+ · {source} · updated {time}",
   "settings_title": "Language and theme",
   "timeline_window_visible": "On the map",
-  "map_shown": "{count} on the map · {window}"
+  "map_shown": "{count} on the map · {window}",
+  "map_shown_until": "{count} on the map · {window} to {date}",
+  "timeline_span_24h": "24 hours",
+  "timeline_span_7d": "7 days"
 }

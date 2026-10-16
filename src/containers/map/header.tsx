@@ -21,6 +21,7 @@ import {
 import type { Earthquake } from '@/lib/earthquakes/types';
 import { getEarthquakeCountLabel } from '@/lib/i18n/earthquake-count';
 import { getPeriodLabel } from '@/lib/i18n/labels';
+import { getDateTimeFormat } from '@/lib/i18n/timeline-format';
 import { m } from '@/paraglide/messages';
 import { getLocale } from '@/paraglide/runtime';
 import type { Locale } from '@/paraglide/runtime';
@@ -47,6 +48,11 @@ const WINDOW_PERIOD_LABELS: Record<PlaybackWindow, () => string> = {
   '7d': m.period_7d,
 };
 
+const WINDOW_SPAN_LABELS: Record<PlaybackWindow, () => string> = {
+  '24h': m.timeline_span_24h,
+  '7d': m.timeline_span_7d,
+};
+
 function getShownLabel(
   earthquakes: Earthquake[],
   search: EarthquakeSearch,
@@ -64,9 +70,14 @@ function getShownLabel(
     window,
     windowEnd,
   });
-  return m.map_shown({
-    count: getEarthquakeCountLabel(count, locale),
-    window: WINDOW_PERIOD_LABELS[window](),
+  const isAtEnd = windowEnd === loaded.end;
+  if (isAtEnd && count === earthquakes.length) return null;
+  const countLabel = getEarthquakeCountLabel(count, locale);
+  if (isAtEnd) return m.map_shown({ count: countLabel, window: WINDOW_PERIOD_LABELS[window]() });
+  return m.map_shown_until({
+    count: countLabel,
+    window: WINDOW_SPAN_LABELS[window](),
+    date: getDateTimeFormat(locale).format(windowEnd),
   });
 }
 
@@ -128,7 +139,9 @@ function MapSummary() {
       {isError ? (
         <SourceErrorAlert sourceLabel={sourceLabel} onRetry={() => void refetch()} />
       ) : null}
-      {isEmpty ? <WidenActions className="gap-1.5 [&>*]:h-8 [&>*]:px-2.5 [&>*]:text-xs" /> : null}
+      {isEmpty ? (
+        <WidenActions className="gap-1.5 [&>*]:h-10 [&>*]:px-2.5 [&>*]:text-xs sm:[&>*]:h-8" />
+      ) : null}
       {data.isTruncated ? <TruncatedNotice className="border-0 px-0 py-0" /> : null}
     </div>
   );

@@ -44,18 +44,13 @@ export function MagnitudeLegend() {
       </span>
       <ul aria-labelledby="magnitude-legend-title" className="flex items-end gap-2.5 sm:gap-3">
         {SAMPLES.map(({ magnitudeClass, label, diameter }) => (
-          <li
-            key={magnitudeClass}
-            className={cn(
-              'flex items-center gap-1',
-              getIsMagnitudeClassBelow(magnitudeClass, minmag) && 'opacity-35',
-            )}
-          >
+          <li key={magnitudeClass} className="flex items-center gap-1">
             <span
               aria-hidden="true"
               className={cn(
                 'rounded-full ring-1 ring-fg/50',
                 MAGNITUDE_FILL_CLASS_NAMES[magnitudeClass],
+                getIsMagnitudeClassBelow(magnitudeClass, minmag) && 'opacity-30',
               )}
               style={{ width: diameter, height: diameter }}
             />
