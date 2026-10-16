@@ -10,7 +10,7 @@ export function DetailError({
   onRetry: () => void;
 }) {
   return (
-    <Alert action={<Button onClick={onRetry}>{m.retry()}</Button>}>
+    <Alert hint={m.detail_error_hint()} action={<Button onClick={onRetry}>{m.retry()}</Button>}>
       {m.error_source_unreachable({ source: sourceLabel })}
     </Alert>
   );

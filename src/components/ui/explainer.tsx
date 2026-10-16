@@ -44,9 +44,9 @@ export function Datum({
   const [open, setOpen] = useState(false);
 
   return (
-    <div className={cn('flex flex-col gap-1 py-2 sm:flex-row sm:gap-4', className)}>
+    <div className={cn('flex flex-col gap-1 py-2.5 sm:flex-row sm:gap-4', className)}>
       <dt className="text-sm text-muted sm:w-48 sm:shrink-0">{label}</dt>
-      <dd className="flex flex-1 flex-wrap items-center gap-x-2 text-sm text-fg">
+      <dd className="flex flex-1 flex-wrap items-center gap-x-2 text-sm text-fg tabular-nums">
         <span>{value}</span>
         {explanation ? (
           <button
@@ -55,7 +55,7 @@ export function Datum({
             aria-controls={explanationId}
             aria-label={m.detail_explain_datum({ label })}
             onClick={() => setOpen((current) => !current)}
-            className="inline-flex size-6 items-center justify-center rounded text-muted hover:text-fg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fg"
+            className="inline-flex size-8 items-center justify-center rounded-xs text-muted hover:text-fg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fg"
           >
             <Info aria-hidden className="size-4" />
           </button>

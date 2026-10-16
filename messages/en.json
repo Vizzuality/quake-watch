@@ -283,8 +283,8 @@
   "detail_shakemap_readout": "Estimated Intensity here: {intensity}",
   "detail_shakemap_legend_title": "Estimated Intensity (Modified Mercalli)",
   "detail_shakemap_legend_lines": "Intensity II and III are drawn only as lines. Lines join places with the same estimated Intensity.",
-  "detail_shakemap_label_felt_reach": "Felt reach",
-  "detail_shakemap_felt_reach_explain": "How far from the Epicenter this map still estimates Intensity II or more, the level at which some people start to notice the shaking.",
+  "detail_shakemap_label_felt_reach": "Felt reach on this ShakeMap",
+  "detail_shakemap_felt_reach_explain": "How far from the Epicenter this map still estimates Intensity II or more, the level at which some people start to notice the shaking. It is measured on the contour lines this ShakeMap draws, so it can't go beyond the area the map covers. That's why it can be shorter than the model estimate at the top of the page.",
   "detail_shakemap_label_strongest": "Strongest estimated Intensity",
   "detail_shakemap_strongest_explain": "The highest Intensity on this map. It usually sits near the Epicenter or along the fault, but soft ground can carry strong shaking farther away.",
   "detail_shakemap_hint_idle": "Hover to read the Intensity · click, then scroll to zoom",
@@ -358,5 +358,10 @@
   "map_shown": "{count} on the map · {window}",
   "map_shown_until": "{count} on the map · {window} to {date}",
   "timeline_span_24h": "24 hours",
-  "timeline_span_7d": "7 days"
+  "timeline_span_7d": "7 days",
+  "detail_error_hint": "Try again in a minute.",
+  "not_found_body": "The page you were looking for doesn't exist or has moved.",
+  "error_body": "Something went wrong while loading this page. Try again, or go back to the list.",
+  "home_link_label": "Quake Watch home",
+  "detail_meaning_model": "(model estimate)"
 }

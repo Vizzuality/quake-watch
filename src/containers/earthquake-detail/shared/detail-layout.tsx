@@ -3,25 +3,23 @@ import { ArrowLeft } from 'lucide-react';
 import type { ReactNode } from 'react';
 
 import { buttonVariants } from '@/components/ui/button';
-import { LanguageSwitch } from '@/containers/shell/language-switch';
-import { ThemeSwitch } from '@/containers/shell/theme-switch';
+import { PageShell } from '@/containers/shell/page-shell';
 import { cn } from '@/lib/utils';
 import { m } from '@/paraglide/messages';
 
 export function DetailLayout({ children }: { children: ReactNode }) {
   return (
-    <main className="mx-auto flex min-h-dvh w-full max-w-6xl flex-col gap-6 px-4 py-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <Link to="/" className={cn(buttonVariants({ variant: 'ghost' }), '-ml-3')}>
+    <PageShell>
+      <div className="flex flex-col gap-6">
+        <Link
+          to="/"
+          className={cn(buttonVariants({ variant: 'ghost' }), 'self-start px-0 sm:px-0')}
+        >
           <ArrowLeft aria-hidden className="size-4" />
           {m.detail_back_to_list()}
         </Link>
-        <div className="flex items-center gap-4">
-          <LanguageSwitch />
-          <ThemeSwitch />
-        </div>
+        {children}
       </div>
-      {children}
-    </main>
+    </PageShell>
   );
 }

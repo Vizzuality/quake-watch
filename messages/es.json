@@ -283,8 +283,8 @@
   "detail_shakemap_readout": "Intensidad estimada aquí: {intensity}",
   "detail_shakemap_legend_title": "Intensidad estimada (Mercalli modificada)",
   "detail_shakemap_legend_lines": "Las intensidades II y III se dibujan solo como líneas. Las líneas unen lugares con la misma intensidad estimada.",
-  "detail_shakemap_label_felt_reach": "Alcance sentido",
-  "detail_shakemap_felt_reach_explain": "Hasta qué distancia del epicentro este mapa sigue estimando una intensidad II o mayor, el nivel en el que algunas personas empiezan a notar la sacudida.",
+  "detail_shakemap_label_felt_reach": "Alcance sentido en este ShakeMap",
+  "detail_shakemap_felt_reach_explain": "Hasta qué distancia del epicentro este mapa sigue estimando una intensidad II o mayor, el nivel en el que algunas personas empiezan a notar la sacudida. Se mide sobre las líneas de contorno que dibuja este ShakeMap, así que no puede ir más allá del área que cubre el mapa. Por eso puede ser menor que la estimación del modelo que aparece al principio de la página.",
   "detail_shakemap_label_strongest": "Intensidad estimada máxima",
   "detail_shakemap_strongest_explain": "La intensidad más alta de este mapa. Suele estar cerca del epicentro o a lo largo de la falla, pero el suelo blando puede llevar sacudidas fuertes más lejos.",
   "detail_shakemap_hint_idle": "Pasa el cursor para leer la intensidad · haz clic y usa la rueda para hacer zoom",
@@ -358,5 +358,10 @@
   "map_shown": "{count} en el mapa · {window}",
   "map_shown_until": "{count} en el mapa · {window} hasta el {date}",
   "timeline_span_24h": "24 horas",
-  "timeline_span_7d": "7 días"
+  "timeline_span_7d": "7 días",
+  "detail_error_hint": "Vuelve a intentarlo en un minuto.",
+  "not_found_body": "La página que buscabas no existe o ha cambiado de dirección.",
+  "error_body": "Algo ha fallado al cargar esta página. Vuelve a intentarlo o regresa a la lista.",
+  "home_link_label": "Inicio de Quake Watch",
+  "detail_meaning_model": "(estimación del modelo)"
 }

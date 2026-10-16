@@ -15,9 +15,9 @@ export function DetailSection({
   const headingId = useId();
 
   return (
-    <section aria-labelledby={headingId} className="flex flex-col gap-3">
+    <section aria-labelledby={headingId} className="flex flex-col gap-4">
       <div className="flex flex-col gap-1">
-        <h2 id={headingId} className="text-lg font-semibold text-fg">
+        <h2 id={headingId} className="text-xl font-semibold tracking-tight text-balance text-fg">
           {title}
         </h2>
         <SectionExplainer>{explainer}</SectionExplainer>

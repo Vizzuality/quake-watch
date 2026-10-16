@@ -11,7 +11,7 @@ import type { Earthquake } from '@/lib/earthquakes/types';
 import { m } from '@/paraglide/messages';
 
 const MINIMAP_SOURCE_ID = 'detail-earthquake';
-const MINIMAP_ZOOM = 6;
+const MINIMAP_ZOOM = 5;
 
 function getMapDate(time: number): string {
   return new Date(time).toISOString().slice(0, 10);
@@ -26,7 +26,7 @@ export function DetailMinimap({ earthquake }: { earthquake: Earthquake }) {
     <div className="flex flex-col gap-2">
       <figure
         aria-label={m.detail_minimap_label()}
-        className="relative h-64 overflow-hidden rounded-lg border border-line sm:h-80"
+        className="relative h-64 overflow-hidden rounded-md border border-line sm:h-80"
       >
         <QuakeMap
           attribution={m.attribution_data({ source: SOURCE_ADAPTERS[earthquake.source].label })}
