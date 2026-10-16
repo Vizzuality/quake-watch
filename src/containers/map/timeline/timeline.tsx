@@ -27,6 +27,7 @@ import { getDateTimeFormat } from '@/lib/i18n/timeline-format';
 import { m } from '@/paraglide/messages';
 import { getLocale } from '@/paraglide/runtime';
 
+import { MagnitudeLegend } from '../legend';
 import { Histogram } from './histogram';
 import { PlaybackControls } from './playback-controls';
 import { WindowSelect } from './window-select';
@@ -165,12 +166,14 @@ export function Timeline() {
     // oxlint-disable-next-line jsx-a11y/no-noninteractive-element-interactions -- Space must toggle playback from any control inside the timeline region
     <section
       aria-label={m.timeline_label()}
+      data-map-overlay="bottom"
       onKeyDown={handleKeyDown}
-      className="absolute inset-x-3 bottom-[max(4.5rem,calc(env(safe-area-inset-bottom)+4rem))] rounded-lg bg-ink/70 px-3 py-2 text-xs text-muted backdrop-blur sm:inset-x-auto sm:bottom-8 sm:left-1/2 sm:w-full sm:max-w-3xl sm:-translate-x-1/2"
+      className="absolute inset-x-3 bottom-[max(2.25rem,calc(env(safe-area-inset-bottom)+1.75rem))] z-10 flex flex-col gap-2 rounded-md border border-line bg-canvas/90 px-3 pt-2.5 pb-2 text-xs text-muted backdrop-blur sm:inset-x-auto sm:bottom-9 sm:left-1/2 sm:w-full sm:max-w-3xl sm:-translate-x-1/2"
     >
-      {isPending && <Skeleton className="h-28" />}
+      <MagnitudeLegend />
+      {isPending && <Skeleton className="h-16" />}
       {showEmpty && (
-        <output className="flex h-[72px] items-center justify-center">{m.timeline_empty()}</output>
+        <output className="flex h-10 items-center justify-center">{m.timeline_empty()}</output>
       )}
       {loaded && range && windowEnd !== null && (
         <Histogram
@@ -183,8 +186,8 @@ export function Timeline() {
           onWindowEndCommit={handleWindowEndCommit}
         />
       )}
-      {!isPending && (
-        <div className="mt-2 flex items-center gap-2">
+      {!isPending && !showEmpty && (
+        <div className="flex items-center gap-2">
           <PlaybackControls
             isPlaying={isPlaying}
             disabled={!range}

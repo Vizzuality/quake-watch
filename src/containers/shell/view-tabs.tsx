@@ -7,8 +7,8 @@ type View = 'table' | 'map';
 
 function getTabClassName(isCurrent: boolean): string {
   return cn(
-    'rounded px-2.5 py-1 text-xs font-medium',
-    isCurrent ? 'bg-paper text-ink' : 'text-muted hover:text-paper',
+    'rounded-xs px-3 py-1.5 text-xs font-medium transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fg',
+    isCurrent ? 'bg-fg text-canvas' : 'text-muted hover:text-fg',
   );
 }
 
@@ -16,7 +16,7 @@ export function ViewTabs({ current }: { current: View }) {
   return (
     <nav
       aria-label={m.view_tabs_label()}
-      className="inline-flex rounded-md border border-line bg-surface p-0.5"
+      className="inline-flex rounded-sm border border-line-strong bg-surface p-0.5"
     >
       <Link
         to="/"

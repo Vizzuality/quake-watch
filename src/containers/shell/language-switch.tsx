@@ -1,10 +1,11 @@
 import { useLocation } from '@tanstack/react-router';
 
+import { cn } from '@/lib/utils';
 import { m } from '@/paraglide/messages';
 import { getLocale, localizeHref, locales } from '@/paraglide/runtime';
 
 function getLinkClassName(isCurrent: boolean): string {
-  return isCurrent ? 'text-paper' : 'text-muted hover:text-paper';
+  return isCurrent ? 'text-fg' : 'text-muted hover:text-fg';
 }
 
 export function LanguageSwitch() {
@@ -19,7 +20,10 @@ export function LanguageSwitch() {
           href={localizeHref(href, { locale })}
           hrefLang={locale}
           aria-current={locale === currentLocale ? 'true' : undefined}
-          className={getLinkClassName(locale === currentLocale)}
+          className={cn(
+            'inline-flex min-h-6 min-w-6 items-center justify-center rounded-xs focus-visible:outline-2 focus-visible:outline-fg',
+            getLinkClassName(locale === currentLocale),
+          )}
         >
           {locale.toUpperCase()}
         </a>

@@ -32,7 +32,7 @@ export function Beachball({
       className={cn('shrink-0', className)}
     >
       <title id={titleId}>{title}</title>
-      <circle cx={center} cy={center} r={radius} className="fill-paper" />
+      <circle cx={center} cy={center} r={radius} className="fill-fg" />
       <path
         d={getBeachballCompressionalPath(plane, radius)}
         transform={`translate(${OUTLINE_WIDTH} ${OUTLINE_WIDTH})`}

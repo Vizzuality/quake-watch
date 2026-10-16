@@ -64,10 +64,10 @@ export function WavePlayer({
         })}
         onChange={handleChange}
         onKeyDown={handleKeyDown}
-        className="h-8 min-w-40 flex-1 cursor-pointer accent-paper"
+        className="h-8 min-w-40 flex-1 cursor-pointer accent-fg"
       />
       <span aria-hidden="true" className="flex items-baseline gap-1.5">
-        <span className="min-w-14 text-right text-base font-semibold text-paper tabular-nums">
+        <span className="min-w-14 text-right text-base font-semibold text-fg tabular-nums">
           {m.detail_shakemap_clock({ seconds: secondsLabel })}
         </span>
         <span className="text-xs text-muted">{m.detail_shakemap_clock_caption()}</span>

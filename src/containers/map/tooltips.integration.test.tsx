@@ -61,11 +61,14 @@ describe('EpicenterTooltipContent', () => {
     const screen = await render(
       <EpicenterTooltipContent
         earthquake={EARTHQUAKE}
-        placeOfInterest={{ label: 'Madrid', distanceKm: 358 }}
+        placeOfInterest={{ label: 'Madrid', name: 'Madrid', distanceKm: 358 }}
         locale="en"
       />,
     );
     await expect.element(screen.getByText('1 km W of Alhendín, Spain')).toBeVisible();
+    await expect
+      .element(screen.getByText(/^Likely (not felt|Intensity [IVX]+ \([a-z ]+\)) in Madrid$/))
+      .toBeVisible();
     await expect.element(screen.getByText('Magnitude 5.2 (mww)')).toBeVisible();
     await expect.element(screen.getByText(/Aug 14, 2026/)).toBeVisible();
     await expect.element(screen.getByText('Depth 9.8 km')).toBeVisible();

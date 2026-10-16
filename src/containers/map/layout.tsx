@@ -6,7 +6,6 @@ import { m } from '@/paraglide/messages';
 import { EarthquakesLayer } from './earthquakes-layer';
 import { EpicenterTooltip } from './epicenter-tooltip';
 import { MapHeader } from './header';
-import { MagnitudeLegend } from './legend';
 import { PlaybackProvider } from './playback-context';
 import { RingTooltip } from './ring-tooltip';
 import { SearchAreaLayer } from './search-area-layer';
@@ -21,6 +20,7 @@ export function MapLayout() {
   return (
     <PlaybackProvider>
       <main className="relative h-dvh w-full overflow-hidden">
+        <MapHeader />
         <QuakeMap
           attribution={m.attribution_data({ source: SOURCE_ADAPTERS[search.source].label })}
         >
@@ -32,8 +32,6 @@ export function MapLayout() {
           <RingTooltip />
           <EpicenterTooltip />
         </QuakeMap>
-        <MapHeader />
-        <MagnitudeLegend />
         <Timeline />
       </main>
     </PlaybackProvider>

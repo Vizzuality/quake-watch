@@ -6,7 +6,7 @@ import type { MapRef } from 'react-map-gl/maplibre';
 import { describe, expect, it } from 'vitest';
 
 import '@/components/map/maplibre-worker';
-import { HALO_LAYER, SEARCH_AREA_LINE_LAYER } from '@/components/map/layers';
+import { HALO_LAYER_ID, SEARCH_AREA_LINE_LAYER_ID } from '@/components/map/layers';
 import { getFeatureCollection } from '@/test/fixtures/earthquakes';
 import { renderWithRouter } from '@/test/render-with-router';
 import { stubFetch } from '@/test/stub-fetch';
@@ -28,8 +28,8 @@ function getLayerIndexes(mapRef: RefObject<MapRef | null>) {
   const order = mapRef.current?.getMap().getLayersOrder() ?? [];
   return {
     waves: order.indexOf(WAVES_LAYER_ID),
-    halo: order.indexOf(HALO_LAYER.id),
-    searchArea: order.indexOf(SEARCH_AREA_LINE_LAYER.id),
+    halo: order.indexOf(HALO_LAYER_ID),
+    searchArea: order.indexOf(SEARCH_AREA_LINE_LAYER_ID),
   };
 }
 

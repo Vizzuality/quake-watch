@@ -62,7 +62,7 @@ export function PlaybackControls({
         onChange={(event) => onSliderChange(event.currentTarget.valueAsNumber)}
         onPointerUp={onSliderCommit}
         onKeyUp={handleKeyUp}
-        className="h-8 min-w-0 flex-1 cursor-pointer accent-paper disabled:cursor-not-allowed disabled:opacity-50"
+        className="h-8 min-w-0 flex-1 cursor-pointer accent-fg disabled:cursor-not-allowed disabled:opacity-50"
       />
     </>
   );

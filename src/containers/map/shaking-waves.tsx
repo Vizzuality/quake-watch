@@ -2,7 +2,7 @@ import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { useEffect, useMemo, useState } from 'react';
 import { useMap } from 'react-map-gl/maplibre';
 
-import { HALO_LAYER } from '@/components/map/layers';
+import { HALO_LAYER_ID } from '@/components/map/layers';
 import { getShakingWavesLayer } from '@/components/map/shaking-waves-layer';
 import { useEarthquakeSearch } from '@/hooks/use-earthquake-search';
 import { earthquakesQueryOptions } from '@/lib/earthquakes/query-options';
@@ -34,13 +34,13 @@ export function ShakingWaves() {
     const { id } = waves.layer;
 
     const placeLayer = () => {
-      if (!instance.style?._loaded || !instance.getLayer(HALO_LAYER.id)) return;
+      if (!instance.style?._loaded || !instance.getLayer(HALO_LAYER_ID)) return;
       if (!instance.getLayer(id)) {
-        instance.addLayer(waves.layer, HALO_LAYER.id);
+        instance.addLayer(waves.layer, HALO_LAYER_ID);
         return;
       }
       const order = instance.getLayersOrder();
-      if (order[order.indexOf(HALO_LAYER.id) - 1] !== id) instance.moveLayer(id, HALO_LAYER.id);
+      if (order[order.indexOf(HALO_LAYER_ID) - 1] !== id) instance.moveLayer(id, HALO_LAYER_ID);
     };
 
     placeLayer();

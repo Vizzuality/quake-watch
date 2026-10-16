@@ -21,7 +21,7 @@ export function ColumnHeader<TData extends RowData, TValue>({
     <button
       type="button"
       onClick={column.getToggleSortingHandler()}
-      className="inline-flex items-center gap-1 font-medium hover:text-paper"
+      className="inline-flex items-center gap-1 font-medium hover:text-fg"
     >
       {title}
       {getSortIcon(column.getIsSorted())}

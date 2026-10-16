@@ -147,7 +147,7 @@ export function CrustalBlockSection(props: CrustalBlockProps) {
   return (
     <section aria-labelledby={headingId} className="flex flex-col gap-3">
       <div className="flex flex-col gap-1">
-        <h2 id={headingId} className="text-lg font-semibold text-paper">
+        <h2 id={headingId} className="text-lg font-semibold text-fg">
           {m.crustal_block_title()}
         </h2>
         <SectionExplainer>

@@ -164,10 +164,13 @@ describe('Timeline', () => {
     expect(document.querySelectorAll('[data-bar]')).toHaveLength(0);
   });
 
-  it('shows an empty state and disables play without earthquakes', async () => {
+  it('shows an empty state without playback controls when there are no earthquakes', async () => {
     stubEarthquakes([]);
     const { screen } = await renderWithRouter(TimelineUnderTest);
     await expect.element(screen.getByText('No earthquakes to play')).toBeVisible();
-    await expect.element(screen.getByRole('button', { name: 'Play' })).toBeDisabled();
+    await expect.element(screen.getByRole('button', { name: 'Play' })).not.toBeInTheDocument();
+    await expect
+      .element(screen.getByRole('slider', { name: 'Playback time' }))
+      .not.toBeInTheDocument();
   });
 });

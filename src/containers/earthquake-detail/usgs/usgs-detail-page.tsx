@@ -26,7 +26,7 @@ function UsgsDetailBody({ earthquakeId }: { earthquakeId: string }) {
 
   const { earthquake } = data;
   return (
-    <div className="flex flex-col gap-8">
+    <div className="flex flex-col gap-12">
       <DetailHeader earthquake={earthquake} />
       <div className="grid gap-6 lg:grid-cols-2">
         <DetailMinimap earthquake={earthquake} />

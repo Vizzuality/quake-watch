@@ -5,15 +5,15 @@ import type { ComponentProps } from 'react';
 import { cn } from '@/lib/utils';
 
 export const buttonVariants = cva(
-  'inline-flex shrink-0 items-center justify-center gap-1.5 rounded-md text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-paper disabled:pointer-events-none disabled:opacity-50',
+  'inline-flex shrink-0 items-center justify-center gap-1.5 rounded-md text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fg disabled:pointer-events-none disabled:opacity-50',
   {
     variants: {
       variant: {
-        solid: 'bg-paper text-ink hover:bg-paper/90',
-        outline: 'border border-line bg-surface text-paper hover:border-muted',
-        ghost: 'text-muted hover:text-paper',
+        solid: 'bg-fg text-canvas hover:bg-fg/90',
+        outline: 'border border-line-strong bg-surface text-fg hover:border-fg',
+        ghost: 'text-muted hover:text-fg',
       },
-      size: { sm: 'h-8 px-3', icon: 'size-8' },
+      size: { sm: 'h-10 px-4 sm:h-8 sm:px-3', icon: 'size-10 sm:size-8' },
     },
     defaultVariants: { variant: 'outline', size: 'sm' },
   },

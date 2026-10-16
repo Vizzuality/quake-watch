@@ -99,12 +99,15 @@ export function PlaceSearch({ id }: { id: string }) {
         >
           <Combobox.Input
             id={id}
+            name="place"
+            autoComplete="off"
+            spellCheck={false}
             placeholder={getPlacePlaceholder(search)}
-            className="h-8 flex-1 rounded-md border border-line bg-surface px-2 text-sm text-paper placeholder:text-muted"
+            className="h-10 flex-1 rounded-md border border-line-strong bg-surface px-2 text-sm text-fg placeholder:text-muted sm:h-8"
           />
           <Combobox.Portal>
             <Combobox.Positioner sideOffset={4} align="start" className="z-50">
-              <Combobox.Popup className="w-(--anchor-width) rounded-md border border-line bg-ink p-1 text-sm shadow-lg">
+              <Combobox.Popup className="w-(--anchor-width) rounded-md border border-line bg-canvas p-1 text-sm shadow-lg">
                 <Combobox.Empty className="px-2 py-1.5 text-xs text-muted">
                   {getSuggestionStatus(inputValue, suggestions.isFetching)}
                 </Combobox.Empty>
@@ -138,12 +141,12 @@ export function PlaceSearch({ id }: { id: string }) {
         </Button>
       </div>
       {suggestions.isError ? (
-        <p role="alert" className="text-xs text-danger">
+        <p role="alert" className="text-xs text-alert">
           {m.place_search_error()}
         </p>
       ) : null}
       {locationError ? (
-        <p role="alert" className="text-xs text-danger">
+        <p role="alert" className="text-xs text-alert">
           {locationError}
         </p>
       ) : null}

@@ -1,50 +1,92 @@
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 
+import { Skeleton } from '@/components/ui/skeleton';
+import { MeaningFootnote } from '@/containers/search/states';
 import { useEarthquakeSearch } from '@/hooks/use-earthquake-search';
 import { SOURCE_ADAPTERS, earthquakesQueryOptions } from '@/lib/earthquakes/query-options';
 import { getSearchCenter } from '@/lib/earthquakes/search-schema';
 import type { EarthquakeSearch } from '@/lib/earthquakes/search-schema';
-import type { Earthquake } from '@/lib/earthquakes/types';
 import { getKmLabel } from '@/lib/format';
 import { getEarthquakeCountLabel } from '@/lib/i18n/earthquake-count';
-import { getPeriodLabel, getPlaceLabel } from '@/lib/i18n/labels';
+import { getPeriodLabel } from '@/lib/i18n/labels';
 import { m } from '@/paraglide/messages';
 import type { Locale } from '@/paraglide/runtime';
 import { getLocale } from '@/paraglide/runtime';
 
-function getSummaryLabel(
+export function getSummaryHeadline(
   search: EarthquakeSearch,
-  earthquakes: Earthquake[],
+  count: number,
   locale: Locale,
 ): string {
-  const inputs = {
-    count: getEarthquakeCountLabel(earthquakes.length, locale),
-    period: getPeriodLabel(search, locale),
-    source: SOURCE_ADAPTERS[search.source].label,
-  };
-  if (!getSearchCenter(search)) return m.summary_world(inputs);
-  return m.summary_near({
-    ...inputs,
-    radius: getKmLabel(search.radius, locale),
-    place: getPlaceLabel(search, locale),
-  });
+  const countLabel = getEarthquakeCountLabel(count, locale);
+  if (!getSearchCenter(search)) return m.summary_headline_world({ count: countLabel });
+  const radius = getKmLabel(search.radius, locale);
+  if (search.place === undefined) {
+    return m.summary_headline_near_point({ count: countLabel, radius });
+  }
+  return m.summary_headline_near({ count: countLabel, radius, place: search.place });
+}
+
+export function LiveMarker() {
+  return (
+    <span className="inline-flex items-center gap-1.5 font-medium text-fg">
+      <span aria-hidden="true" className="relative flex size-2">
+        <span className="absolute inset-0 rounded-full bg-mag-4 motion-safe:animate-ping motion-safe:opacity-60" />
+        <span className="relative size-2 rounded-full bg-mag-4" />
+      </span>
+      {m.live_label()}
+      <span className="font-normal text-muted">· {m.live_explain()}</span>
+    </span>
+  );
 }
 
 export function SearchSummary() {
   const search = useEarthquakeSearch();
-  const { data, isPlaceholderData } = useQuery({
+  const { data, isPlaceholderData, isError, dataUpdatedAt } = useQuery({
     ...earthquakesQueryOptions(search),
     placeholderData: keepPreviousData,
   });
-  if (!data) return null;
+  const locale = getLocale();
 
-  const summary = isPlaceholderData
-    ? m.loading_earthquakes()
-    : getSummaryLabel(search, data.earthquakes, getLocale());
+  if (!data && isError) return null;
+
+  if (!data) {
+    return (
+      <div aria-hidden="true" className="flex flex-col gap-2 py-1">
+        <Skeleton className="h-6 w-72 max-w-full" />
+        <Skeleton className="h-3.5 w-56 max-w-full" />
+      </div>
+    );
+  }
+
+  if (isPlaceholderData) {
+    return (
+      <p aria-live="polite" aria-busy className="py-1 text-lg text-muted">
+        {m.loading_earthquakes()}
+      </p>
+    );
+  }
+
+  const time = new Intl.DateTimeFormat(locale, { hour: 'numeric', minute: '2-digit' }).format(
+    dataUpdatedAt,
+  );
 
   return (
-    <p aria-live="polite" aria-busy={isPlaceholderData} className="text-sm text-muted">
-      {summary}
-    </p>
+    <div className="flex flex-col gap-1.5">
+      <p aria-live="polite" className="text-lg font-medium tracking-tight text-balance sm:text-xl">
+        {getSummaryHeadline(search, data.earthquakes.length, locale)}
+      </p>
+      <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted">
+        <span>
+          {m.summary_meta({
+            period: getPeriodLabel(search, locale),
+            source: SOURCE_ADAPTERS[search.source].label,
+            time,
+          })}
+        </span>
+        {search.period === '24h' && !isError ? <LiveMarker /> : null}
+      </p>
+      <MeaningFootnote />
+    </div>
   );
 }

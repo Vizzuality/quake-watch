@@ -81,10 +81,10 @@ export function ShakingMap({
           {children}
         </QuakeMap>
         {readout === null ? null : (
-          <p className="pointer-events-none absolute top-3 left-3 flex items-center gap-2 rounded-md bg-ink/85 px-2 py-1 text-xs text-paper ring-1 ring-paper/20">
+          <p className="pointer-events-none absolute top-3 left-3 flex items-center gap-2 rounded-md bg-canvas/85 px-2 py-1 text-xs text-fg ring-1 ring-fg/20">
             <span
               aria-hidden="true"
-              className="size-3 shrink-0 rounded-sm ring-1 ring-ink/40"
+              className="size-3 shrink-0 rounded-sm ring-1 ring-canvas/40"
               style={{ backgroundColor: getCssColor(readout.color) }}
             />
             {readout.text}

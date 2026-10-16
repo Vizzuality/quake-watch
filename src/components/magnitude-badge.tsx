@@ -1,20 +1,21 @@
-import { getMagnitudeColor } from '@/lib/earthquakes/magnitude';
+import { MAGNITUDE_BADGE_CLASS_NAMES } from '@/components/magnitude-classes';
+import { getMagnitudeClass } from '@/lib/earthquakes/magnitude';
 import { cn } from '@/lib/utils';
 
-const LIGHT_TEXT_MIN_MAGNITUDE = 7;
-
-function getMagnitudeTextClassName(magnitude: number): string {
-  return magnitude >= LIGHT_TEXT_MIN_MAGNITUDE ? 'text-white' : 'text-ink';
-}
-
-export function MagnitudeBadge({ magnitude }: { magnitude: number }) {
+export function MagnitudeBadge({
+  magnitude,
+  className,
+}: {
+  magnitude: number;
+  className?: string;
+}) {
   return (
     <span
       className={cn(
-        'inline-block min-w-10 rounded px-1.5 text-center font-semibold tabular-nums',
-        getMagnitudeTextClassName(magnitude),
+        'inline-block min-w-11 rounded-xs px-1.5 text-center font-mono font-semibold tabular-nums',
+        MAGNITUDE_BADGE_CLASS_NAMES[getMagnitudeClass(magnitude)],
+        className,
       )}
-      style={{ backgroundColor: getMagnitudeColor(magnitude) }}
     >
       {magnitude.toFixed(1)}
     </span>

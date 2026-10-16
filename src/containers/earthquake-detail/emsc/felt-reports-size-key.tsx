@@ -12,7 +12,7 @@ function SizeSwatch({ reports, label }: { reports: number; label: string }) {
     <li className="flex items-center gap-2">
       <span
         aria-hidden="true"
-        className="shrink-0 rounded-full bg-paper/25 ring-1 ring-paper/60"
+        className="shrink-0 rounded-full bg-fg/25 ring-1 ring-fg/60"
         style={{ width: diameter, height: diameter }}
       />
       {label}
@@ -24,7 +24,7 @@ export function FeltReportsSizeKey() {
   const titleId = useId();
   return (
     <div className="flex flex-col gap-2">
-      <span id={titleId} className="font-medium text-paper">
+      <span id={titleId} className="font-medium text-fg">
         {m.detail_felt_legend_size_title()}
       </span>
       <ul aria-labelledby={titleId} className="flex items-center gap-4">

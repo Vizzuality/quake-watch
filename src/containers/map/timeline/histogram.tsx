@@ -16,7 +16,7 @@ import { getBinDateFormat, getDateTimeFormat } from '@/lib/i18n/timeline-format'
 import { m } from '@/paraglide/messages';
 import { getLocale } from '@/paraglide/runtime';
 
-const PLOT_HEIGHT = 56;
+const PLOT_HEIGHT = 44;
 const BAR_GAP = 2;
 const BAR_RADIUS = 4;
 const TOOLTIP_HALF_WIDTH = 72;
@@ -117,7 +117,7 @@ export function Histogram({
         <div
           aria-hidden="true"
           data-testid="timeline-bar-tooltip"
-          className="pointer-events-none absolute bottom-full z-10 mb-1 -translate-x-1/2 rounded-md border border-line bg-surface px-2 py-1 whitespace-nowrap text-paper"
+          className="pointer-events-none absolute bottom-full z-10 mb-1 -translate-x-1/2 rounded-sm border border-line-strong bg-surface px-2 py-1 whitespace-nowrap text-fg tabular-nums"
           style={{
             left: Math.min(
               Math.max(slotWidth * (hovered ?? 0) + slotWidth / 2, TOOLTIP_HALF_WIDTH),
@@ -140,7 +140,7 @@ export function Histogram({
         aria-valuetext={dateTimeFormat.format(windowEnd)}
         width={width}
         height={PLOT_HEIGHT}
-        className="block cursor-pointer touch-none rounded-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-paper"
+        className="block cursor-pointer touch-none rounded-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fg"
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
@@ -155,7 +155,7 @@ export function Histogram({
           y={0}
           width={Math.max(1, getX(windowRange.end) - getX(windowRange.start))}
           height={PLOT_HEIGHT}
-          className="fill-paper/15"
+          className="fill-mag-4/15"
         />
         <line
           x1={0}
@@ -182,7 +182,7 @@ export function Histogram({
       </svg>
       <div
         aria-hidden="true"
-        className="flex h-4 items-center justify-between text-[10px] text-muted"
+        className="flex h-4 items-center justify-between text-2xs text-muted tabular-nums"
       >
         <span>{binFormat.format(loaded.start)}</span>
         <span>{binFormat.format(loaded.end)}</span>
