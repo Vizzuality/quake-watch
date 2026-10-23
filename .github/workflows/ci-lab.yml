@@ -8,38 +8,15 @@ permissions:
   contents: read
 
 jobs:
-  browser:
-    name: ${{ matrix.variant }} / ${{ matrix.rep }}
+  pipeline:
+    name: ${{ matrix.os }} / ${{ matrix.job }} / ${{ matrix.rep }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        rep: [1, 2, 3]
-        variant:
-          [
-            v0-with-deps,
-            v1-shell-nodeps,
-            v2-shell-with-deps,
-            v3-preinstalled-chrome,
-            v4-arm-shell-nodeps,
-          ]
-        include:
-          - variant: v0-with-deps
-            os: ubuntu-24.04
-            install: pnpm exec playwright install --with-deps chromium
-          - variant: v1-shell-nodeps
-            os: ubuntu-24.04
-            install: pnpm exec playwright install --only-shell chromium
-          - variant: v2-shell-with-deps
-            os: ubuntu-24.04
-            install: pnpm exec playwright install --with-deps --only-shell chromium
-          - variant: v3-preinstalled-chrome
-            os: ubuntu-24.04
-            install: google-chrome --version
-            channel: chrome
-          - variant: v4-arm-shell-nodeps
-            os: ubuntu-24.04-arm
-            install: pnpm exec playwright install --only-shell chromium
+        os: [ubuntu-24.04, ubuntu-24.04-arm]
+        job: [static, typecheck, unit, integration]
+        rep: [1, 2]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
@@ -48,13 +25,18 @@ jobs:
           node-version-file: .nvmrc
           cache: pnpm
       - run: pnpm install --frozen-lockfile --ignore-scripts
-      - name: diagnostics
+      - if: matrix.job == 'static'
+        run: pnpm audit --prod --audit-level high && pnpm lint && pnpm format:check
+      - if: matrix.job == 'typecheck'
+        run: pnpm build && pnpm typecheck
+      - if: matrix.job == 'unit'
+        run: pnpm test:coverage
+      - if: matrix.job == 'integration'
+        name: missing apt packages
         run: |
-          nproc; df -h /tmp | tail -1
-          pnpm exec playwright install-deps --dry-run chromium 2>&1 | tail -3 || true
-      - name: browser setup
-        run: ${{ matrix.install }}
-      - name: integration tests
-        env:
-          PW_CHANNEL: ${{ matrix.channel }}
+          pkgs=$(pnpm exec playwright install-deps --dry-run chromium 2>/dev/null | grep -oE 'apt-get install -y --no-install-recommends .*' | sed 's/.*--no-install-recommends //')
+          for p in $pkgs; do dpkg-query -W -f='${Status}' "$p" 2>/dev/null | grep -q "ok installed" || echo "MISSING $p"; done
+      - if: matrix.job == 'integration'
+        run: pnpm exec playwright install --only-shell chromium
+      - if: matrix.job == 'integration'
         run: pnpm test:integration
