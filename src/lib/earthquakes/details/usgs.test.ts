@@ -78,24 +78,24 @@ describe('getUsgsEarthquakeDetailFromFeature', () => {
     expect(detail?.mechanism?.derivedDepthKm).toBe(9);
   });
 
-  it('maps the preferred ShakeMap contour and medium-res coverage URLs', () => {
+  it('maps the preferred ShakeMap contour URL', () => {
     const detail = getUsgsEarthquakeDetailFromFeature(usgsPanamaDetail);
     expect(detail?.shakemap).toEqual({
       contoursUrl:
         'https://earthquake.usgs.gov/product/shakemap/us6000u18k/us/1791835000028/download/cont_mmi.json',
-      coverageUrl:
-        'https://earthquake.usgs.gov/product/shakemap/us6000u18k/us/1791835000028/download/coverage_mmi_medium_res.covjson',
     });
   });
 
-  it('returns a null shakemap when the product lacks the medium-res coverage', () => {
+  it('returns a null shakemap when the product lacks the contours', () => {
     const detail = getUsgsEarthquakeDetailFromFeature(
       getFeatureWith({
         shakemap: [
           {
             preferredWeight: 1,
             properties: { maxmmi: '5' },
-            contents: { 'download/cont_mmi.json': { url: 'https://example.test/cont.json' } },
+            contents: {
+              'download/coverage_mmi_medium_res.covjson': { url: 'https://example.test/cov.json' },
+            },
           },
         ],
       }),
@@ -133,10 +133,7 @@ describe('getUsgsEarthquakeDetailFromFeature', () => {
         ],
       }),
     );
-    expect(detail?.shakemap).toEqual({
-      contoursUrl: 'https://example.test/cont.json',
-      coverageUrl: 'https://example.test/cov.json',
-    });
+    expect(detail?.shakemap).toEqual({ contoursUrl: 'https://example.test/cont.json' });
   });
 
   it('ignores contents of an unexpected shape, as event-sequence products ship them', () => {

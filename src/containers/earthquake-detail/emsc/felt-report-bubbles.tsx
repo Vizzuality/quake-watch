@@ -1,18 +1,13 @@
 import type { ExpressionSpecification } from 'maplibre-gl';
-import { useEffect } from 'react';
-import { Layer, Source, useMap } from 'react-map-gl/maplibre';
+import { Layer, Source } from 'react-map-gl/maplibre';
 
-import { placeOnStyle } from '@/containers/earthquake-detail/shared/shaking/map-layers';
 import {
   BUBBLE_CLUSTER_PROPERTIES,
-  BUBBLE_SECONDS_STATE,
   type BubbleCollection,
-  getBubbleArrivedExpression,
-  getBubbleColorExpression,
-  getBubbleOpacityExpression,
-  getBubbleRadiusExpression,
-  getBubbleSeconds,
+  SETTLED_BUBBLE_OPACITY,
   getBubbleTextColorExpression,
+  getSettledBubbleColorExpression,
+  getSettledBubbleRadiusExpression,
 } from '@/lib/felt-reports/bubbles';
 import { FELT_REPORTS_PALETTE } from '@/lib/felt-reports/palette';
 import type { Locale } from '@/paraglide/runtime';
@@ -26,44 +21,23 @@ const COUNT_FONT = ['Noto Sans Bold'];
 const STROKE_COLOR = '#0b0d10';
 
 const CIRCLE_PAINT = {
-  'circle-radius': getBubbleRadiusExpression(),
-  'circle-color': getBubbleColorExpression(FELT_REPORTS_PALETTE),
-  'circle-opacity': getBubbleOpacityExpression(),
+  'circle-radius': getSettledBubbleRadiusExpression(),
+  'circle-color': getSettledBubbleColorExpression(FELT_REPORTS_PALETTE),
+  'circle-opacity': SETTLED_BUBBLE_OPACITY,
   'circle-stroke-width': 1,
   'circle-stroke-color': STROKE_COLOR,
-  'circle-stroke-opacity': getBubbleArrivedExpression(0.6),
+  'circle-stroke-opacity': 0.6,
 };
 const COUNT_PAINT = {
   'text-color': getBubbleTextColorExpression(),
-  'text-opacity': getBubbleArrivedExpression(1),
+  'text-opacity': 1,
 };
 
 function getCountField(locale: Locale): ExpressionSpecification {
   return ['number-format', ['get', 'reports'], { locale }];
 }
 
-export function FeltReportBubbles({
-  data,
-  seconds,
-  complete,
-  locale,
-}: {
-  data: BubbleCollection;
-  seconds: number;
-  complete: boolean;
-  locale: Locale;
-}) {
-  const { current: map } = useMap();
-  const bubbleSeconds = getBubbleSeconds(seconds, complete);
-
-  useEffect(() => {
-    if (!map) return;
-    const instance = map.getMap();
-    return placeOnStyle(instance, () =>
-      instance.setGlobalStateProperty(BUBBLE_SECONDS_STATE, bubbleSeconds),
-    );
-  }, [map, bubbleSeconds]);
-
+export function FeltReportBubbles({ data, locale }: { data: BubbleCollection; locale: Locale }) {
   return (
     <Source
       id={SOURCE_ID}

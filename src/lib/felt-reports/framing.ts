@@ -69,3 +69,10 @@ export function getFeltReportsViewBounds(
 ): FeltReportsBounds {
   return getFeltReportsBounds(getNearestCells(cells, epicenter), epicenter, VIEW_PAD_KM);
 }
+
+export function getFarthestCellKm(
+  cells: readonly FeltReportCell[],
+  epicenter: SearchCenter,
+): number {
+  return cells.reduce((farthest, cell) => Math.max(farthest, getDistanceKm(epicenter, cell)), 0);
+}

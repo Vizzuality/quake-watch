@@ -1,5 +1,5 @@
 import { Link } from '@tanstack/react-router';
-import { useMemo } from 'react';
+import { type ReactNode, useMemo } from 'react';
 import { Layer, Source } from 'react-map-gl/maplibre';
 
 import { QuakeMap } from '@/components/map/quake-map';
@@ -8,16 +8,33 @@ import { useMapPalette } from '@/hooks/use-theme';
 import { getEarthquakesGeoJson, getMagnitudeColorExpression } from '@/lib/earthquakes/magnitude';
 import { SOURCE_ADAPTERS } from '@/lib/earthquakes/query-options';
 import type { Earthquake } from '@/lib/earthquakes/types';
+import type { TrainBounds } from '@/lib/shakemap/wave-train';
 import { m } from '@/paraglide/messages';
 
 const MINIMAP_SOURCE_ID = 'detail-earthquake';
 const MINIMAP_ZOOM = 5;
+const MINIMAP_PADDING = 24;
 
 function getMapDate(time: number): string {
   return new Date(time).toISOString().slice(0, 10);
 }
 
-export function DetailMinimap({ earthquake }: { earthquake: Earthquake }) {
+function getInitialViewState(earthquake: Earthquake, bounds: TrainBounds | null | undefined) {
+  if (bounds) return { bounds, fitBoundsOptions: { padding: MINIMAP_PADDING } };
+  return { longitude: earthquake.longitude, latitude: earthquake.latitude, zoom: MINIMAP_ZOOM };
+}
+
+export function DetailMinimap({
+  earthquake,
+  bounds,
+  overlay,
+  children,
+}: {
+  earthquake: Earthquake;
+  bounds?: TrainBounds | null;
+  overlay?: ReactNode;
+  children?: ReactNode;
+}) {
   const geojson = useMemo(() => getEarthquakesGeoJson([earthquake]), [earthquake]);
   const palette = useMapPalette();
   const date = getMapDate(earthquake.time);
@@ -30,13 +47,10 @@ export function DetailMinimap({ earthquake }: { earthquake: Earthquake }) {
       >
         <QuakeMap
           attribution={m.attribution_data({ source: SOURCE_ADAPTERS[earthquake.source].label })}
-          initialViewState={{
-            longitude: earthquake.longitude,
-            latitude: earthquake.latitude,
-            zoom: MINIMAP_ZOOM,
-          }}
+          initialViewState={getInitialViewState(earthquake, bounds)}
           interactive={false}
         >
+          {children}
           <Source id={MINIMAP_SOURCE_ID} type="geojson" data={geojson}>
             <Layer
               id="detail-earthquake-halo"
@@ -61,6 +75,7 @@ export function DetailMinimap({ earthquake }: { earthquake: Earthquake }) {
             />
           </Source>
         </QuakeMap>
+        {overlay}
       </figure>
       <Link
         to="/map"
