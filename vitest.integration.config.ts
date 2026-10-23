@@ -19,7 +19,10 @@ export default defineConfig({
     browser: {
       enabled: true,
       headless: true,
-      provider: playwright({ contextOptions: { timezoneId: 'UTC', locale: 'en-US' } }),
+      provider: playwright({
+        launchOptions: process.env.PW_CHANNEL ? { channel: process.env.PW_CHANNEL } : {},
+        contextOptions: { timezoneId: 'UTC', locale: 'en-US' },
+      }),
       instances: [{ browser: 'chromium', viewport: { width: 1280, height: 800 } }],
     },
   },
