@@ -1,4 +1,4 @@
-import type { Map as MapLibreMap } from 'maplibre-gl';
+import type { GeoJSONSource, Map as MapLibreMap } from 'maplibre-gl';
 import { useEffect } from 'react';
 import { MapProvider, useMap } from 'react-map-gl/maplibre';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -88,10 +88,11 @@ function getBubbleFeatureCount(): number {
   return map.querySourceFeatures(BUBBLE_SOURCE).length;
 }
 
-function getTrainFeatureCount(): number {
-  const map = mapRef.current;
-  if (!map?.getSource('wave-train') || !map.isSourceLoaded('wave-train')) return 0;
-  return map.querySourceFeatures('wave-train').length;
+async function getTrainFeatureCount(): Promise<number> {
+  const source = mapRef.current?.getSource<GeoJSONSource>('wave-train');
+  if (!source) return 0;
+  const data = await source.getData();
+  return data.type === 'FeatureCollection' ? data.features.length : 0;
 }
 
 describe('EmscDetailMap', () => {

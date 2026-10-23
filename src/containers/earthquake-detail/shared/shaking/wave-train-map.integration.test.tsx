@@ -74,6 +74,13 @@ async function getTrainData(): Promise<string | null> {
   return JSON.stringify(await source.getData());
 }
 
+async function getTrainFeatureCount(): Promise<number> {
+  const source = mapRef.current?.getMap().getSource<GeoJSONSource>('wave-train');
+  if (!source) return 0;
+  const data = await source.getData();
+  return data.type === 'FeatureCollection' ? data.features.length : 0;
+}
+
 async function getFramePair(): Promise<[string | null, string | null]> {
   const first = await getTrainData();
   await wait(FRAME_GAP_MS);
@@ -207,16 +214,7 @@ describe('WaveTrainMap', () => {
 
   it('feeds at least one front to the line source', async () => {
     await renderMap();
-    await expect
-      .poll(
-        () => {
-          const map = mapRef.current?.getMap();
-          if (!map?.getSource('wave-train') || !map.isSourceLoaded('wave-train')) return 0;
-          return map.querySourceFeatures('wave-train').length;
-        },
-        { timeout: 10_000 },
-      )
-      .toBeGreaterThan(0);
+    await expect.poll(getTrainFeatureCount, { timeout: 10_000 }).toBeGreaterThan(0);
   });
 
   it('keeps the map static', async () => {
