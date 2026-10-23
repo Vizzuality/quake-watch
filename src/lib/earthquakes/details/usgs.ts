@@ -38,7 +38,7 @@ export type UsgsMechanism = {
   derivedDepthKm: number | null;
 };
 
-export type UsgsShakemapFiles = { contoursUrl: string; coverageUrl: string };
+export type UsgsShakemapFiles = { contoursUrl: string };
 
 export type UsgsEarthquakeDetail = {
   earthquake: Earthquake;
@@ -76,7 +76,6 @@ type ProductProperties = Record<string, unknown>;
 const PAGER_ALERTS = ['green', 'yellow', 'orange', 'red'] as const;
 
 const SHAKEMAP_CONTOURS_KEY = 'download/cont_mmi.json';
-const SHAKEMAP_COVERAGE_KEY = 'download/coverage_mmi_medium_res.covjson';
 
 function getPreferredProduct(products: z.infer<typeof productsSchema>, type: string) {
   const candidates = products[type] ?? [];
@@ -99,9 +98,8 @@ function getPreferredProperties(
 function getShakemapFiles(products: z.infer<typeof productsSchema>): UsgsShakemapFiles | null {
   const contents = getPreferredProduct(products, 'shakemap')?.contents;
   const contoursUrl = contents?.[SHAKEMAP_CONTOURS_KEY]?.url;
-  const coverageUrl = contents?.[SHAKEMAP_COVERAGE_KEY]?.url;
-  if (!contoursUrl || !coverageUrl) return null;
-  return { contoursUrl, coverageUrl };
+  if (!contoursUrl) return null;
+  return { contoursUrl };
 }
 
 function getNumber(properties: ProductProperties, key: string): number | null {

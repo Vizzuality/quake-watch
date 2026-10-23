@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
+import { getDistanceKm } from '@/lib/earthquakes/distance';
 import { getPaletteColor } from '@/lib/shakemap/coverage';
 
 import type { FeltReportCell } from './cells';
 import {
+  getFarthestCellKm,
   getFeltReportsBounds,
   getFeltReportsViewBounds,
   getFramedCells,
@@ -76,5 +78,18 @@ describe('getFeltReportsViewBounds', () => {
     const [west, , east] = getFeltReportsViewBounds([getCell(-81, 8)], EPICENTER);
     expect(west).toBeLessThan(-82);
     expect(east).toBeGreaterThan(-81);
+  });
+});
+
+describe('getFarthestCellKm', () => {
+  it('measures the distance from the Epicenter to the farthest cell', () => {
+    const far = getCell(-85, 10);
+    expect(getFarthestCellKm([getCell(-82.1, 8), far, getCell(-81, 8.5)], EPICENTER)).toBe(
+      getDistanceKm(EPICENTER, far),
+    );
+  });
+
+  it('is zero without cells', () => {
+    expect(getFarthestCellKm([], EPICENTER)).toBe(0);
   });
 });

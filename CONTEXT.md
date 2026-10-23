@@ -39,6 +39,11 @@ A ring that spreads from the Epicenter out to its Felt reach and fades as the es
 _Avoid_: Ripple, shockwave
 _Spanish_: Onda sísmica
 
+**Isoseismal**:
+A line on a USGS ShakeMap joining places with the same estimated Intensity.
+_Avoid_: Contour, wave
+_Spanish_: Isosista
+
 **Felt reach**:
 The distance from the Epicenter within which the estimated Intensity is at least II.
 _Avoid_: Radius, range

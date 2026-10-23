@@ -4,13 +4,12 @@ import { CrustalBlockSection } from '@/containers/earthquake-detail/crustal-bloc
 import { DetailError } from '@/containers/earthquake-detail/shared/detail-error';
 import { DetailHeader } from '@/containers/earthquake-detail/shared/detail-header';
 import { DetailLayout } from '@/containers/earthquake-detail/shared/detail-layout';
-import { DetailMinimap } from '@/containers/earthquake-detail/shared/detail-minimap';
 import { DetailNotFound } from '@/containers/earthquake-detail/shared/detail-not-found';
 import { DetailSkeleton } from '@/containers/earthquake-detail/shared/detail-skeleton';
 import { emscEarthquakeDetailQueryOptions } from '@/lib/earthquakes/details/emsc-query-options';
 import { SOURCE_ADAPTERS } from '@/lib/earthquakes/query-options';
 
-import { EmscFeltReportsSection } from './emsc-felt-reports-section';
+import { EmscDetailMap } from './emsc-detail-map';
 import { EmscOriginSection } from './emsc-origin-section';
 import { EmscSummarySection } from './emsc-summary-section';
 
@@ -27,10 +26,9 @@ function EmscDetailBody({ earthquakeId }: { earthquakeId: string }) {
     <div className="flex flex-col gap-12">
       <DetailHeader earthquake={earthquake} />
       <div className="grid gap-6 lg:grid-cols-2">
-        <DetailMinimap earthquake={earthquake} />
+        <EmscDetailMap earthquakeId={earthquakeId} />
         <EmscSummarySection earthquakeId={earthquakeId} />
       </div>
-      <EmscFeltReportsSection earthquakeId={earthquakeId} />
       <CrustalBlockSection
         latitude={earthquake.latitude}
         longitude={earthquake.longitude}

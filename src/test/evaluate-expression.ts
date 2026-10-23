@@ -21,6 +21,22 @@ const NUMERIC_OPERATORS: Record<string, (values: number[]) => number | boolean> 
   '==': ([a, b]) => a === b,
 };
 
+function getInterpolated(input: number, stops: readonly unknown[]): unknown {
+  for (let index = 0; index < stops.length; index += 2) {
+    const stop = Number(stops[index]);
+    if (input === stop) return stops[index + 1];
+    if (input < stop && index === 0) return stops[1];
+    if (input < stop) {
+      const [low, from, to] = [Number(stops[index - 2]), stops[index - 1], stops[index + 1]];
+      if (typeof from !== 'number' || typeof to !== 'number') {
+        throw new Error('Only numeric outputs interpolate between stops');
+      }
+      return from + ((to - from) * (input - low)) / (stop - low);
+    }
+  }
+  return stops.at(-1);
+}
+
 function evaluate(expression: unknown, scope: Scope): unknown {
   if (!Array.isArray(expression)) return expression;
   const [operator, ...args] = expression as [string, ...unknown[]];
@@ -41,6 +57,10 @@ function evaluate(expression: unknown, scope: Scope): unknown {
         variables[args[index] as string] = evaluate(args[index + 1], scope);
       }
       return evaluate(args.at(-1), { ...scope, variables });
+    }
+    case 'interpolate': {
+      const [, input, ...stops] = args;
+      return getInterpolated(Number(evaluate(input, scope)), stops);
     }
     case 'case': {
       for (let index = 0; index < args.length - 1; index += 2) {

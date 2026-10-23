@@ -78,7 +78,6 @@ describe('UsgsDetailPage', () => {
 
     for (const name of [
       'Key facts',
-      'Estimated shaking (ShakeMap)',
       'Crustal block',
       'Location details',
       'Impact',

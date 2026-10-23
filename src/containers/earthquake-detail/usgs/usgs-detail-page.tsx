@@ -4,16 +4,15 @@ import { CrustalBlockSection } from '@/containers/earthquake-detail/crustal-bloc
 import { DetailError } from '@/containers/earthquake-detail/shared/detail-error';
 import { DetailHeader } from '@/containers/earthquake-detail/shared/detail-header';
 import { DetailLayout } from '@/containers/earthquake-detail/shared/detail-layout';
-import { DetailMinimap } from '@/containers/earthquake-detail/shared/detail-minimap';
 import { DetailNotFound } from '@/containers/earthquake-detail/shared/detail-not-found';
 import { DetailSkeleton } from '@/containers/earthquake-detail/shared/detail-skeleton';
 import { usgsEarthquakeDetailQueryOptions } from '@/lib/earthquakes/details/usgs-query-options';
 import { SOURCE_ADAPTERS } from '@/lib/earthquakes/query-options';
 
+import { UsgsDetailMap } from './usgs-detail-map';
 import { UsgsImpactSection } from './usgs-impact-section';
 import { UsgsMechanismSection } from './usgs-mechanism-section';
 import { UsgsOriginSection } from './usgs-origin-section';
-import { UsgsShakemapSection } from './usgs-shakemap-section';
 import { UsgsSummarySection } from './usgs-summary-section';
 
 function UsgsDetailBody({ earthquakeId }: { earthquakeId: string }) {
@@ -29,10 +28,9 @@ function UsgsDetailBody({ earthquakeId }: { earthquakeId: string }) {
     <div className="flex flex-col gap-12">
       <DetailHeader earthquake={earthquake} />
       <div className="grid gap-6 lg:grid-cols-2">
-        <DetailMinimap earthquake={earthquake} />
+        <UsgsDetailMap earthquakeId={earthquakeId} />
         <UsgsSummarySection earthquakeId={earthquakeId} />
       </div>
-      <UsgsShakemapSection earthquakeId={earthquakeId} />
       <CrustalBlockSection
         latitude={earthquake.latitude}
         longitude={earthquake.longitude}
