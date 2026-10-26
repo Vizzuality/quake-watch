@@ -21,4 +21,8 @@ export const paraglideOptions: Parameters<typeof paraglideVitePlugin>[0] = {
       ],
     },
   ],
+  routeStrategies: [
+    { match: '/sitemap.xml', exclude: true },
+    { match: '/robots.txt', exclude: true },
+  ],
 };
