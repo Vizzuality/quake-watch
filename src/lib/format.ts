@@ -86,3 +86,12 @@ export function getFullDateTimeLabel(time: number, locale: string, timeZone?: st
     timeZone,
   }).format(time);
 }
+
+export const LOCAL_DATE_TIME_FORMAT: Intl.DateTimeFormatOptions = {
+  dateStyle: 'long',
+  timeStyle: 'medium',
+};
+
+export function getLocalDateTimeLabel(time: number, locale: string, timeZone?: string): string {
+  return new Intl.DateTimeFormat(locale, { ...LOCAL_DATE_TIME_FORMAT, timeZone }).format(time);
+}

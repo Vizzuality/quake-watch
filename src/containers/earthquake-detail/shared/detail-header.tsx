@@ -9,8 +9,13 @@ import { MeaningFootnote } from '@/containers/search/states';
 import { SOURCE_ADAPTERS } from '@/lib/earthquakes/query-options';
 import type { Earthquake } from '@/lib/earthquakes/types';
 import { getCoordinatesLabel, getFullDateTimeLabel, getKmLabel, getTimeLabel } from '@/lib/format';
+import { getTimeLabelPlaceholder } from '@/lib/time-placeholder';
 import { m } from '@/paraglide/messages';
 import { getLocale } from '@/paraglide/runtime';
+import type { Locale } from '@/paraglide/runtime';
+
+import { ClientOnlyText } from './client-only-text';
+import { LocalDateTime } from './local-date-time';
 
 function HeaderFact({ label, children }: { label: string; children: ReactNode }) {
   return (
@@ -21,10 +26,14 @@ function HeaderFact({ label, children }: { label: string; children: ReactNode })
   );
 }
 
+function RelativeTimeLabel({ time, locale }: { time: number; locale: Locale }) {
+  const [now] = useState(Date.now);
+  return <span className="text-muted">{getTimeLabel(time, now, locale)}</span>;
+}
+
 export function DetailHeader({ earthquake }: { earthquake: Earthquake }) {
   const locale = getLocale();
   const sourceLabel = SOURCE_ADAPTERS[earthquake.source].label;
-  const [now] = useState(Date.now);
 
   return (
     <header className="flex flex-col gap-6 border-b border-line pb-6">
@@ -54,7 +63,9 @@ export function DetailHeader({ earthquake }: { earthquake: Earthquake }) {
               />{' '}
               <span className="text-sm text-muted">{m.detail_meaning_model()}</span>
             </span>
-            <span className="text-muted">{getTimeLabel(earthquake.time, now, locale)}</span>
+            <ClientOnlyText placeholder={getTimeLabelPlaceholder(earthquake.time, locale)}>
+              <RelativeTimeLabel time={earthquake.time} locale={locale} />
+            </ClientOnlyText>
           </p>
           <MeaningFootnote />
         </div>
@@ -70,9 +81,7 @@ export function DetailHeader({ earthquake }: { earthquake: Earthquake }) {
       </div>
       <dl className="grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-2 lg:grid-cols-4">
         <HeaderFact label={m.detail_label_time_local()}>
-          <time dateTime={new Date(earthquake.time).toISOString()}>
-            {getFullDateTimeLabel(earthquake.time, locale)}
-          </time>
+          <LocalDateTime time={earthquake.time} locale={locale} />
         </HeaderFact>
         <HeaderFact label={m.detail_label_time_utc()}>
           {getFullDateTimeLabel(earthquake.time, locale, 'UTC')}

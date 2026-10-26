@@ -6,6 +6,7 @@ import {
   getSecondsLabel,
   getFullDateTimeLabel,
   getKmLabel,
+  getLocalDateTimeLabel,
   getScientificLabel,
   getTimeLabel,
 } from './format';
@@ -54,6 +55,19 @@ describe('getFullDateTimeLabel', () => {
     const label = getFullDateTimeLabel(Date.parse('2026-08-14T23:04:40Z'), 'en', 'UTC');
     expect(label).toContain('11:04:40');
     expect(label).toContain('UTC');
+  });
+});
+
+describe('getLocalDateTimeLabel', () => {
+  const time = Date.parse('2026-10-26T13:21:14Z');
+
+  it('names the date and time without a time zone, since the reader knows their own', () => {
+    expect(getLocalDateTimeLabel(time, 'en', 'Asia/Kolkata')).toBe(
+      'October 26, 2026 at 6:51:14 PM',
+    );
+    expect(getLocalDateTimeLabel(time, 'es', 'Asia/Kolkata')).toBe(
+      '26 de octubre de 2026 a las 18:51:14',
+    );
   });
 });
 

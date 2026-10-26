@@ -5,6 +5,8 @@ import { usgsAdapter } from '../sources/usgs';
 import type { Earthquake } from '../types';
 
 const DETAIL_URL = 'https://earthquake.usgs.gov/fdsnws/event/1/query';
+const USGS_ID_PATTERN = /^[a-z0-9_]{2,40}$/;
+const NOT_FOUND_STATUSES = new Set([404, 409]);
 
 export type NodalPlane = { strikeDeg: number; dipDeg: number; rakeDeg: number };
 
@@ -197,9 +199,10 @@ export async function getUsgsEarthquakeDetail(
   id: string,
   signal?: AbortSignal,
 ): Promise<UsgsEarthquakeDetail | null> {
+  if (!USGS_ID_PATTERN.test(id)) return null;
   const params = new URLSearchParams({ eventid: id, format: 'geojson' });
   const response = await fetch(`${DETAIL_URL}?${params}`, { signal });
-  if (response.status === 404) return null;
+  if (NOT_FOUND_STATUSES.has(response.status)) return null;
   if (!response.ok) throw new EarthquakeSourceError('usgs', response.status);
   const detail = getUsgsEarthquakeDetailFromFeature(await response.json());
   if (!detail) throw new EarthquakeSourceError('usgs', response.status);

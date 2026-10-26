@@ -58,6 +58,8 @@ jobs:
       # typecheck needs.
       - run: pnpm build
 
+      - run: pnpm test:smoke
+
       - run: pnpm typecheck
 
   unit:

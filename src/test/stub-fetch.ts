@@ -14,3 +14,19 @@ export function stubFetch(routes: FetchRoute[]) {
   vi.stubGlobal('fetch', fetchMock);
   return fetchMock;
 }
+
+export function stubHangingFetch() {
+  const fetchMock = vi.fn<(input: RequestInfo | URL, init?: RequestInit) => Promise<Response>>(
+    (_input, init) =>
+      new Promise((_resolve, reject) => {
+        const signal = init?.signal;
+        if (signal?.aborted) {
+          reject(signal.reason);
+          return;
+        }
+        signal?.addEventListener('abort', () => reject(signal.reason));
+      }),
+  );
+  vi.stubGlobal('fetch', fetchMock);
+  return fetchMock;
+}

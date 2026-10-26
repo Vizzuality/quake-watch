@@ -4,9 +4,9 @@ import { Datum, DatumList } from '@/components/ui/explainer';
 import { getRow } from '@/containers/earthquake-detail/shared/detail-row';
 import type { DetailRow } from '@/containers/earthquake-detail/shared/detail-row';
 import { DetailSection } from '@/containers/earthquake-detail/shared/detail-section';
+import { LocalDateTime } from '@/containers/earthquake-detail/shared/local-date-time';
 import type { EmscEarthquakeDetail } from '@/lib/earthquakes/details/emsc';
 import { emscEarthquakeDetailQueryOptions } from '@/lib/earthquakes/details/emsc-query-options';
-import { getFullDateTimeLabel } from '@/lib/format';
 import { m } from '@/paraglide/messages';
 import { getLocale } from '@/paraglide/runtime';
 import type { Locale } from '@/paraglide/runtime';
@@ -34,7 +34,7 @@ function getOriginRows(detail: EmscEarthquakeDetail, locale: Locale): DetailRow[
     getRow(detail.lastUpdate, (lastUpdate) => ({
       key: 'last-update',
       label: m.detail_emsc_label_last_update(),
-      value: getFullDateTimeLabel(lastUpdate, locale),
+      value: <LocalDateTime time={lastUpdate} locale={locale} />,
       explanation: m.detail_emsc_last_update_explain(),
     })),
   ];

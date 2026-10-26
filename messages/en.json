@@ -322,5 +322,7 @@
   "not_found_body": "The page you were looking for doesn't exist or has moved.",
   "error_body": "Something went wrong while loading this page. Try again, or go back to the list.",
   "home_link_label": "Quake Watch home",
-  "detail_meaning_model": "(model estimate)"
+  "detail_meaning_model": "(model estimate)",
+  "detail_meta_title": "M{magnitude} earthquake · {place} · {date} | Quake Watch",
+  "detail_meta_description": "Magnitude {magnitude} Earthquake, {place}. Depth: {depth}. Time: {time}. {feltReach}."
 }
