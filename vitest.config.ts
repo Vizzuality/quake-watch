@@ -7,6 +7,7 @@ import { paraglideOptions } from './paraglide.config';
 
 export default defineConfig({
   plugins: [paraglideVitePlugin(paraglideOptions)],
+  define: { __PUBLIC_SITE_URL__: JSON.stringify('') },
   resolve: { alias: { '@': path.resolve(import.meta.dirname, 'src') } },
   test: {
     environment: 'node',
