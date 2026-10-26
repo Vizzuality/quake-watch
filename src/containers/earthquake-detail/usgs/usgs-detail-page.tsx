@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
+import { lazy } from 'react';
 
 import { CrustalBlockSection } from '@/containers/earthquake-detail/crustal-block/crustal-block-section';
 import { DetailError } from '@/containers/earthquake-detail/shared/detail-error';
@@ -6,14 +7,21 @@ import { DetailHeader } from '@/containers/earthquake-detail/shared/detail-heade
 import { DetailLayout } from '@/containers/earthquake-detail/shared/detail-layout';
 import { DetailNotFound } from '@/containers/earthquake-detail/shared/detail-not-found';
 import { DetailSkeleton } from '@/containers/earthquake-detail/shared/detail-skeleton';
+import { LazyDetailMap } from '@/containers/earthquake-detail/shared/lazy-detail-map';
 import { usgsEarthquakeDetailQueryOptions } from '@/lib/earthquakes/details/usgs-query-options';
 import { SOURCE_ADAPTERS } from '@/lib/earthquakes/query-options';
 
-import { UsgsDetailMap } from './usgs-detail-map';
+import { getUsgsDetailMapModule } from './usgs-detail-map-module';
 import { UsgsImpactSection } from './usgs-impact-section';
 import { UsgsMechanismSection } from './usgs-mechanism-section';
 import { UsgsOriginSection } from './usgs-origin-section';
 import { UsgsSummarySection } from './usgs-summary-section';
+
+function getUsgsDetailMapComponent() {
+  return lazy(() =>
+    getUsgsDetailMapModule().then(({ UsgsDetailMap }) => ({ default: UsgsDetailMap })),
+  );
+}
 
 function UsgsDetailBody({ earthquakeId }: { earthquakeId: string }) {
   const { data, status, refetch } = useQuery(usgsEarthquakeDetailQueryOptions(earthquakeId));
@@ -28,7 +36,7 @@ function UsgsDetailBody({ earthquakeId }: { earthquakeId: string }) {
     <div className="flex flex-col gap-12">
       <DetailHeader earthquake={earthquake} />
       <div className="grid gap-6 lg:grid-cols-2">
-        <UsgsDetailMap earthquakeId={earthquakeId} />
+        <LazyDetailMap getComponent={getUsgsDetailMapComponent} earthquakeId={earthquakeId} />
         <UsgsSummarySection earthquakeId={earthquakeId} />
       </div>
       <CrustalBlockSection
