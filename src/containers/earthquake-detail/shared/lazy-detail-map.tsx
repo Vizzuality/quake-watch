@@ -1,8 +1,7 @@
-import type { ComponentType, LazyExoticComponent } from 'react';
+import { type ComponentType, type LazyExoticComponent, useState } from 'react';
 
 import { LazyMapBoundary, type MapPlaceholderProps } from '@/components/map/lazy-map-boundary';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useLazyComponent } from '@/hooks/use-lazy-component';
 
 type DetailMapProps = { earthquakeId: string };
 
@@ -23,10 +22,10 @@ export function LazyDetailMap({
 }: DetailMapProps & {
   getComponent: () => LazyExoticComponent<ComponentType<DetailMapProps>>;
 }) {
-  const [DetailMap, reloadDetailMap] = useLazyComponent(getComponent);
+  const [DetailMap] = useState(getComponent);
 
   return (
-    <LazyMapBoundary placeholder={DetailMapPlaceholder} onRetry={reloadDetailMap}>
+    <LazyMapBoundary placeholder={DetailMapPlaceholder}>
       <DetailMap earthquakeId={earthquakeId} />
     </LazyMapBoundary>
   );

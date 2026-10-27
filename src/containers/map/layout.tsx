@@ -1,7 +1,6 @@
-import { lazy } from 'react';
+import { lazy, useState } from 'react';
 
 import { LazyMapBoundary, type MapPlaceholderProps } from '@/components/map/lazy-map-boundary';
-import { useLazyComponent } from '@/hooks/use-lazy-component';
 
 import { MapHeader } from './header';
 import { getMapSurfaceModule } from './map-surface-module';
@@ -17,13 +16,13 @@ function MapPlaceholder({ children }: MapPlaceholderProps) {
 }
 
 export function MapLayout() {
-  const [MapSurface, reloadMapSurface] = useLazyComponent(getMapSurfaceComponent);
+  const [MapSurface] = useState(getMapSurfaceComponent);
 
   return (
     <PlaybackProvider>
       <main className="relative h-dvh w-full overflow-hidden">
         <MapHeader />
-        <LazyMapBoundary placeholder={MapPlaceholder} onRetry={reloadMapSurface}>
+        <LazyMapBoundary placeholder={MapPlaceholder}>
           <MapSurface />
         </LazyMapBoundary>
         <Timeline />

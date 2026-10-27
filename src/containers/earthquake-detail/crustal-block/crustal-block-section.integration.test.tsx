@@ -2,6 +2,7 @@ import { createElement } from 'react';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { CrustCell } from '@/lib/crust/types';
+import { reloadPage } from '@/lib/reload-page';
 import { renderWithRouter } from '@/test/render-with-router';
 import { stubFetch } from '@/test/stub-fetch';
 
@@ -14,6 +15,7 @@ const mocks = vi.hoisted(() => ({
   sceneRenders: { current: 0 },
 }));
 
+vi.mock('@/lib/reload-page', () => ({ reloadPage: vi.fn<() => void>() }));
 vi.mock('@/server/crust', () => ({ getCrustCells: mocks.getCrustCells }));
 vi.mock('./webgl-support', () => ({ isWebGL2Available: mocks.isWebGL2Available }));
 vi.mock('./crustal-block-scene', async () => {
@@ -190,7 +192,7 @@ describe('CrustalBlockSection', () => {
     expect(screen.container.querySelector('canvas')).toBeNull();
   });
 
-  it('offers an inline retry when the 3D view fails to download', async () => {
+  it('reloads the page from the inline retry when the 3D view fails to download', async () => {
     mocks.isWebGL2Available.mockReturnValue(true);
     mocks.sceneFailure.current = new TypeError(
       'Failed to fetch dynamically imported module: /crustal-block-scene.tsx',
@@ -200,10 +202,8 @@ describe('CrustalBlockSection', () => {
       .element(screen.getByRole('alert'), SCENE_LOAD)
       .toMatchTextContent("Couldn't load the 3D view.");
     await expect.element(screen.getByText('Layers under the Epicenter')).toBeVisible();
-    mocks.sceneFailure.current = new Error('Error creating WebGL context.');
     await screen.getByRole('button', { name: 'Retry' }).click();
-    await expect.element(screen.getByText(/3D view isn't available/), SCENE_LOAD).toBeVisible();
-    expect(screen.getByRole('alert').elements()).toHaveLength(0);
+    expect(reloadPage).toHaveBeenCalledOnce();
   });
 
   it('shows a persistent inline error when the layers fail to load', async () => {

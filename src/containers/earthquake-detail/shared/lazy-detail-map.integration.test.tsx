@@ -3,7 +3,11 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-react';
 import { page } from 'vitest/browser';
 
+import { reloadPage } from '@/lib/reload-page';
+
 import { LazyDetailMap } from './lazy-detail-map';
+
+vi.mock('@/lib/reload-page', () => ({ reloadPage: vi.fn<() => void>() }));
 
 const CHUNK_ERROR = 'Failed to fetch dynamically imported module: /assets/usgs-detail-map.js';
 
@@ -15,14 +19,10 @@ function getPendingComponent() {
   return lazy<typeof LoadedMap>(() => new Promise(() => undefined));
 }
 
-function getFailingThenLoadingComponent() {
-  let attempts = 0;
-  return () =>
-    lazy(async () => {
-      attempts += 1;
-      if (attempts === 1) throw new TypeError(CHUNK_ERROR);
-      return { default: LoadedMap };
-    });
+function getFailedImportComponent() {
+  const failedImport = Promise.reject(new TypeError(CHUNK_ERROR));
+  failedImport.catch(() => undefined);
+  return lazy<typeof LoadedMap>(() => failedImport);
 }
 
 function holdAnimationFrames() {
@@ -101,9 +101,9 @@ describe('LazyDetailMap', () => {
     expect(getPlaceholderHeights(screen.container)).toEqual({ box, total });
   });
 
-  it('keeps the box and retries when the map chunk fails to load', async () => {
+  it('keeps the box and reloads the page when the map chunk fails to load', async () => {
     const screen = await render(
-      <LazyDetailMap getComponent={getFailingThenLoadingComponent()} earthquakeId="us1" />,
+      <LazyDetailMap getComponent={getFailedImportComponent} earthquakeId="us1" />,
     );
 
     await expect
@@ -111,8 +111,7 @@ describe('LazyDetailMap', () => {
       .toBeVisible();
     expect(getPlaceholderHeights(screen.container)).toEqual({ box: 320, total: 360 });
     await screen.getByRole('button', { name: 'Retry' }).click();
-    await expect.element(screen.getByText('Map for us1')).toBeVisible();
-    expect(screen.getByRole('alert').elements()).toHaveLength(0);
+    expect(reloadPage).toHaveBeenCalledOnce();
   });
 
   it('lets errors other than a failed chunk reach the route', async () => {

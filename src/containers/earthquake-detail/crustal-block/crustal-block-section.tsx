@@ -14,6 +14,7 @@ import { Button } from '@/components/ui/button';
 import { SectionExplainer } from '@/components/ui/explainer';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAfterFirstPaint } from '@/hooks/use-after-first-paint';
+import { reloadPage } from '@/lib/reload-page';
 import { cn } from '@/lib/utils';
 import { m } from '@/paraglide/messages';
 
@@ -42,7 +43,7 @@ function isChunkLoadError(error: Error): boolean {
   return CHUNK_LOAD_ERROR.test(error.message);
 }
 
-type SceneErrorBoundaryProps = { children: ReactNode; onRetry: () => void };
+type SceneErrorBoundaryProps = { children: ReactNode };
 
 class SceneErrorBoundary extends Component<SceneErrorBoundaryProps, { error: Error | null }> {
   state: { error: Error | null } = { error: null };
@@ -52,8 +53,7 @@ class SceneErrorBoundary extends Component<SceneErrorBoundaryProps, { error: Err
   }
 
   handleRetry = () => {
-    this.props.onRetry();
-    this.setState({ error: null });
+    reloadPage();
   };
 
   render() {
@@ -92,16 +92,12 @@ function CrustalBlockVisual(props: CrustalBlockProps) {
     isWebGL2AvailableOnServer,
   );
   const painted = useAfterFirstPaint();
-  const [CrustalBlockScene, setCrustalBlockScene] = useState(getSceneComponent);
-
-  function handleRetry() {
-    setCrustalBlockScene(getSceneComponent);
-  }
+  const [CrustalBlockScene] = useState(getSceneComponent);
 
   if (!hasWebGL2) return <NoWebGLNote />;
   if (!painted) return <SceneSkeleton />;
   return (
-    <SceneErrorBoundary onRetry={handleRetry}>
+    <SceneErrorBoundary>
       <Suspense fallback={<SceneSkeleton />}>
         <CrustalBlockScene {...props} />
       </Suspense>

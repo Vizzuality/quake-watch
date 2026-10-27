@@ -4,6 +4,7 @@ import { Alert } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { useAfterFirstPaint } from '@/hooks/use-after-first-paint';
 import { isChunkLoadError } from '@/lib/chunk-load-error';
+import { reloadPage } from '@/lib/reload-page';
 import { m } from '@/paraglide/messages';
 
 export type MapPlaceholderProps = { children?: ReactNode };
@@ -11,7 +12,6 @@ export type MapPlaceholderProps = { children?: ReactNode };
 type ChunkErrorBoundaryProps = {
   children: ReactNode;
   placeholder: ComponentType<MapPlaceholderProps>;
-  onRetry: () => void;
 };
 
 class ChunkErrorBoundary extends Component<ChunkErrorBoundaryProps, { error: Error | null }> {
@@ -22,8 +22,7 @@ class ChunkErrorBoundary extends Component<ChunkErrorBoundaryProps, { error: Err
   }
 
   handleRetry = () => {
-    this.props.onRetry();
-    this.setState({ error: null });
+    reloadPage();
   };
 
   render() {
@@ -47,16 +46,12 @@ class ChunkErrorBoundary extends Component<ChunkErrorBoundaryProps, { error: Err
   }
 }
 
-export function LazyMapBoundary({
-  children,
-  placeholder: Placeholder,
-  onRetry,
-}: ChunkErrorBoundaryProps) {
+export function LazyMapBoundary({ children, placeholder: Placeholder }: ChunkErrorBoundaryProps) {
   const painted = useAfterFirstPaint();
 
   if (!painted) return <Placeholder />;
   return (
-    <ChunkErrorBoundary placeholder={Placeholder} onRetry={onRetry}>
+    <ChunkErrorBoundary placeholder={Placeholder}>
       <Suspense fallback={<Placeholder />}>{children}</Suspense>
     </ChunkErrorBoundary>
   );
