@@ -13,6 +13,12 @@ export default defineConfig({
   server: { port: 3000 },
   resolve: { alias: { '@': path.resolve(import.meta.dirname, 'src') } },
   worker: { format: 'es' },
+  build: {
+    modulePreload: {
+      // WebKit caches a failed <link rel=modulepreload> across reloads: https://bugs.webkit.org/show_bug.cgi?id=270357
+      resolveDependencies: (url, deps) => deps.filter((dep) => dep !== url),
+    },
+  },
   plugins: [
     paraglideVitePlugin(paraglideOptions),
     tailwindcss(),

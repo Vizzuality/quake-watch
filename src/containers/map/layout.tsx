@@ -1,37 +1,30 @@
-import { QuakeMap } from '@/components/map/quake-map';
-import { useEarthquakeSearch } from '@/hooks/use-earthquake-search';
-import { SOURCE_ADAPTERS } from '@/lib/earthquakes/query-options';
-import { m } from '@/paraglide/messages';
+import { lazy, useState } from 'react';
 
-import { EarthquakesLayer } from './earthquakes-layer';
-import { EpicenterTooltip } from './epicenter-tooltip';
+import { LazyMapBoundary, type MapPlaceholderProps } from '@/components/map/lazy-map-boundary';
+
 import { MapHeader } from './header';
+import { getMapSurfaceModule } from './map-surface-module';
 import { PlaybackProvider } from './playback-context';
-import { RingTooltip } from './ring-tooltip';
-import { SearchAreaLayer } from './search-area-layer';
-import { SearchCamera } from './search-camera';
-import { ShakingWaves } from './shaking-waves';
-import { TimelineSync } from './timeline-sync';
 import { Timeline } from './timeline/timeline';
 
+function getMapSurfaceComponent() {
+  return lazy(() => getMapSurfaceModule().then(({ MapSurface }) => ({ default: MapSurface })));
+}
+
+function MapPlaceholder({ children }: MapPlaceholderProps) {
+  return <div className="absolute inset-0 flex items-center justify-center p-4">{children}</div>;
+}
+
 export function MapLayout() {
-  const search = useEarthquakeSearch();
+  const [MapSurface] = useState(getMapSurfaceComponent);
 
   return (
     <PlaybackProvider>
       <main className="relative h-dvh w-full overflow-hidden">
         <MapHeader />
-        <QuakeMap
-          attribution={m.attribution_data({ source: SOURCE_ADAPTERS[search.source].label })}
-        >
-          <EarthquakesLayer />
-          <SearchAreaLayer />
-          <SearchCamera />
-          <TimelineSync />
-          <ShakingWaves />
-          <RingTooltip />
-          <EpicenterTooltip />
-        </QuakeMap>
+        <LazyMapBoundary placeholder={MapPlaceholder}>
+          <MapSurface />
+        </LazyMapBoundary>
         <Timeline />
       </main>
     </PlaybackProvider>
