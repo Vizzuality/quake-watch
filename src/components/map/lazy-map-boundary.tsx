@@ -1,8 +1,8 @@
-import { ClientOnly } from '@tanstack/react-router';
 import { Component, type ComponentType, type ReactNode, Suspense } from 'react';
 
 import { Alert } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
+import { useAfterFirstPaint } from '@/hooks/use-after-first-paint';
 import { isChunkLoadError } from '@/lib/chunk-load-error';
 import { m } from '@/paraglide/messages';
 
@@ -52,11 +52,12 @@ export function LazyMapBoundary({
   placeholder: Placeholder,
   onRetry,
 }: ChunkErrorBoundaryProps) {
+  const painted = useAfterFirstPaint();
+
+  if (!painted) return <Placeholder />;
   return (
-    <ClientOnly fallback={<Placeholder />}>
-      <ChunkErrorBoundary placeholder={Placeholder} onRetry={onRetry}>
-        <Suspense fallback={<Placeholder />}>{children}</Suspense>
-      </ChunkErrorBoundary>
-    </ClientOnly>
+    <ChunkErrorBoundary placeholder={Placeholder} onRetry={onRetry}>
+      <Suspense fallback={<Placeholder />}>{children}</Suspense>
+    </ChunkErrorBoundary>
   );
 }

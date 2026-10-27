@@ -1,5 +1,5 @@
 import { Component, type ReactNode, lazy } from 'react';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-react';
 import { page } from 'vitest/browser';
 
@@ -23,6 +23,17 @@ function getFailingThenLoadingComponent() {
       if (attempts === 1) throw new TypeError(CHUNK_ERROR);
       return { default: LoadedMap };
     });
+}
+
+function holdAnimationFrames() {
+  const frames: FrameRequestCallback[] = [];
+  vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => frames.push(callback));
+  vi.stubGlobal('cancelAnimationFrame', () => undefined);
+  return function releaseFrames() {
+    for (let callback = frames.shift(); callback; callback = frames.shift()) {
+      callback(performance.now());
+    }
+  };
 }
 
 function BrokenMap(): ReactNode {
@@ -54,7 +65,28 @@ function getPlaceholderHeights(container: HTMLElement) {
 }
 
 describe('LazyDetailMap', () => {
-  afterEach(() => page.viewport(1280, 800));
+  afterEach(async () => {
+    vi.unstubAllGlobals();
+    await page.viewport(1280, 800);
+  });
+
+  it('starts loading the map chunk only after the first frame', async () => {
+    const releaseFrames = holdAnimationFrames();
+    const loadMap = vi.fn<() => Promise<{ default: typeof LoadedMap }>>(async () => ({
+      default: LoadedMap,
+    }));
+    const screen = await render(
+      <LazyDetailMap getComponent={() => lazy(loadMap)} earthquakeId="us1" />,
+    );
+
+    await expect.element(screen.getByTestId('detail-map-placeholder')).toBeInTheDocument();
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(loadMap).not.toHaveBeenCalled();
+
+    releaseFrames();
+    await expect.element(screen.getByText('Map for us1')).toBeVisible();
+    expect(loadMap).toHaveBeenCalledOnce();
+  });
 
   it.each([
     { width: 1280, box: 320, total: 360 },

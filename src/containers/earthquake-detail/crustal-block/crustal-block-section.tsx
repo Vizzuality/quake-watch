@@ -13,6 +13,7 @@ import { Alert } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { SectionExplainer } from '@/components/ui/explainer';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useAfterFirstPaint } from '@/hooks/use-after-first-paint';
 import { cn } from '@/lib/utils';
 import { m } from '@/paraglide/messages';
 
@@ -90,6 +91,7 @@ function CrustalBlockVisual(props: CrustalBlockProps) {
     isWebGL2Available,
     isWebGL2AvailableOnServer,
   );
+  const painted = useAfterFirstPaint();
   const [CrustalBlockScene, setCrustalBlockScene] = useState(getSceneComponent);
 
   function handleRetry() {
@@ -97,6 +99,7 @@ function CrustalBlockVisual(props: CrustalBlockProps) {
   }
 
   if (!hasWebGL2) return <NoWebGLNote />;
+  if (!painted) return <SceneSkeleton />;
   return (
     <SceneErrorBoundary onRetry={handleRetry}>
       <Suspense fallback={<SceneSkeleton />}>
