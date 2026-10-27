@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
+import { lazy } from 'react';
 
 import { CrustalBlockSection } from '@/containers/earthquake-detail/crustal-block/crustal-block-section';
 import { DetailError } from '@/containers/earthquake-detail/shared/detail-error';
@@ -6,12 +7,19 @@ import { DetailHeader } from '@/containers/earthquake-detail/shared/detail-heade
 import { DetailLayout } from '@/containers/earthquake-detail/shared/detail-layout';
 import { DetailNotFound } from '@/containers/earthquake-detail/shared/detail-not-found';
 import { DetailSkeleton } from '@/containers/earthquake-detail/shared/detail-skeleton';
+import { LazyDetailMap } from '@/containers/earthquake-detail/shared/lazy-detail-map';
 import { emscEarthquakeDetailQueryOptions } from '@/lib/earthquakes/details/emsc-query-options';
 import { SOURCE_ADAPTERS } from '@/lib/earthquakes/query-options';
 
-import { EmscDetailMap } from './emsc-detail-map';
+import { getEmscDetailMapModule } from './emsc-detail-map-module';
 import { EmscOriginSection } from './emsc-origin-section';
 import { EmscSummarySection } from './emsc-summary-section';
+
+function getEmscDetailMapComponent() {
+  return lazy(() =>
+    getEmscDetailMapModule().then(({ EmscDetailMap }) => ({ default: EmscDetailMap })),
+  );
+}
 
 function EmscDetailBody({ earthquakeId }: { earthquakeId: string }) {
   const { data, status, refetch } = useQuery(emscEarthquakeDetailQueryOptions(earthquakeId));
@@ -26,7 +34,7 @@ function EmscDetailBody({ earthquakeId }: { earthquakeId: string }) {
     <div className="flex flex-col gap-12">
       <DetailHeader earthquake={earthquake} />
       <div className="grid gap-6 lg:grid-cols-2">
-        <EmscDetailMap earthquakeId={earthquakeId} />
+        <LazyDetailMap getComponent={getEmscDetailMapComponent} earthquakeId={earthquakeId} />
         <EmscSummarySection earthquakeId={earthquakeId} />
       </div>
       <CrustalBlockSection

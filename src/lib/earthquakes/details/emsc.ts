@@ -12,6 +12,9 @@ const emscDetailSchema = emscFeatureSchema.extend({
   }),
 });
 
+const EMSC_ID_PATTERN = /^\d{8}_\d{7}$/;
+const NOT_FOUND_STATUSES = new Set([204]);
+
 export type EmscEarthquakeDetail = {
   earthquake: Earthquake;
   author: string | null;
@@ -44,9 +47,10 @@ export async function getEmscEarthquakeDetail(
   id: string,
   signal?: AbortSignal,
 ): Promise<EmscEarthquakeDetail | null> {
+  if (!EMSC_ID_PATTERN.test(id)) return null;
   const params = new URLSearchParams({ eventid: id, format: 'json' });
   const response = await fetch(`${EMSC_QUERY_URL}?${params}`, { signal });
-  if (response.status === 204) return null;
+  if (NOT_FOUND_STATUSES.has(response.status)) return null;
   if (!response.ok) throw new EarthquakeSourceError('emsc', response.status);
   const detail = getEmscEarthquakeDetailFromFeature(await response.json());
   if (!detail) throw new EarthquakeSourceError('emsc', response.status);
