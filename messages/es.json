@@ -322,5 +322,7 @@
   "not_found_body": "La página que buscabas no existe o ha cambiado de dirección.",
   "error_body": "Algo ha fallado al cargar esta página. Vuelve a intentarlo o regresa a la lista.",
   "home_link_label": "Inicio de Quake Watch",
-  "detail_meaning_model": "(estimación del modelo)"
+  "detail_meaning_model": "(estimación del modelo)",
+  "detail_meta_title": "Terremoto M{magnitude} · {place} · {date} | Quake Watch",
+  "detail_meta_description": "Terremoto de magnitud {magnitude}, {place}. Profundidad: {depth}. Hora: {time}. {feltReach}."
 }
