@@ -60,10 +60,9 @@ describe('UsgsDetailPage', () => {
     await expect
       .element(screen.getByRole('link', { name: /View on USGS/ }))
       .toHaveAttribute('href', usgsPanamaDetail.properties.url);
-    const mapHref = await screen
-      .getByRole('link', { name: 'See on the map' })
-      .element()
-      .getAttribute('href');
+    const mapLink = screen.getByRole('link', { name: 'See on the map' });
+    await expect.element(mapLink).toBeVisible();
+    const mapHref = mapLink.element().getAttribute('href');
     const mapUrl = new URL(mapHref ?? '', 'http://localhost');
     expect(mapUrl.pathname).toBe('/map');
     expect(Object.fromEntries(mapUrl.searchParams)).toMatchObject({

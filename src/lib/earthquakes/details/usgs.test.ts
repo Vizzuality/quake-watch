@@ -1,11 +1,20 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { usgsOriginOnlyDetail, usgsPanamaDetail } from '@/test/fixtures/usgs-detail';
-import { stubFetch } from '@/test/stub-fetch';
+import { stubFetch, stubHangingFetch } from '@/test/stub-fetch';
 
 import { EarthquakeSourceError } from '../query-options';
 import { getUsgsEarthquakeDetail, getUsgsEarthquakeDetailFromFeature } from './usgs';
 import { usgsEarthquakeDetailQueryOptions } from './usgs-query-options';
+
+const runtime = vi.hoisted(() => ({ isServer: false }));
+
+vi.mock('@/paraglide/runtime', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/paraglide/runtime')>()),
+  get isServer() {
+    return runtime.isServer;
+  },
+}));
 
 function getFeatureWith(products: Record<string, unknown>, tsunami = 0) {
   return {
@@ -264,9 +273,43 @@ describe('getUsgsEarthquakeDetail', () => {
     await expect(getUsgsEarthquakeDetail('nope')).resolves.toBeNull();
   });
 
+  it('returns null for a deleted event (409)', async () => {
+    stubFetch([{ match: () => true, respond: () => new Response(null, { status: 409 }) }]);
+    await expect(getUsgsEarthquakeDetail('us6000gone')).resolves.toBeNull();
+  });
+
+  it.each([400, 413])('throws EarthquakeSourceError when USGS answers %i', async (status) => {
+    stubFetch([{ match: () => true, respond: () => new Response(null, { status }) }]);
+    await expect(getUsgsEarthquakeDetail('us6000u4zb')).rejects.toBeInstanceOf(
+      EarthquakeSourceError,
+    );
+  });
+
+  it.each(['<script>', 'US6000U4ZB', 'u', 'a'.repeat(41), '../query', 'us6000 u4zb'])(
+    'never asks USGS about the malformed id %j',
+    async (id) => {
+      const fetchMock = stubFetch([]);
+      await expect(getUsgsEarthquakeDetail(id)).resolves.toBeNull();
+      expect(fetchMock).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each(['us6000u4zb', 'ak0251bz7wov', 'aka2026vfmqfn', 'official20110311054624120_30'])(
+    'asks USGS about the well-formed id %s',
+    async (id) => {
+      const fetchMock = stubFetch([
+        { match: () => true, respond: () => new Response(null, { status: 404 }) },
+      ]);
+      await getUsgsEarthquakeDetail(id);
+      expect(fetchMock).toHaveBeenCalledOnce();
+    },
+  );
+
   it('throws EarthquakeSourceError on a 200 with an invalid feature', async () => {
     stubFetch([{ match: () => true, respond: () => Response.json({ id: 'x' }) }]);
-    await expect(getUsgsEarthquakeDetail('x')).rejects.toBeInstanceOf(EarthquakeSourceError);
+    await expect(getUsgsEarthquakeDetail('us6000xxxx')).rejects.toBeInstanceOf(
+      EarthquakeSourceError,
+    );
   });
 
   it('throws EarthquakeSourceError on a 500', async () => {
@@ -290,5 +333,53 @@ describe('usgsEarthquakeDetailQueryOptions', () => {
     const queryFn = options.queryFn as (ctx: { signal: AbortSignal }) => Promise<unknown>;
     const detail = await queryFn({ signal: new AbortController().signal });
     expect(detail).toMatchObject({ earthquake: { id: 'us6000u18k' } });
+  });
+});
+
+describe('usgsEarthquakeDetailQueryOptions on each runtime', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  function getQueryFn(isServer: boolean) {
+    runtime.isServer = isServer;
+    const options = usgsEarthquakeDetailQueryOptions('us6000u18k');
+    return {
+      retry: options.retry,
+      queryFn: options.queryFn as (ctx: { signal: AbortSignal }) => Promise<unknown>,
+    };
+  }
+
+  it('retries once and passes the caller signal through in the browser', async () => {
+    const fetchMock = stubFetch([
+      { match: () => true, respond: () => Response.json(usgsPanamaDetail) },
+    ]);
+    const timeout = vi.spyOn(AbortSignal, 'timeout');
+    const { retry, queryFn } = getQueryFn(false);
+    const signal = new AbortController().signal;
+    await queryFn({ signal });
+    expect(retry).toBe(1);
+    expect(fetchMock.mock.calls[0]?.[1]?.signal).toBe(signal);
+    expect(timeout).not.toHaveBeenCalled();
+  });
+
+  it('gives up after 4 s on the server and does not retry', async () => {
+    const deadline = new AbortController();
+    const timeout = vi.spyOn(AbortSignal, 'timeout').mockReturnValue(deadline.signal);
+    stubHangingFetch();
+    const { retry, queryFn } = getQueryFn(true);
+    const pending = queryFn({ signal: new AbortController().signal });
+    deadline.abort(new DOMException('USGS took too long', 'TimeoutError'));
+    await expect(pending).rejects.toThrow('USGS took too long');
+    expect(timeout).toHaveBeenCalledWith(4_000);
+    expect(retry).toBe(0);
+  });
+
+  it('still stops on the server when the caller aborts first', async () => {
+    stubHangingFetch();
+    const caller = new AbortController();
+    const pending = getQueryFn(true).queryFn({ signal: caller.signal });
+    caller.abort(new DOMException('navigated away', 'AbortError'));
+    await expect(pending).rejects.toThrow('navigated away');
   });
 });

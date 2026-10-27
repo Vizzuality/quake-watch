@@ -17,19 +17,20 @@ A searchable earthquake table and a map that share the same filters in the URL: 
 3. Install the browser for integration tests: `pnpm exec playwright install chromium`
 4. Start the dev server: `pnpm dev` (http://localhost:3000)
 
-| Script             | What it does                                                                        |
-| ------------------ | ----------------------------------------------------------------------------------- |
-| `dev`              | Run the app locally with hot reload                                                 |
-| `build`            | Build the app for production                                                        |
-| `start`            | Serve the production build                                                          |
-| `check`            | Run build, typecheck, lint, format check, tests with coverage and integration tests |
-| `test`             | Run the test suite                                                                  |
-| `test:coverage`    | Run the test suite with a coverage report                                           |
-| `test:integration` | Run browser-mode integration tests (Chromium via Playwright)                        |
-| `typecheck`        | Type-check the project without emitting files                                       |
-| `lint`             | Lint the code with oxlint                                                           |
-| `format`           | Format the code with oxfmt                                                          |
-| `format:check`     | Check formatting without writing changes                                            |
+| Script             | What it does                                                                    |
+| ------------------ | ------------------------------------------------------------------------------- |
+| `dev`              | Run the app locally with hot reload                                             |
+| `build`            | Build the app for production                                                    |
+| `start`            | Serve the production build                                                      |
+| `check`            | Run build, smoke, typecheck, lint, format check, coverage and integration tests |
+| `test`             | Run the test suite                                                              |
+| `test:coverage`    | Run the test suite with a coverage report                                       |
+| `test:integration` | Run browser-mode integration tests (Chromium via Playwright)                    |
+| `test:smoke`       | Check the raw HTML of detail pages in the build, with stubbed agencies          |
+| `typecheck`        | Type-check the project without emitting files                                   |
+| `lint`             | Lint the code with oxlint                                                       |
+| `format`           | Format the code with oxfmt                                                      |
+| `format:check`     | Check formatting without writing changes                                        |
 
 ## Stack
 
@@ -50,7 +51,7 @@ TanStack Start + React, MapLibre via react-map-gl, TanStack Query, Tailwind CSS.
 
 ## CI
 
-GitHub Actions runs build, typecheck, lint, format check, tests with coverage and browser-mode integration tests on pushes to `main` and on pull requests. Draft pull requests are skipped until they are marked ready for review. The workflow is in [.github/workflows/ci.yml](.github/workflows/ci.yml).
+GitHub Actions runs build, raw-HTML smoke tests against the build, typecheck, lint, format check, tests with coverage and browser-mode integration tests on pushes to `main` and on pull requests. Draft pull requests are skipped until they are marked ready for review. The workflow is in [.github/workflows/ci.yml](.github/workflows/ci.yml).
 
 ## Glossary
 

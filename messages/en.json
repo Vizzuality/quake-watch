@@ -143,6 +143,7 @@
   "crustal_block_explain_lower_mantle": "From about 670 km the minerals squeeze into even denser forms. No earthquake has been recorded starting much deeper than this.",
   "crustal_block_explain_rupture_start": "Where the rupture began, straight below the Epicenter. Shallow ruptures, in the top few tens of kilometers, shake the surface above them hardest. Deeper ones lose energy on the way up, so they are felt more gently but over a wider area.",
   "crustal_block_retry_3d": "Couldn't load the 3D view.",
+  "map_load_error": "Couldn't load the map.",
   "detail_back_to_list": "Back to all Earthquakes",
   "detail_loading": "Loading Earthquake details…",
   "detail_not_found_title": "Earthquake not found",
@@ -321,5 +322,7 @@
   "not_found_body": "The page you were looking for doesn't exist or has moved.",
   "error_body": "Something went wrong while loading this page. Try again, or go back to the list.",
   "home_link_label": "Quake Watch home",
-  "detail_meaning_model": "(model estimate)"
+  "detail_meaning_model": "(model estimate)",
+  "detail_meta_title": "M{magnitude} earthquake · {place} · {date} | Quake Watch",
+  "detail_meta_description": "Magnitude {magnitude} Earthquake, {place}. Depth: {depth}. Time: {time}. {feltReach}."
 }
