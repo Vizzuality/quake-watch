@@ -4,6 +4,7 @@ import { createRootRouteWithContext, HeadContent, Outlet, Scripts } from '@tanst
 import type { ReactNode } from 'react';
 
 import { getAlternateLinks } from '@/lib/seo/alternate-links';
+import { isSiteIndexable } from '@/lib/seo/indexing';
 import { THEME_BOOT_SCRIPT } from '@/lib/theme/theme';
 import { m } from '@/paraglide/messages';
 import { getLocale } from '@/paraglide/runtime';
@@ -27,7 +28,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         { name: 'viewport', content: 'width=device-width, initial-scale=1' },
         { title: m.app_title() },
         { name: 'description', content: m.app_description() },
-        ...(isNoindex ? [{ name: 'robots', content: 'noindex,follow' }] : []),
+        ...(isNoindex || !isSiteIndexable() ? [{ name: 'robots', content: 'noindex,follow' }] : []),
       ],
       links: [
         { rel: 'stylesheet', href: appCss },

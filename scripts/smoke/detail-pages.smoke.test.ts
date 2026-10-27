@@ -6,6 +6,7 @@ import { pathToFileURL } from 'node:url';
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
+import { isSiteIndexableFromEnv } from '../../src/lib/seo/indexing';
 import {
   EMSC_ID,
   ESCAPE_PLACE,
@@ -24,6 +25,9 @@ const EXIT_TIMEOUT_MS = 3_000;
 const USGS_PLACE = '12 km WSW of Pitaloza Arriba, Panama';
 const EMSC_PLACE = 'New Britain Region, P.n.g.';
 const NOINDEX = '<meta name="robots" content="noindex"/>';
+const SITE_ROBOTS = isSiteIndexableFromEnv(process.env.VITE_SITE_INDEXABLE)
+  ? []
+  : ['noindex,follow'];
 
 type SmokeServer = { origin: string; process: ChildProcess };
 
@@ -114,6 +118,10 @@ function getDescription(html: string): string {
   return /<meta name="description" content="([^"]*)"/.exec(html)?.[1] ?? '';
 }
 
+function getRobotsContents(html: string): string[] {
+  return [...html.matchAll(/<meta name="robots" content="([^"]*)"/g)].map((match) => match[1]);
+}
+
 let up: SmokeServer;
 let down: SmokeServer;
 
@@ -169,6 +177,21 @@ describe.each([
     expect(status).toBeGreaterThanOrEqual(500);
     expect(html).toContain(NOINDEX);
     expect(html).toContain('Retry');
+  });
+});
+
+describe('site indexing flag', () => {
+  it.each(['/en', '/en/map', `/en/earthquakes/usgs/${USGS_ID}`])(
+    '%s carries the robots tag that VITE_SITE_INDEXABLE asks for',
+    async (pathname) => {
+      const { html } = await getPage(up, pathname);
+      expect(getRobotsContents(html)).toEqual(SITE_ROBOTS);
+    },
+  );
+
+  it('keeps a single noindex on the not-found page', async () => {
+    const { html } = await getPage(up, '/en/earthquakes/usgs/doesnotexist123');
+    expect(getRobotsContents(html)).toEqual(['noindex']);
   });
 });
 
