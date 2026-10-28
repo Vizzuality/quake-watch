@@ -26,7 +26,7 @@ export const Route = createFileRoute('/earthquakes/usgs/$earthquakeId')({
     }),
   }),
   component: UsgsDetailRoute,
-  notFoundComponent: DetailNotFoundPage,
+  notFoundComponent: () => <DetailNotFoundPage source="usgs" />,
   errorComponent: UsgsDetailRouteError,
 });
 

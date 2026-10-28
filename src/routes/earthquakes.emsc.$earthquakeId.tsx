@@ -26,7 +26,7 @@ export const Route = createFileRoute('/earthquakes/emsc/$earthquakeId')({
     }),
   }),
   component: EmscDetailRoute,
-  notFoundComponent: DetailNotFoundPage,
+  notFoundComponent: () => <DetailNotFoundPage source="emsc" />,
   errorComponent: EmscDetailRouteError,
 });
 

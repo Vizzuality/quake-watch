@@ -27,7 +27,7 @@ function EmscDetailBody({ earthquakeId }: { earthquakeId: string }) {
   if (status === 'pending') return <DetailSkeleton />;
   if (status === 'error')
     return <DetailError sourceLabel={SOURCE_ADAPTERS.emsc.label} onRetry={() => refetch()} />;
-  if (data === null) return <DetailNotFound />;
+  if (data === null) return <DetailNotFound source="emsc" />;
 
   const { earthquake } = data;
   return (
