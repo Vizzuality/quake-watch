@@ -5,6 +5,7 @@ import {
   DetailErrorPage,
   DetailNotFoundPage,
 } from '@/containers/earthquake-detail/shared/detail-route-states';
+import { useDetailHeadRefresh } from '@/containers/earthquake-detail/shared/use-detail-head-refresh';
 import { getDetailLoaderData } from '@/lib/earthquakes/details/detail-loader';
 import { emscEarthquakeDetailQueryOptions } from '@/lib/earthquakes/details/emsc-query-options';
 import { getDetailMeta } from '@/lib/seo/detail-meta';
@@ -25,12 +26,17 @@ export const Route = createFileRoute('/earthquakes/emsc/$earthquakeId')({
     }),
   }),
   component: EmscDetailRoute,
-  notFoundComponent: DetailNotFoundPage,
+  notFoundComponent: () => <DetailNotFoundPage source="emsc" />,
   errorComponent: EmscDetailRouteError,
 });
 
 function EmscDetailRoute() {
   const { earthquakeId } = Route.useParams();
+  useDetailHeadRefresh({
+    routeId: Route.id,
+    loaderEarthquake: Route.useLoaderData().earthquake,
+    options: emscEarthquakeDetailQueryOptions(earthquakeId),
+  });
   return <EmscDetailPage earthquakeId={earthquakeId} />;
 }
 

@@ -1,12 +1,15 @@
+import { QuakeNotFound } from '@/containers/not-found/quake-not-found';
+import { SOURCE_ADAPTERS } from '@/lib/earthquakes/query-options';
+import type { EarthquakeSource } from '@/lib/earthquakes/search-schema';
 import { m } from '@/paraglide/messages';
 
-export function DetailNotFound() {
+export function DetailNotFound({ source }: { source: EarthquakeSource }) {
   return (
-    <div className="flex max-w-prose flex-col items-start gap-4 py-8">
-      <h1 className="text-3xl font-semibold tracking-tight text-balance">
-        {m.detail_not_found_title()}
-      </h1>
-      <p className="text-muted">{m.detail_not_found_body()}</p>
-    </div>
+    <QuakeNotFound
+      source={source}
+      title={m.detail_not_found_title()}
+      body={m.detail_not_found_body({ agency: SOURCE_ADAPTERS[source].label })}
+      hasHomeLink={false}
+    />
   );
 }

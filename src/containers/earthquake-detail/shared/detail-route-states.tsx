@@ -9,10 +9,10 @@ import { ErrorComponent } from '@/containers/errors/error-component';
 import { SOURCE_ADAPTERS } from '@/lib/earthquakes/query-options';
 import type { EarthquakeSource } from '@/lib/earthquakes/search-schema';
 
-export function DetailNotFoundPage() {
+export function DetailNotFoundPage({ source }: { source: EarthquakeSource }) {
   return (
     <DetailLayout>
-      <DetailNotFound />
+      <DetailNotFound source={source} />
     </DetailLayout>
   );
 }

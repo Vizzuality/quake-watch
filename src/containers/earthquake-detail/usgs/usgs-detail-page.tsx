@@ -29,7 +29,7 @@ function UsgsDetailBody({ earthquakeId }: { earthquakeId: string }) {
   if (status === 'pending') return <DetailSkeleton />;
   if (status === 'error')
     return <DetailError sourceLabel={SOURCE_ADAPTERS.usgs.label} onRetry={() => refetch()} />;
-  if (data === null) return <DetailNotFound />;
+  if (data === null) return <DetailNotFound source="usgs" />;
 
   const { earthquake } = data;
   return (

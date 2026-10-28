@@ -5,6 +5,7 @@ import type { ReactNode } from 'react';
 
 import { getAlternateLinks } from '@/lib/seo/alternate-links';
 import { isSiteIndexable } from '@/lib/seo/indexing';
+import { getPageTitle } from '@/lib/seo/page-title';
 import { THEME_BOOT_SCRIPT } from '@/lib/theme/theme';
 import { m } from '@/paraglide/messages';
 import { getLocale } from '@/paraglide/runtime';
@@ -26,7 +27,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       meta: [
         { charSet: 'utf-8' },
         { name: 'viewport', content: 'width=device-width, initial-scale=1' },
-        { title: m.app_title() },
+        { title: getPageTitle(matches) },
         { name: 'description', content: m.app_description() },
         ...(isNoindex || !isSiteIndexable() ? [{ name: 'robots', content: 'noindex,follow' }] : []),
       ],

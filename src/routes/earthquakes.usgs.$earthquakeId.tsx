@@ -4,6 +4,7 @@ import {
   DetailErrorPage,
   DetailNotFoundPage,
 } from '@/containers/earthquake-detail/shared/detail-route-states';
+import { useDetailHeadRefresh } from '@/containers/earthquake-detail/shared/use-detail-head-refresh';
 import { UsgsDetailPage } from '@/containers/earthquake-detail/usgs/usgs-detail-page';
 import { getDetailLoaderData } from '@/lib/earthquakes/details/detail-loader';
 import { usgsEarthquakeDetailQueryOptions } from '@/lib/earthquakes/details/usgs-query-options';
@@ -25,12 +26,17 @@ export const Route = createFileRoute('/earthquakes/usgs/$earthquakeId')({
     }),
   }),
   component: UsgsDetailRoute,
-  notFoundComponent: DetailNotFoundPage,
+  notFoundComponent: () => <DetailNotFoundPage source="usgs" />,
   errorComponent: UsgsDetailRouteError,
 });
 
 function UsgsDetailRoute() {
   const { earthquakeId } = Route.useParams();
+  useDetailHeadRefresh({
+    routeId: Route.id,
+    loaderEarthquake: Route.useLoaderData().earthquake,
+    options: usgsEarthquakeDetailQueryOptions(earthquakeId),
+  });
   return <UsgsDetailPage earthquakeId={earthquakeId} />;
 }
 

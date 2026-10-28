@@ -47,6 +47,14 @@
       background-color: transparent;
     }
   }
+
+  --animate-drum-scroll: drum-scroll 40s linear infinite;
+
+  @keyframes drum-scroll {
+    to {
+      transform: translateX(-800px);
+    }
+  }
 }
 
 @layer base {
