@@ -324,5 +324,11 @@
   "home_link_label": "Quake Watch home",
   "detail_meaning_model": "(model estimate)",
   "detail_meta_title": "M{magnitude} earthquake · {place} · {date} | Quake Watch",
-  "detail_meta_description": "Magnitude {magnitude} Earthquake, {place}. Depth: {depth}. Time: {time}. {feltReach}."
+  "detail_meta_description": "Magnitude {magnitude} Earthquake, {place}. Depth: {depth}. Time: {time}. {feltReach}.",
+  "page_title_home": "Earthquakes worldwide | Quake Watch",
+  "page_title_home_near": "Earthquakes near {place} | Quake Watch",
+  "page_title_map": "Earthquake map | Quake Watch",
+  "page_title_not_found": "Page not found | Quake Watch",
+  "page_title_earthquake_not_found": "Earthquake not found | Quake Watch",
+  "page_title_error": "Something went wrong | Quake Watch"
 }
