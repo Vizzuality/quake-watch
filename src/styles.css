@@ -13,6 +13,8 @@
   --color-line: #d6dae1;
   --color-line-strong: #7a8393;
   --color-alert: #9a5800;
+  --color-beachball-ink: #12151b;
+  --color-beachball-paper: #ffffff;
 
   --color-mag-1: #fe6ec7;
   --color-mag-2: #ea4bb2;
@@ -72,6 +74,8 @@
     --color-line: #2a313c;
     --color-line-strong: #667080;
     --color-alert: #f2a93b;
+    --color-beachball-ink: #2a313c;
+    --color-beachball-paper: #e8eaee;
     --color-mag-1: #fecee8;
     --color-mag-2: #fea2d7;
     --color-mag-3: #fe6ec7;
