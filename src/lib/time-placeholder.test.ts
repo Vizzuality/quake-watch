@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
-import { getLocalDateTimeLabel, getTimeLabel } from './format';
-import { getLocalDateTimePlaceholder, getTimeLabelPlaceholder } from './time-placeholder';
+import { getClockTimeLabel, getLocalDateTimeLabel, getTimeLabel } from './format';
+import {
+  getClockTimePlaceholder,
+  getLocalDateTimePlaceholder,
+  getTimeLabelPlaceholder,
+} from './time-placeholder';
 
 const READER_TIME_ZONES = [
   'UTC',
@@ -36,6 +40,15 @@ describe.each(['en', 'es'] as const)('placeholders in %s', (locale) => {
     }
   });
 
+  it.each(TIMES)('reserve at least the longest clock time for %i', (time) => {
+    const placeholder = getClockTimePlaceholder(time, locale);
+    for (const timeZone of READER_TIME_ZONES) {
+      expect(placeholder.length).toBeGreaterThanOrEqual(
+        getClockTimeLabel(time, locale, timeZone).length,
+      );
+    }
+  });
+
   it.each(TIMES)('reserve at least the longest relative or absolute label for %i', (time) => {
     const placeholder = getTimeLabelPlaceholder(time, locale);
     const elapsedCases = [0, 59 * 60_000, HOUR_MS, 23 * HOUR_MS, DAY_MS, 30 * DAY_MS];
@@ -54,6 +67,9 @@ describe.each(['en', 'es'] as const)('placeholders in %s', (locale) => {
     );
     expect(getTimeLabelPlaceholder(TIMES[0]!, locale)).toBe(
       getTimeLabelPlaceholder(TIMES[0]!, locale),
+    );
+    expect(getClockTimePlaceholder(TIMES[0]!, locale)).toBe(
+      getClockTimePlaceholder(TIMES[0]!, locale),
     );
   });
 });
