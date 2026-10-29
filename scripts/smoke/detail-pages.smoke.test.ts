@@ -1,12 +1,9 @@
-import { type ChildProcess, spawn } from 'node:child_process';
 import { existsSync } from 'node:fs';
-import { createServer } from 'node:net';
-import path from 'node:path';
-import { pathToFileURL } from 'node:url';
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { isSiteIndexableFromEnv } from '../../src/lib/seo/indexing';
+import { SERVER_ENTRY, type SmokeServer, startServer, stopProcess } from './server';
 import {
   EMSC_ID,
   ESCAPE_PLACE,
@@ -16,80 +13,12 @@ import {
   USGS_SCRIPT_ID,
 } from './upstream-double.mjs';
 
-const ROOT = path.resolve(import.meta.dirname, '../..');
-const SERVER_ENTRY = path.join(ROOT, '.output/server/index.mjs');
-const PRELOAD = pathToFileURL(path.join(import.meta.dirname, 'preload.mjs')).href;
-const READY_TIMEOUT_MS = 15_000;
-const EXIT_TIMEOUT_MS = 3_000;
-
 const USGS_PLACE = '12 km WSW of Pitaloza Arriba, Panama';
 const EMSC_PLACE = 'New Britain Region, P.n.g.';
 const NOINDEX = '<meta name="robots" content="noindex"/>';
 const SITE_ROBOTS = isSiteIndexableFromEnv(process.env.VITE_SITE_INDEXABLE)
   ? []
   : ['noindex,follow'];
-
-type SmokeServer = { origin: string; process: ChildProcess };
-
-function getFreePort(): Promise<number> {
-  return new Promise((resolve, reject) => {
-    const probe = createServer();
-    probe.once('error', reject);
-    probe.listen(0, '127.0.0.1', () => {
-      const address = probe.address();
-      probe.close(() => {
-        if (address && typeof address === 'object') resolve(address.port);
-        else reject(new Error('No port assigned'));
-      });
-    });
-  });
-}
-
-async function waitForServer(origin: string, child: ChildProcess): Promise<void> {
-  const deadline = Date.now() + READY_TIMEOUT_MS;
-  while (Date.now() < deadline) {
-    if (child.exitCode !== null) throw new Error(`Server exited with ${child.exitCode}`);
-    try {
-      await fetch(`${origin}/favicon.ico`);
-      return;
-    } catch {
-      await new Promise((resolve) => setTimeout(resolve, 100));
-    }
-  }
-  throw new Error(`Server at ${origin} did not start within ${READY_TIMEOUT_MS} ms`);
-}
-
-async function stopProcess(child: ChildProcess): Promise<void> {
-  if (child.exitCode !== null || child.signalCode !== null) return;
-  const exited = new Promise<void>((resolve) => child.once('exit', () => resolve()));
-  child.kill('SIGTERM');
-  const timer = setTimeout(() => child.kill('SIGKILL'), EXIT_TIMEOUT_MS);
-  await exited;
-  clearTimeout(timer);
-}
-
-async function startServer(upstream: 'up' | 'down'): Promise<SmokeServer> {
-  const port = await getFreePort();
-  const child = spawn(process.execPath, [SERVER_ENTRY], {
-    env: {
-      ...process.env,
-      PORT: String(port),
-      HOST: '127.0.0.1',
-      NODE_OPTIONS: `--import ${PRELOAD}`,
-      SMOKE_UPSTREAM: upstream,
-    },
-    stdio: ['ignore', 'ignore', 'inherit'],
-  });
-  const origin = `http://127.0.0.1:${port}`;
-  let isReady = false;
-  try {
-    await waitForServer(origin, child);
-    isReady = true;
-    return { origin, process: child };
-  } finally {
-    if (!isReady) await stopProcess(child);
-  }
-}
 
 async function stopServers(servers: (SmokeServer | undefined)[]): Promise<void> {
   await Promise.all(servers.map((server) => (server ? stopProcess(server.process) : undefined)));
