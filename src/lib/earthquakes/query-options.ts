@@ -8,7 +8,7 @@ import { usgsAdapter } from './sources/usgs';
 import type { Earthquake } from './types';
 
 export const EARTHQUAKE_LIMIT = 1000;
-const LIVE_REFETCH_MS = 60_000;
+export const LIVE_REFETCH_MS = 60_000;
 const ARCHIVE_STALE_MS = 5 * 60_000;
 
 export const SOURCE_ADAPTERS: Record<EarthquakeSource, SourceAdapter> = {
@@ -16,7 +16,11 @@ export const SOURCE_ADAPTERS: Record<EarthquakeSource, SourceAdapter> = {
   usgs: usgsAdapter,
 };
 
-type EarthquakesResult = { earthquakes: Earthquake[]; isTruncated: boolean; fetchedAt: number };
+export type EarthquakesResult = {
+  earthquakes: Earthquake[];
+  isTruncated: boolean;
+  fetchedAt: number;
+};
 
 export class EarthquakeSourceError extends Error {
   constructor(
@@ -41,7 +45,7 @@ export function getEarthquakesQueryKey({
   return ['earthquakes', source, { lat, lon, radius, period, from, to, minmag }] as const;
 }
 
-async function getEarthquakes(
+export async function getEarthquakes(
   search: EarthquakeSearch,
   signal: AbortSignal,
 ): Promise<EarthquakesResult> {

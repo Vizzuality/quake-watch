@@ -1,4 +1,4 @@
-import { LOCAL_DATE_TIME_FORMAT, getTimeLabel } from './format';
+import { CLOCK_TIME_FORMAT, LOCAL_DATE_TIME_FORMAT, getTimeLabel } from './format';
 
 const EXTREME_TIME_ZONES = ['Etc/GMT+12', 'UTC', 'Pacific/Kiritimati'];
 
@@ -34,6 +34,10 @@ function getWidestDateTimeLabel(
 
 export function getLocalDateTimePlaceholder(time: number, locale: string): string {
   return getWidestDateTimeLabel(time, locale, LOCAL_DATE_TIME_FORMAT);
+}
+
+export function getClockTimePlaceholder(time: number, locale: string): string {
+  return getWidestDateTimeLabel(time, locale, CLOCK_TIME_FORMAT);
 }
 
 export function getTimeLabelPlaceholder(time: number, locale: string): string {

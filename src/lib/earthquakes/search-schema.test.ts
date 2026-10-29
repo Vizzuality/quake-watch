@@ -8,6 +8,7 @@ import {
   getSortParam,
   getSortingState,
   getTimeRange,
+  isDefaultEarthquakeSearch,
 } from './search-schema';
 
 const NOW = new Date('2026-10-08T12:00:00.000Z');
@@ -78,6 +79,31 @@ describe('earthquakeSearchSchema', () => {
       page: 1,
       from: undefined,
     });
+  });
+});
+
+describe('isDefaultEarthquakeSearch', () => {
+  it('is true for a search with no params', () => {
+    expect(isDefaultEarthquakeSearch(getSearch())).toBe(true);
+  });
+
+  it('is true when every param spells out its default', () => {
+    expect(isDefaultEarthquakeSearch(getSearch({ minmag: 2.5, sort: 'time.desc', page: 1 }))).toBe(
+      true,
+    );
+  });
+
+  it.each([
+    { minmag: 4 },
+    { page: 2 },
+    { sort: 'magnitude.desc' },
+    { t: '2026-10-08T12:00:00.000Z' },
+    { source: 'usgs' },
+    { lat: 37.17, lon: -3.6 },
+    { period: 'custom', from: '2026-10-01' },
+    { window: '7d' },
+  ])('is false for %o', (input) => {
+    expect(isDefaultEarthquakeSearch(getSearch(input))).toBe(false);
   });
 });
 

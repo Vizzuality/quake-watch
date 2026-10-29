@@ -1,14 +1,16 @@
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 
 import { Skeleton } from '@/components/ui/skeleton';
+import { ClientOnlyText } from '@/containers/earthquake-detail/shared/client-only-text';
 import { MeaningFootnote } from '@/containers/search/states';
 import { useEarthquakeSearch } from '@/hooks/use-earthquake-search';
 import { SOURCE_ADAPTERS, earthquakesQueryOptions } from '@/lib/earthquakes/query-options';
 import { getSearchCenter } from '@/lib/earthquakes/search-schema';
 import type { EarthquakeSearch } from '@/lib/earthquakes/search-schema';
-import { getKmLabel } from '@/lib/format';
+import { getClockTimeLabel, getKmLabel } from '@/lib/format';
 import { getEarthquakeCountLabel } from '@/lib/i18n/earthquake-count';
 import { getPeriodLabel } from '@/lib/i18n/labels';
+import { getClockTimePlaceholder } from '@/lib/time-placeholder';
 import { m } from '@/paraglide/messages';
 import type { Locale } from '@/paraglide/runtime';
 import { getLocale } from '@/paraglide/runtime';
@@ -67,10 +69,6 @@ export function SearchSummary() {
     );
   }
 
-  const time = new Intl.DateTimeFormat(locale, { hour: 'numeric', minute: '2-digit' }).format(
-    dataUpdatedAt,
-  );
-
   return (
     <div className="flex flex-col gap-1.5">
       <p aria-live="polite" className="text-lg font-medium tracking-tight text-balance sm:text-xl">
@@ -81,8 +79,15 @@ export function SearchSummary() {
           {m.summary_meta({
             period: getPeriodLabel(search, locale),
             source: SOURCE_ADAPTERS[search.source].label,
-            time,
           })}
+          {' · '}
+          <ClientOnlyText
+            placeholder={m.summary_updated({
+              time: getClockTimePlaceholder(dataUpdatedAt, locale),
+            })}
+          >
+            {m.summary_updated({ time: getClockTimeLabel(dataUpdatedAt, locale) })}
+          </ClientOnlyText>
         </span>
         {search.period === '24h' && !isError ? <LiveMarker /> : null}
       </p>

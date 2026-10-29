@@ -95,3 +95,9 @@ export const LOCAL_DATE_TIME_FORMAT: Intl.DateTimeFormatOptions = {
 export function getLocalDateTimeLabel(time: number, locale: string, timeZone?: string): string {
   return new Intl.DateTimeFormat(locale, { ...LOCAL_DATE_TIME_FORMAT, timeZone }).format(time);
 }
+
+export const CLOCK_TIME_FORMAT: Intl.DateTimeFormatOptions = { hour: 'numeric', minute: '2-digit' };
+
+export function getClockTimeLabel(time: number, locale: string, timeZone?: string): string {
+  return new Intl.DateTimeFormat(locale, { ...CLOCK_TIME_FORMAT, timeZone }).format(time);
+}

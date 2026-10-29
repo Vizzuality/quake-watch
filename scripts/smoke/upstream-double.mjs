@@ -1,3 +1,4 @@
+import { getEmscFeature, getFeatureCollection } from '../../src/test/fixtures/earthquakes.ts';
 import { getEmscDetailFeature } from '../../src/test/fixtures/emsc-detail.ts';
 import { usgsPanamaDetail } from '../../src/test/fixtures/usgs-detail.ts';
 
@@ -7,7 +8,9 @@ export const ESCAPE_PLACE = 'Tom & Jerry <Bay>';
 export const USGS_SCRIPT_ID = 'us6000script';
 export const SCRIPT_PLACE = '</script><script>alert(1)</script>';
 export const EMSC_ID = '20261013_0000326';
+export const EMSC_LIST_SIZE = 12;
 
+const HOUR_MS = 3_600_000;
 const USGS_HOST = 'earthquake.usgs.gov';
 const EMSC_HOST = 'www.seismicportal.eu';
 
@@ -27,7 +30,19 @@ function getUsgsResponse(id) {
   });
 }
 
+function getEmscListResponse() {
+  const now = Date.now();
+  const features = Array.from({ length: EMSC_LIST_SIZE }, (_, index) =>
+    getEmscFeature({
+      id: `20261029_${String(index).padStart(7, '0')}`,
+      time: new Date(now - (index + 1) * HOUR_MS).toISOString(),
+    }),
+  );
+  return Response.json(getFeatureCollection(features));
+}
+
 function getEmscResponse(id) {
+  if (!id) return getEmscListResponse();
   if (id === EMSC_ID) return Response.json(getEmscDetailFeature({ id }));
   return new Response(null, { status: 204 });
 }

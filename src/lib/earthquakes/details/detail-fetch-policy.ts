@@ -1,4 +1,4 @@
-export const SERVER_DETAIL_TIMEOUT_MS = 4_000;
+export const SERVER_FETCH_TIMEOUT_MS = 4_000;
 const SERVER_DETAIL_RETRY = 0;
 const CLIENT_DETAIL_RETRY = 1;
 
@@ -8,5 +8,5 @@ export function getDetailRetry(isServerRuntime: boolean): number {
 
 export function getDetailSignal(signal: AbortSignal, isServerRuntime: boolean): AbortSignal {
   if (!isServerRuntime) return signal;
-  return AbortSignal.any([signal, AbortSignal.timeout(SERVER_DETAIL_TIMEOUT_MS)]);
+  return AbortSignal.any([signal, AbortSignal.timeout(SERVER_FETCH_TIMEOUT_MS)]);
 }

@@ -45,6 +45,12 @@ export type EarthquakeSearch = z.infer<typeof earthquakeSearchSchema>;
 
 export const EARTHQUAKE_SEARCH_DEFAULTS: EarthquakeSearch = earthquakeSearchSchema.parse({});
 
+const SEARCH_KEYS = Object.keys(earthquakeSearchSchema.shape) as (keyof EarthquakeSearch)[];
+
+export function isDefaultEarthquakeSearch(search: EarthquakeSearch): boolean {
+  return SEARCH_KEYS.every((key) => search[key] === EARTHQUAKE_SEARCH_DEFAULTS[key]);
+}
+
 const {
   source: _source,
   sort: _sort,
