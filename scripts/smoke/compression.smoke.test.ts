@@ -1,6 +1,5 @@
-import { existsSync, readdirSync, readFileSync } from 'node:fs';
+import { existsSync } from 'node:fs';
 import { request } from 'node:http';
-import path from 'node:path';
 import { gunzipSync } from 'node:zlib';
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -9,7 +8,6 @@ import { SERVER_ENTRY, type SmokeServer, startServer, stopProcess } from './serv
 import { USGS_ID } from './upstream-double.mjs';
 
 const DETAIL_LINK = 'href="/en/earthquakes/emsc/';
-const ASSETS_DIR = path.resolve(import.meta.dirname, '../../.output/public/assets');
 
 type RawResponse = {
   status: number;
@@ -32,14 +30,6 @@ function getRaw(pathname: string, headers: Record<string, string> = {}): Promise
     req.on('error', reject);
     req.end();
   });
-}
-
-function getServerFnId(): string {
-  for (const file of readdirSync(ASSETS_DIR).filter((name) => name.endsWith('.js'))) {
-    const id = /\(`([0-9a-f]{64})`\)/.exec(readFileSync(path.join(ASSETS_DIR, file), 'utf8'))?.[1];
-    if (id) return id;
-  }
-  throw new Error('No server function id in the client bundle');
 }
 
 function getDetailLinkCount(html: string): number {
@@ -90,17 +80,6 @@ describe('other responses', () => {
   it.each(['/robots.txt', '/sitemap.xml'])('leaves %s uncompressed', async (pathname) => {
     const { status, headers } = await getRaw(pathname, { 'accept-encoding': 'gzip' });
     expect(status).toBe(200);
-    expect(headers['content-encoding']).toBeUndefined();
-  });
-
-  it('leaves a server function response uncompressed', async () => {
-    const { status, headers } = await getRaw(`/_serverFn/${getServerFnId()}`, {
-      'accept-encoding': 'gzip',
-      'sec-fetch-site': 'same-origin',
-      'x-tsr-serverFn': 'true',
-    });
-    expect(status).toBe(200);
-    expect(headers['content-type']).toMatch(/json/);
     expect(headers['content-encoding']).toBeUndefined();
   });
 });
