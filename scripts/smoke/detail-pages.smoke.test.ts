@@ -53,22 +53,28 @@ function getRobotsContents(html: string): string[] {
 
 let up: SmokeServer;
 let down: SmokeServer;
+let slow: SmokeServer;
 
 beforeAll(async () => {
   if (!existsSync(SERVER_ENTRY)) throw new Error('Run `pnpm build` before `pnpm test:smoke`.');
-  const results = await Promise.allSettled([startServer('up'), startServer('down')]);
-  const [started, startedDown] = results.map(getStartedServer);
+  const results = await Promise.allSettled([
+    startServer('up'),
+    startServer('down'),
+    startServer('slow'),
+  ]);
+  const [started, startedDown, startedSlow] = results.map(getStartedServer);
   const failure = results.find((result) => result.status === 'rejected');
-  if (failure || !started || !startedDown) {
-    await stopServers([started, startedDown]);
+  if (failure || !started || !startedDown || !startedSlow) {
+    await stopServers([started, startedDown, startedSlow]);
     throw failure?.reason ?? new Error('A smoke server did not start');
   }
   up = started;
   down = startedDown;
+  slow = startedSlow;
 });
 
 afterAll(async () => {
-  await stopServers([up, down]);
+  await stopServers([up, down, slow]);
 });
 
 describe.each([
@@ -106,6 +112,13 @@ describe.each([
     expect(status).toBeGreaterThanOrEqual(500);
     expect(html).toContain(NOINDEX);
     expect(html).toContain('Retry');
+  });
+
+  it('does not answer 200 and asks not to be indexed when the agency is slower than 4 s', async () => {
+    const { status, html } = await getPage(slow, `/en/earthquakes/${catalogue}/${id}`);
+    expect(status).not.toBe(200);
+    expect(status).toBeGreaterThanOrEqual(500);
+    expect(html).toContain(NOINDEX);
   });
 });
 

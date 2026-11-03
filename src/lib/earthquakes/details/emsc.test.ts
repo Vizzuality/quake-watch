@@ -1,12 +1,11 @@
 import { QueryClient } from '@tanstack/react-query';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { getEmscDetailFeature } from '@/test/fixtures/emsc-detail';
 import { stubFetch, stubHangingFetch } from '@/test/stub-fetch';
 
 import { EarthquakeSourceError } from '../query-options';
 import { getEmscEarthquakeDetail, getEmscEarthquakeDetailFromFeature } from './emsc';
-import { emscEarthquakeDetailQueryOptions } from './emsc-query-options';
 
 const runtime = vi.hoisted(() => ({ isServer: false }));
 
@@ -20,6 +19,13 @@ vi.mock('@/paraglide/runtime', async (importOriginal) => ({
 function stubResponse(respond: () => Response) {
   return stubFetch([{ match: (url) => url.hostname === 'www.seismicportal.eu', respond }]);
 }
+
+let emscEarthquakeDetailQueryOptions: typeof import('./emsc-query-options').emscEarthquakeDetailQueryOptions;
+
+beforeEach(async () => {
+  vi.resetModules();
+  ({ emscEarthquakeDetailQueryOptions } = await import('./emsc-query-options'));
+});
 
 afterEach(() => {
   vi.unstubAllGlobals();

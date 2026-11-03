@@ -1,7 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router';
 import { createElement } from 'react';
 
-import { SERVER_FETCH_TIMEOUT_MS } from '@/lib/earthquakes/details/detail-fetch-policy';
+import { getServerDetail } from '@/lib/earthquakes/details/detail-server-cache';
 import { getEmscEarthquakeDetail } from '@/lib/earthquakes/details/emsc';
 import { getUsgsEarthquakeDetail } from '@/lib/earthquakes/details/usgs';
 import type { Earthquake } from '@/lib/earthquakes/types';
@@ -22,11 +22,12 @@ const DETAIL_FETCHERS: Partial<Record<string, DetailFetcher>> = {
 };
 
 async function getEarthquake(
+  source: string,
   fetchDetail: DetailFetcher,
   id: string,
 ): Promise<Earthquake | null | 'unavailable'> {
   try {
-    const detail = await fetchDetail(id, AbortSignal.timeout(SERVER_FETCH_TIMEOUT_MS));
+    const detail = await getServerDetail(source, id, fetchDetail);
     return detail?.earthquake ?? null;
   } catch {
     return 'unavailable';
@@ -39,7 +40,7 @@ export const Route = createFileRoute('/og/earthquakes/$source/{$earthquakeId}.pn
       GET: async ({ params }) => {
         const fetchDetail = DETAIL_FETCHERS[params.source];
         if (!fetchDetail) return new Response('Not found', { status: 404 });
-        const earthquake = await getEarthquake(fetchDetail, params.earthquakeId);
+        const earthquake = await getEarthquake(params.source, fetchDetail, params.earthquakeId);
         if (earthquake === null) return new Response('Not found', { status: 404 });
         if (earthquake === 'unavailable') {
           return new Response('Earthquake data unavailable', {

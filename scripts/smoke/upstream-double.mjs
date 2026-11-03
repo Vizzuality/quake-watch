@@ -11,6 +11,7 @@ export const EMSC_ID = '20261013_0000326';
 export const EMSC_LIST_SIZE = 12;
 
 const HOUR_MS = 3_600_000;
+export const SLOW_UPSTREAM_MS = 6_000;
 const USGS_HOST = 'earthquake.usgs.gov';
 const EMSC_HOST = 'www.seismicportal.eu';
 
@@ -60,4 +61,18 @@ export function getUpstreamResponse(input, isUpstreamDown) {
   if (isUpstreamDown) return new Response(null, { status: 503 });
   if (url.hostname === USGS_HOST) return getUsgsResponse(id);
   return getEmscResponse(id);
+}
+
+export function waitForSlowUpstream(signal) {
+  return new Promise((resolve, reject) => {
+    if (signal?.aborted) {
+      reject(signal.reason);
+      return;
+    }
+    const timer = setTimeout(resolve, SLOW_UPSTREAM_MS);
+    signal?.addEventListener('abort', () => {
+      clearTimeout(timer);
+      reject(signal.reason);
+    });
+  });
 }

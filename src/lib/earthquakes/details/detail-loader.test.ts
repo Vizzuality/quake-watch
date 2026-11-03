@@ -2,11 +2,13 @@ import { QueryClient } from '@tanstack/react-query';
 import { isNotFound } from '@tanstack/react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { getEmscDetailFeature } from '@/test/fixtures/emsc-detail';
 import { usgsPanamaDetail } from '@/test/fixtures/usgs-detail';
 import { stubFetch } from '@/test/stub-fetch';
 
-import { getDetailLoaderData } from './detail-loader';
-import { usgsEarthquakeDetailQueryOptions } from './usgs-query-options';
+let getDetailLoaderData: typeof import('./detail-loader').getDetailLoaderData;
+let usgsEarthquakeDetailQueryOptions: typeof import('./usgs-query-options').usgsEarthquakeDetailQueryOptions;
+let emscEarthquakeDetailQueryOptions: typeof import('./emsc-query-options').emscEarthquakeDetailQueryOptions;
 
 const runtime = vi.hoisted(() => ({ isServer: false }));
 
@@ -16,6 +18,13 @@ vi.mock('@/paraglide/runtime', async (importOriginal) => ({
     return runtime.isServer;
   },
 }));
+
+beforeEach(async () => {
+  vi.resetModules();
+  ({ getDetailLoaderData } = await import('./detail-loader'));
+  ({ usgsEarthquakeDetailQueryOptions } = await import('./usgs-query-options'));
+  ({ emscEarthquakeDetailQueryOptions } = await import('./emsc-query-options'));
+});
 
 function getClient() {
   return new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -58,6 +67,25 @@ describe('getDetailLoaderData on the server', () => {
       usgsEarthquakeDetailQueryOptions('us6000u18k'),
     );
     await expect(pending).rejects.toThrow(/usgs/i);
+  });
+
+  it('reuses one USGS response across separate server renders', async () => {
+    const fetchMock = stubUsgs(() => Response.json(usgsPanamaDetail));
+    await getDetailLoaderData(getClient(), usgsEarthquakeDetailQueryOptions('us6000u18k'));
+    await getDetailLoaderData(getClient(), usgsEarthquakeDetailQueryOptions('us6000u18k'));
+    expect(fetchMock).toHaveBeenCalledOnce();
+  });
+
+  it('reuses one EMSC response across separate server renders', async () => {
+    const fetchMock = stubFetch([
+      {
+        match: (url) => url.hostname === 'www.seismicportal.eu',
+        respond: () => Response.json(getEmscDetailFeature()),
+      },
+    ]);
+    await getDetailLoaderData(getClient(), emscEarthquakeDetailQueryOptions('20261013_0000326'));
+    await getDetailLoaderData(getClient(), emscEarthquakeDetailQueryOptions('20261013_0000326'));
+    expect(fetchMock).toHaveBeenCalledOnce();
   });
 });
 

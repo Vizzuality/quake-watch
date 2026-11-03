@@ -51,7 +51,7 @@ export async function stopProcess(child: ChildProcess): Promise<void> {
 }
 
 export async function startServer(
-  upstream: 'up' | 'down',
+  upstream: 'up' | 'down' | 'slow',
   { fetchLog }: StartServerOptions = {},
 ): Promise<SmokeServer> {
   const port = await getFreePort();
