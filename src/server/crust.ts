@@ -1,4 +1,5 @@
 import { createServerFn } from '@tanstack/react-start';
+import { setResponseHeader } from '@tanstack/react-start/server';
 
 import { crustCellsInputSchema, getCrust1Cells } from '@/lib/crust/crust1-binary';
 
@@ -16,4 +17,7 @@ function getCrust1View(): DataView {
 
 export const getCrustCells = createServerFn({ method: 'GET' })
   .validator(crustCellsInputSchema)
-  .handler(({ data }) => getCrust1Cells(getCrust1View(), data));
+  .handler(({ data }) => {
+    setResponseHeader('cache-control', 'public, max-age=86400, stale-while-revalidate=604800');
+    return getCrust1Cells(getCrust1View(), data);
+  });
