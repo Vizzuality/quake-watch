@@ -6,6 +6,7 @@ import {
   EPICENTER_TAP_RADIUS_PX,
   getIsEpicenterVisible,
   getVisibleEpicenterId,
+  getWrappedLongitude,
 } from './epicenter-hit';
 
 const CLOCK = { getRange: () => ({ start: 100, end: 900 }), getT: () => 500 };
@@ -134,5 +135,21 @@ describe('getIsEpicenterVisible', () => {
     expect(getIsEpicenterVisible(100, CLOCK)).toBe(true);
     expect(getIsEpicenterVisible(500, CLOCK)).toBe(true);
     expect(getIsEpicenterVisible(501, CLOCK)).toBe(false);
+  });
+});
+
+describe('getWrappedLongitude', () => {
+  it('keeps a longitude already in the reference copy', () => {
+    expect(getWrappedLongitude(10, 20)).toBe(10);
+  });
+
+  it('moves a longitude into the copies either side of the main world', () => {
+    expect(getWrappedLongitude(10, 365)).toBe(370);
+    expect(getWrappedLongitude(10, -355)).toBe(-350);
+  });
+
+  it('crosses the antimeridian to the nearest copy', () => {
+    expect(getWrappedLongitude(179, -179)).toBe(-181);
+    expect(getWrappedLongitude(-179, 179)).toBe(181);
   });
 });

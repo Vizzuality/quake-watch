@@ -4,7 +4,7 @@ import { createRef, useEffect } from 'react';
 import { flushSync } from 'react-dom';
 import { Map as MapGL } from 'react-map-gl/maplibre';
 import type { MapRef } from 'react-map-gl/maplibre';
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import '@/components/map/maplibre-worker';
 import { CORE_LAYER_ID } from '@/components/map/layers';
@@ -45,6 +45,32 @@ function ClockProbe() {
     probedClock = clock;
   }, [clock]);
   return null;
+}
+
+function stubHover(canHover: boolean) {
+  const matchMedia = window.matchMedia.bind(window);
+  vi.spyOn(window, 'matchMedia').mockImplementation((query) =>
+    query === '(hover: hover)'
+      ? ({
+          matches: canHover,
+          media: query,
+          addEventListener: () => undefined,
+          removeEventListener: () => undefined,
+        } as unknown as MediaQueryList)
+      : matchMedia(query),
+  );
+}
+
+function moveMap(map: MaplibreMap, point: Point) {
+  flushSync(() => map.fire('mousemove', { point, lngLat: map.unproject(point) }));
+}
+
+function showRingAt(map: MaplibreMap, point: Point) {
+  const tMs = getRingTimeAt(map, point);
+  flushSync(() => {
+    probedClock!.setRange({ start: QUAKE_TIME - 60_000, end: QUAKE_TIME + 60_000 });
+    probedClock!.setT(tMs);
+  });
 }
 
 function clickMap(map: MaplibreMap, point: Point) {
@@ -88,7 +114,7 @@ function getRingTimeAt(map: MaplibreMap, point: Point): number {
   throw new Error('no ring passes the near-miss point');
 }
 
-async function renderPinnableMap(mag?: number) {
+async function renderPinnableMap(mag?: number, { width = 400, zoom = 8 } = {}) {
   stubFetch([
     {
       match: (url) => url.hostname === 'www.seismicportal.eu',
@@ -100,11 +126,11 @@ async function renderPinnableMap(mag?: number) {
     () => (
       <PlaybackProvider>
         <ShowEverything />
-        <div style={{ position: 'relative', width: 400, height: 400 }}>
+        <div style={{ position: 'relative', width, height: 400 }}>
           <MapGL
             ref={mapRef}
             mapStyle={OFFLINE_STYLE}
-            initialViewState={{ longitude: EPICENTER.lng, latitude: EPICENTER.lat, zoom: 8 }}
+            initialViewState={{ longitude: EPICENTER.lng, latitude: EPICENTER.lat, zoom }}
           >
             <EarthquakesLayer />
             <EpicenterTooltip />
@@ -127,7 +153,15 @@ async function renderPinnableMap(mag?: number) {
   return { ...rendered, map, getEpicenterPoint };
 }
 
+afterEach(() => {
+  vi.restoreAllMocks();
+});
+
 describe('EpicenterTooltip pinning', () => {
+  beforeEach(() => {
+    stubHover(true);
+  });
+
   it('pins on click and offers a link to the detail page', async () => {
     const { screen, map, getEpicenterPoint, router } = await renderPinnableMap();
     expect(screen.getByRole('link', { name: 'View details' }).elements()).toHaveLength(0);
@@ -195,5 +229,69 @@ describe('EpicenterTooltip pinning', () => {
       .element(screen.getByRole('link', { name: 'View details' }))
       .toHaveAttribute('href', '/earthquakes/emsc/e1');
     await expect.element(screen.getByText(/At this point/)).not.toBeInTheDocument();
+  });
+
+  it('shows the hover tooltip over a dot on a hover-capable pointer', async () => {
+    const { screen, map, getEpicenterPoint } = await renderPinnableMap();
+    moveMap(map(), getEpicenterPoint());
+    await expect.element(screen.getByText(/spain/i)).toBeVisible();
+    expect(screen.getByRole('link', { name: 'View details' }).elements()).toHaveLength(0);
+  });
+});
+
+describe('Map tooltips on a pointer that cannot hover', () => {
+  beforeEach(() => {
+    stubHover(false);
+  });
+
+  it('ignores mousemove over a dot and pins it on the first tap', async () => {
+    const { screen, map, getEpicenterPoint } = await renderPinnableMap();
+    moveMap(map(), getEpicenterPoint());
+    await expect.element(screen.getByText(/spain/i)).not.toBeInTheDocument();
+
+    clickMap(map(), getEpicenterPoint());
+    await expect
+      .element(screen.getByRole('link', { name: 'View details' }))
+      .toHaveAttribute('href', '/earthquakes/emsc/e1');
+  });
+
+  it('ignores mousemove over a ring and shows its info on a tap away from any dot', async () => {
+    const { screen, map, getEpicenterPoint } = await renderPinnableMap(RING_QUAKE.magnitude);
+    const { x, y } = getEpicenterPoint();
+    const onRing = new Point(x + 30, y);
+    showRingAt(map(), onRing);
+
+    moveMap(map(), onRing);
+    await expect.element(screen.getByText(/At this point/)).not.toBeInTheDocument();
+
+    clickMap(map(), onRing);
+    await expect.element(screen.getByText(/At this point/)).toBeVisible();
+    expect(screen.getByRole('link', { name: 'View details' }).elements()).toHaveLength(0);
+  });
+});
+
+describe('EpicenterTooltip on repeated world copies', () => {
+  beforeEach(() => {
+    stubHover(true);
+  });
+
+  it('anchors the pinned tooltip on the world copy that was clicked', async () => {
+    const { screen, map } = await renderPinnableMap(undefined, { width: 1400, zoom: 0 });
+    const canonical = map().project([EPICENTER.lng, EPICENTER.lat]);
+    const copy = map().project([EPICENTER.lng + 360, EPICENTER.lat]);
+    expect(copy.x).toBeLessThan(1400);
+    await expect
+      .poll(() => map().queryRenderedFeatures(copy, { layers: [CORE_LAYER_ID] }).length)
+      .toBeGreaterThan(0);
+
+    clickMap(map(), copy);
+    await expect.element(screen.getByRole('link', { name: 'View details' })).toBeVisible();
+    const getPopupX = () => {
+      const popup = map().getContainer().querySelector<HTMLElement>('.maplibregl-popup');
+      const [, x] = /translate\(([-\d.]+)px/.exec(popup?.style.transform ?? '') ?? [];
+      return Number(x);
+    };
+    await expect.poll(() => Math.abs(getPopupX() - copy.x)).toBeLessThan(50);
+    expect(Math.abs(getPopupX() - canonical.x)).toBeGreaterThan(400);
   });
 });

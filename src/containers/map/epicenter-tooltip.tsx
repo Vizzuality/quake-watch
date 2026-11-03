@@ -7,6 +7,7 @@ import { useMap } from 'react-map-gl/maplibre';
 import { MAGNITUDE_FILL_CLASS_NAMES } from '@/components/magnitude-classes';
 import { CORE_LAYER_ID } from '@/components/map/layers';
 import { useEarthquakeSearch } from '@/hooks/use-earthquake-search';
+import { getCanHover } from '@/lib/can-hover';
 import { getEarthquakeDetailLinkOptions } from '@/lib/earthquakes/detail-link';
 import { getDistanceKm } from '@/lib/earthquakes/distance';
 import { getMagnitudeClass } from '@/lib/earthquakes/magnitude';
@@ -22,6 +23,7 @@ import {
   EPICENTER_TAP_RADIUS_PX,
   getIsEpicenterVisible,
   getVisibleEpicenterId,
+  getWrappedLongitude,
 } from '@/lib/map/epicenter-hit';
 import { cn } from '@/lib/utils';
 import { m } from '@/paraglide/messages';
@@ -123,6 +125,8 @@ export function EpicenterTooltip() {
   const center = getSearchCenter(search);
   const [hovered, setHovered] = useState<Earthquake | null>(null);
   const [pinnedId, setPinnedId] = useState<string | null>(null);
+  const [hoveredLongitude, setHoveredLongitude] = useState<number | null>(null);
+  const [pinnedLongitude, setPinnedLongitude] = useState<number | null>(null);
   const pinned = (pinnedId && earthquakesById.get(pinnedId)) || null;
   const shown = pinned ?? hovered;
 
@@ -130,13 +134,15 @@ export function EpicenterTooltip() {
     if (!map) return;
     const instance = map.getMap();
 
-    const show = ({ point }: MapMouseEvent) => {
+    const show = ({ point, lngLat }: MapMouseEvent) => {
+      setHoveredLongitude(lngLat.lng);
       const id = getVisibleEpicenterId(instance, point, clock);
       setHovered((id && earthquakesById.get(id)) || null);
     };
     const clear = () => setHovered(null);
     const pin = (event: MapMouseEvent) => {
       show(event);
+      setPinnedLongitude(event.lngLat.lng);
       setPinnedId(
         getVisibleEpicenterId(instance, event.point, clock, {
           hitRadiusPx: EPICENTER_TAP_RADIUS_PX,
@@ -144,8 +150,12 @@ export function EpicenterTooltip() {
       );
     };
 
-    instance.on('mousemove', CORE_LAYER_ID, show);
-    instance.on('mouseleave', CORE_LAYER_ID, clear);
+    const canHover = getCanHover();
+    // iOS Safari drops the synthesized click when mousemove changes content: https://developer.apple.com/library/archive/documentation/AppleApplications/Reference/SafariWebContent/HandlingEvents/HandlingEvents.html
+    if (canHover) {
+      instance.on('mousemove', CORE_LAYER_ID, show);
+      instance.on('mouseleave', CORE_LAYER_ID, clear);
+    }
     instance.on('click', pin);
     const unsubscribe = clock.subscribe(() => {
       setHovered((previous) =>
@@ -157,8 +167,10 @@ export function EpicenterTooltip() {
       });
     });
     return () => {
-      instance.off('mousemove', CORE_LAYER_ID, show);
-      instance.off('mouseleave', CORE_LAYER_ID, clear);
+      if (canHover) {
+        instance.off('mousemove', CORE_LAYER_ID, show);
+        instance.off('mouseleave', CORE_LAYER_ID, clear);
+      }
       instance.off('click', pin);
       unsubscribe();
       clear();
@@ -183,10 +195,12 @@ export function EpicenterTooltip() {
       }
     : null;
 
+  const anchorLongitude = pinned ? pinnedLongitude : hoveredLongitude;
+
   return (
     <MapTooltip
       latitude={shown.latitude}
-      longitude={shown.longitude}
+      longitude={getWrappedLongitude(shown.longitude, anchorLongitude ?? shown.longitude)}
       offset={14}
       interactive={pinned !== null}
     >

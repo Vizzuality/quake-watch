@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useMap } from 'react-map-gl/maplibre';
 
 import { useEarthquakeSearch } from '@/hooks/use-earthquake-search';
+import { getCanHover } from '@/lib/can-hover';
 import { getDistanceKm } from '@/lib/earthquakes/distance';
 import { getIntensityLevel } from '@/lib/earthquakes/intensity';
 import { earthquakesQueryOptions } from '@/lib/earthquakes/query-options';
@@ -128,9 +129,12 @@ export function RingTooltip() {
       update(event);
     };
 
-    instance.on('mousemove', update);
+    const canHover = getCanHover();
+    if (canHover) {
+      instance.on('mousemove', update);
+      instance.on('mouseout', clear);
+    }
     instance.on('click', tap);
-    instance.on('mouseout', clear);
     const unsubscribe = clock.subscribe((_t, playing) => {
       if (playing) {
         clear();
@@ -139,9 +143,11 @@ export function RingTooltip() {
       if (last && getHits(last).length === 0) clear();
     });
     return () => {
-      instance.off('mousemove', update);
+      if (canHover) {
+        instance.off('mousemove', update);
+        instance.off('mouseout', clear);
+      }
       instance.off('click', tap);
-      instance.off('mouseout', clear);
       unsubscribe();
       clear();
     };

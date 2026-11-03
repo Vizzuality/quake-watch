@@ -18,6 +18,10 @@ export function getIsEpicenterVisible(time: number, clock: EpicenterClock): bool
   return time >= clock.getRange().start && time <= clock.getT();
 }
 
+export function getWrappedLongitude(longitude: number, referenceLongitude: number): number {
+  return longitude + 360 * Math.round((referenceLongitude - longitude) / 360);
+}
+
 function getVisibleFeatures(
   features: MapGeoJSONFeature[],
   clock: EpicenterClock,
@@ -36,8 +40,8 @@ function getNearestFeature(
   for (const feature of features) {
     if (feature.geometry.type !== 'Point') continue;
     const [lng, lat] = feature.geometry.coordinates;
-    const copyLng = lng + 360 * Math.round((pointerLng - lng) / 360);
-    const distance = pointer.dist(Point.convert(map.project([copyLng, lat])));
+    const copy = map.project([getWrappedLongitude(lng, pointerLng), lat]);
+    const distance = pointer.dist(Point.convert(copy));
     if (distance < nearestDistance) {
       nearest = feature;
       nearestDistance = distance;
