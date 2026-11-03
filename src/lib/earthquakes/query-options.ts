@@ -9,6 +9,7 @@ import type { Earthquake } from './types';
 
 export const EARTHQUAKE_LIMIT = 1000;
 export const LIVE_REFETCH_MS = 60_000;
+const LIVE_STALE_MS = 30_000;
 const ARCHIVE_STALE_MS = 5 * 60_000;
 
 export const SOURCE_ADAPTERS: Record<EarthquakeSource, SourceAdapter> = {
@@ -68,6 +69,6 @@ export function earthquakesQueryOptions(search: EarthquakeSearch) {
     queryKey: getEarthquakesQueryKey(search),
     queryFn: ({ signal }) => getEarthquakes(search, signal),
     refetchInterval: isLive ? LIVE_REFETCH_MS : false,
-    staleTime: isLive ? 0 : ARCHIVE_STALE_MS,
+    staleTime: isLive ? LIVE_STALE_MS : ARCHIVE_STALE_MS,
   });
 }

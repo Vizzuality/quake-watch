@@ -14,7 +14,7 @@ export const Route = createFileRoute('/')({
   validateSearch: earthquakeSearchSchema,
   search: { middlewares: [stripSearchParams(EARTHQUAKE_SEARCH_DEFAULTS)] },
   loaderDeps: ({ search }) => search,
-  loader: ({ context, deps }) => seedSearchQuery(context.queryClient, deps),
+  loader: ({ context, deps, preload }) => seedSearchQuery(context.queryClient, deps, { preload }),
   component: SearchLayout,
   pendingComponent: SearchShell,
   pendingMinMs: 0,
