@@ -11,7 +11,7 @@ import type { SearchCenter } from '@/lib/earthquakes/search-schema';
 import { getWindowMs } from '@/lib/earthquakes/timeline';
 import { getDecimalLabel, getKmLabel } from '@/lib/format';
 import { getIntensityLevelLabel, getNumberLabel } from '@/lib/i18n/tooltip-labels';
-import { getVisibleEpicenterId } from '@/lib/map/epicenter-hit';
+import { EPICENTER_TAP_RADIUS_PX, getVisibleEpicenterId } from '@/lib/map/epicenter-hit';
 import { getRingHits } from '@/lib/map/ring-hits';
 import type { RingHit } from '@/lib/map/ring-hits';
 import { getPlaybackSpanMs, getWaveSpanMs } from '@/lib/map/shaking-waves';
@@ -116,8 +116,20 @@ export function RingTooltip() {
       setHover(hits.length > 0 ? { ...last.cursor, hits } : null);
     };
 
+    const tap = (event: MapMouseEvent) => {
+      if (
+        getVisibleEpicenterId(instance, event.point, clock, {
+          hitRadiusPx: EPICENTER_TAP_RADIUS_PX,
+        })
+      ) {
+        clear();
+        return;
+      }
+      update(event);
+    };
+
     instance.on('mousemove', update);
-    instance.on('click', update);
+    instance.on('click', tap);
     instance.on('mouseout', clear);
     const unsubscribe = clock.subscribe((_t, playing) => {
       if (playing) {
@@ -128,7 +140,7 @@ export function RingTooltip() {
     });
     return () => {
       instance.off('mousemove', update);
-      instance.off('click', update);
+      instance.off('click', tap);
       instance.off('mouseout', clear);
       unsubscribe();
       clear();

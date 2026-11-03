@@ -18,7 +18,11 @@ import { getKmLabel } from '@/lib/format';
 import { getPlaceLabel } from '@/lib/i18n/labels';
 import { getEarthquakeMeaningLabel } from '@/lib/i18n/meaning-labels';
 import { getDateTimeLabel, getNumberLabel } from '@/lib/i18n/tooltip-labels';
-import { getIsEpicenterVisible, getVisibleEpicenterId } from '@/lib/map/epicenter-hit';
+import {
+  EPICENTER_TAP_RADIUS_PX,
+  getIsEpicenterVisible,
+  getVisibleEpicenterId,
+} from '@/lib/map/epicenter-hit';
 import { cn } from '@/lib/utils';
 import { m } from '@/paraglide/messages';
 import { getLocale } from '@/paraglide/runtime';
@@ -133,7 +137,11 @@ export function EpicenterTooltip() {
     const clear = () => setHovered(null);
     const pin = (event: MapMouseEvent) => {
       show(event);
-      setPinnedId(getVisibleEpicenterId(instance, event.point, clock));
+      setPinnedId(
+        getVisibleEpicenterId(instance, event.point, clock, {
+          hitRadiusPx: EPICENTER_TAP_RADIUS_PX,
+        }),
+      );
     };
 
     instance.on('mousemove', CORE_LAYER_ID, show);

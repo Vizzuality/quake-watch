@@ -8,6 +8,9 @@ import { describe, expect, it } from 'vitest';
 
 import '@/components/map/maplibre-worker';
 import { CORE_LAYER_ID } from '@/components/map/layers';
+import { getDistanceKm } from '@/lib/earthquakes/distance';
+import type { PlaybackClock } from '@/lib/map/playback-clock';
+import { getRingHits } from '@/lib/map/ring-hits';
 import { getEmscFeature, getFeatureCollection } from '@/test/fixtures/earthquakes';
 import { renderWithRouter } from '@/test/render-with-router';
 import { stubFetch } from '@/test/stub-fetch';
@@ -15,6 +18,7 @@ import { stubFetch } from '@/test/stub-fetch';
 import { EarthquakesLayer } from './earthquakes-layer';
 import { EpicenterTooltip } from './epicenter-tooltip';
 import { PlaybackProvider, usePlaybackClock } from './playback-context';
+import { RingTooltip } from './ring-tooltip';
 
 const EPICENTER = { lng: -3.6316, lat: 37.1147 };
 
@@ -33,15 +37,62 @@ function ShowEverything() {
   return null;
 }
 
+let probedClock: PlaybackClock | null = null;
+
+function ClockProbe() {
+  const clock = usePlaybackClock();
+  useEffect(() => {
+    probedClock = clock;
+  }, [clock]);
+  return null;
+}
+
 function clickMap(map: MaplibreMap, point: Point) {
   flushSync(() => map.fire('click', { point, lngLat: map.unproject(point) }));
 }
 
-async function renderPinnableMap() {
+const QUAKE_TIME = Date.parse('2026-08-14T23:04:40.18Z');
+const RING_QUAKE = {
+  id: 'e1',
+  source: 'emsc' as const,
+  magnitude: 3.5,
+  magnitudeType: 'mb',
+  place: null,
+  time: QUAKE_TIME,
+  depthKm: 2.1,
+  latitude: EPICENTER.lat,
+  longitude: EPICENTER.lng,
+  url: '',
+};
+
+function getRingTimeAt(map: MaplibreMap, point: Point): number {
+  const cursor = map.unproject(point);
+  const next = map.unproject([point.x + 1, point.y]);
+  const kmPerPx = getDistanceKm(
+    { latitude: cursor.lat, longitude: cursor.lng },
+    { latitude: next.lat, longitude: next.lng },
+  );
+  const range = { start: QUAKE_TIME - 60_000, end: QUAKE_TIME + 60_000 };
+  for (let tMs = QUAKE_TIME; tMs <= range.end; tMs += 50) {
+    const hits = getRingHits({
+      earthquakes: [RING_QUAKE as never],
+      tMs,
+      waveSpanMs: (2_000 * (range.end - range.start)) / 30_000,
+      reducedMotion: window.matchMedia('(prefers-reduced-motion: reduce)').matches,
+      cursor: { latitude: cursor.lat, longitude: cursor.lng },
+      kmPerPx,
+      tolerancePx: 2,
+    });
+    if (hits.length > 0) return tMs;
+  }
+  throw new Error('no ring passes the near-miss point');
+}
+
+async function renderPinnableMap(mag?: number) {
   stubFetch([
     {
       match: (url) => url.hostname === 'www.seismicportal.eu',
-      respond: () => Response.json(getFeatureCollection([getEmscFeature({ id: 'e1' })])),
+      respond: () => Response.json(getFeatureCollection([getEmscFeature({ id: 'e1', mag })])),
     },
   ]);
   const mapRef = createRef<MapRef>();
@@ -57,7 +108,9 @@ async function renderPinnableMap() {
           >
             <EarthquakesLayer />
             <EpicenterTooltip />
+            <RingTooltip />
           </MapGL>
+          <ClockProbe />
         </div>
       </PlaybackProvider>
     ),
@@ -119,5 +172,28 @@ describe('EpicenterTooltip pinning', () => {
     await expect
       .element(screen.getByRole('link', { name: 'View details' }))
       .not.toBeInTheDocument();
+  });
+
+  it('pins a small dot on a near-miss click without a ring tooltip over it', async () => {
+    const { screen, map, getEpicenterPoint } = await renderPinnableMap(RING_QUAKE.magnitude);
+    const { x, y } = getEpicenterPoint();
+    const nearMiss = new Point(x + 10, y);
+    expect(map().queryRenderedFeatures(nearMiss, { layers: [CORE_LAYER_ID] })).toHaveLength(0);
+
+    const tMs = getRingTimeAt(map(), nearMiss);
+    flushSync(() => {
+      probedClock!.setRange({ start: QUAKE_TIME - 60_000, end: QUAKE_TIME + 60_000 });
+      probedClock!.setT(tMs);
+    });
+    flushSync(() =>
+      map().fire('mousemove', { point: nearMiss, lngLat: map().unproject(nearMiss) }),
+    );
+    await expect.element(screen.getByText(/At this point/)).toBeVisible();
+
+    clickMap(map(), nearMiss);
+    await expect
+      .element(screen.getByRole('link', { name: 'View details' }))
+      .toHaveAttribute('href', '/earthquakes/emsc/e1');
+    await expect.element(screen.getByText(/At this point/)).not.toBeInTheDocument();
   });
 });
