@@ -10,6 +10,7 @@ import { paraglideOptions } from './paraglide.config';
 
 export default defineConfig({
   plugins: [paraglideVitePlugin(paraglideOptions), tailwindcss(), viteReact()],
+  optimizeDeps: { exclude: ['@tanstack/react-start/server'] },
   resolve: { alias: { '@': path.resolve(import.meta.dirname, 'src') } },
   test: {
     include: ['src/**/*.integration.test.tsx'],

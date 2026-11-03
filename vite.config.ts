@@ -9,6 +9,9 @@ import { defineConfig } from 'vite';
 
 import { paraglideOptions } from './paraglide.config';
 
+const ONE_YEAR_IN_SECONDS = 31_536_000;
+const clientOutDir = path.resolve(import.meta.dirname, 'dist/client');
+
 export default defineConfig({
   server: { port: 3000 },
   define: { __PUBLIC_SITE_URL__: JSON.stringify(process.env.PUBLIC_SITE_URL ?? '') },
@@ -24,7 +27,20 @@ export default defineConfig({
     paraglideVitePlugin(paraglideOptions),
     tailwindcss(),
     tanstackStart(),
-    nitroV2Plugin({ compatibilityDate: '2026-10-08', preset: process.env.NITRO_PRESET }),
+    nitroV2Plugin({
+      compatibilityDate: '2026-10-08',
+      preset: process.env.NITRO_PRESET,
+      compressPublicAssets: { gzip: true, brotli: true },
+      publicAssets: [
+        { dir: clientOutDir, maxAge: ONE_YEAR_IN_SECONDS, baseURL: '/' },
+        {
+          dir: path.join(clientOutDir, 'assets'),
+          maxAge: ONE_YEAR_IN_SECONDS,
+          baseURL: '/assets',
+          fallthrough: false,
+        },
+      ],
+    }),
     // react's vite plugin must come after start's vite plugin
     viteReact(),
   ],
