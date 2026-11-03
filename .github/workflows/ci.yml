@@ -16,7 +16,6 @@ permissions:
 jobs:
   static:
     name: Lint, format, audit
-    if: ${{ !github.event.pull_request.draft }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -40,7 +39,6 @@ jobs:
 
   typecheck:
     name: Build, typecheck
-    if: ${{ !github.event.pull_request.draft }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -64,7 +62,6 @@ jobs:
 
   unit:
     name: Unit tests
-    if: ${{ !github.event.pull_request.draft }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -82,7 +79,6 @@ jobs:
 
   integration:
     name: Integration tests
-    if: ${{ !github.event.pull_request.draft }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -112,13 +108,3 @@ jobs:
         run: pnpm exec playwright install-deps chromium
 
       - run: pnpm test:integration
-
-  # The "Protect main" ruleset requires this exact check name.
-  checks:
-    name: Typecheck, lint, test, build
-    needs: [static, typecheck, unit, integration]
-    if: ${{ always() && !github.event.pull_request.draft }}
-    runs-on: ubuntu-latest
-    steps:
-      - if: ${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') || contains(needs.*.result, 'skipped') }}
-        run: exit 1
