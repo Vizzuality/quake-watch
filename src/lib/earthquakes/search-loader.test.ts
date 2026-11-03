@@ -1,10 +1,10 @@
-import { QueryClient } from '@tanstack/react-query';
+import { QueryClient, QueryObserver } from '@tanstack/react-query';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { getEmscFeature, getFeatureCollection } from '@/test/fixtures/earthquakes';
 import { stubFetch, stubHangingFetch } from '@/test/stub-fetch';
 
-import { getEarthquakesQueryKey } from './query-options';
+import { earthquakesQueryOptions, getEarthquakesQueryKey } from './query-options';
 import { earthquakeSearchSchema } from './search-schema';
 
 const runtime = vi.hoisted(() => ({ isServer: true }));
@@ -20,6 +20,7 @@ const SEARCH = earthquakeSearchSchema.parse({});
 const QUERY_KEY = getEarthquakesQueryKey(SEARCH);
 
 let seedSearchQuery: typeof import('./search-loader').seedSearchQuery;
+let prefetchSearchQuery: typeof import('./search-loader').prefetchSearchQuery;
 
 function stubEmsc(respond: () => Response) {
   return stubFetch([{ match: (url) => url.hostname === 'www.seismicportal.eu', respond }]);
@@ -72,12 +73,66 @@ describe('seedSearchQuery', () => {
     expect(client.getQueryData(QUERY_KEY)).toBeUndefined();
   });
 
-  it('does not fetch in the browser', async () => {
+  it('starts the request in the browser without waiting for it', async () => {
     runtime.isServer = false;
-    const fetchMock = stubEmsc(() => Response.json(getFeatureCollection([])));
+    const fetchMock = stubHangingFetch();
     const client = new QueryClient();
-    await seedSearchQuery(client, SEARCH);
+    await expect(seedSearchQuery(client, SEARCH)).resolves.toBeUndefined();
+    expect(fetchMock).toHaveBeenCalledOnce();
+    expect(client.getQueryState(QUERY_KEY)?.fetchStatus).toBe('fetching');
+    await client.cancelQueries();
+  });
+
+  it('does not fetch in the browser for a preload', async () => {
+    runtime.isServer = false;
+    const fetchMock = stubHangingFetch();
+    const client = new QueryClient();
+    await seedSearchQuery(client, SEARCH, { preload: true });
     expect(fetchMock).not.toHaveBeenCalled();
-    expect(client.getQueryData(QUERY_KEY)).toBeUndefined();
+    expect(client.getQueryState(QUERY_KEY)).toBeUndefined();
+  });
+});
+
+describe('prefetchSearchQuery', () => {
+  beforeEach(async () => {
+    vi.resetModules();
+    ({ prefetchSearchQuery } = await import('./search-loader'));
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+  });
+
+  it('does not fetch on the server', () => {
+    runtime.isServer = true;
+    const fetchMock = stubHangingFetch();
+    const client = new QueryClient();
+    prefetchSearchQuery(client, SEARCH, { preload: false });
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(client.getQueryState(QUERY_KEY)).toBeUndefined();
+  });
+
+  it('does not fetch for a preload', () => {
+    runtime.isServer = false;
+    const fetchMock = stubHangingFetch();
+    prefetchSearchQuery(new QueryClient(), SEARCH, { preload: true });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('lets a mount right after the prefetch reuse its request', async () => {
+    runtime.isServer = false;
+    vi.useFakeTimers({ toFake: ['Date'] });
+    const fetchMock = stubEmsc(() => Response.json(getFeatureCollection([getEmscFeature()])));
+    const client = new QueryClient();
+    prefetchSearchQuery(client, SEARCH, { preload: false });
+    await vi.waitFor(() => expect(client.getQueryData(QUERY_KEY)).toBeDefined());
+    vi.setSystemTime(Date.now() + 5_000);
+    const unsubscribe = new QueryObserver(client, earthquakesQueryOptions(SEARCH)).subscribe(
+      () => {},
+    );
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    unsubscribe();
+    expect(fetchMock).toHaveBeenCalledOnce();
   });
 });

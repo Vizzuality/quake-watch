@@ -37,6 +37,9 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       links: [
         { rel: 'stylesheet', href: appCss },
         { rel: 'icon', href: favicon },
+        { rel: 'preconnect', href: 'https://www.seismicportal.eu', crossOrigin: 'anonymous' },
+        { rel: 'preconnect', href: 'https://tiles.openfreemap.org', crossOrigin: 'anonymous' },
+        { rel: 'dns-prefetch', href: 'https://earthquake.usgs.gov' },
         { rel: 'canonical', href: canonical },
         ...alternates.map(({ hreflang, href }) => ({ rel: 'alternate', hrefLang: hreflang, href })),
       ],
