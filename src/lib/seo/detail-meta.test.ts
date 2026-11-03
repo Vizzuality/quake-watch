@@ -96,10 +96,29 @@ describe('getDetailDescription', () => {
 
 describe('getDetailMeta', () => {
   it('gives a found Earthquake its own title and description', () => {
-    expect(getDetailMeta({ status: 'success', earthquake: PANAMA, locale: 'en' })).toEqual([
-      { title: getDetailTitle(PANAMA, 'en') },
-      { name: 'description', content: getDetailDescription(PANAMA, 'en') },
-    ]);
+    expect(getDetailMeta({ status: 'success', earthquake: PANAMA, locale: 'en' })).toEqual(
+      expect.arrayContaining([
+        { title: getDetailTitle(PANAMA, 'en') },
+        { name: 'description', content: getDetailDescription(PANAMA, 'en') },
+      ]),
+    );
+  });
+
+  it('shares the same title, description and its own image with link previews', () => {
+    expect(getDetailMeta({ status: 'success', earthquake: PANAMA, locale: 'es' })).toEqual(
+      expect.arrayContaining([
+        { property: 'og:title', content: getDetailTitle(PANAMA, 'es') },
+        { property: 'og:description', content: getDetailDescription(PANAMA, 'es') },
+        {
+          property: 'og:image',
+          content: 'https://quake-watch.up.railway.app/es/og/earthquakes/usgs/us6000u18k.png',
+        },
+        {
+          property: 'og:image:alt',
+          content: 'Terremoto de magnitud 7.7, 12 km WSW of Pitaloza Arriba, Panama, 9 oct 2026',
+        },
+      ]),
+    );
   });
 
   it('keeps the site defaults while the Earthquake is not loaded yet', () => {

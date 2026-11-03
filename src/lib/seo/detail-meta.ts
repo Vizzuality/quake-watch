@@ -7,7 +7,10 @@ import { getEarthquakeMeaningLabel } from '@/lib/i18n/meaning-labels';
 import { m } from '@/paraglide/messages';
 import type { Locale } from '@/paraglide/runtime';
 
-type DetailMetaTag = { title: string } | { name: string; content: string };
+import { getEarthquakeOpenGraphMeta } from './open-graph';
+import type { OpenGraphTag } from './open-graph';
+
+type DetailMetaTag = { title: string } | OpenGraphTag;
 
 const NOINDEX_META: DetailMetaTag = { name: 'robots', content: 'noindex' };
 
@@ -63,8 +66,17 @@ export function getDetailMeta({
 }): DetailMetaTag[] {
   if (status !== 'success') return [NOINDEX_META];
   if (!earthquake) return [];
+  const title = getDetailTitle(earthquake, locale);
+  const description = getDetailDescription(earthquake, locale);
   return [
-    { title: getDetailTitle(earthquake, locale) },
-    { name: 'description', content: getDetailDescription(earthquake, locale) },
+    { title },
+    { name: 'description', content: description },
+    ...getEarthquakeOpenGraphMeta({
+      earthquake,
+      title,
+      description,
+      dateLabel: getUtcDateLabel(earthquake.time, locale),
+      locale,
+    }),
   ];
 }
