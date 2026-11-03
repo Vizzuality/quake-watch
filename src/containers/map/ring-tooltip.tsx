@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useMap } from 'react-map-gl/maplibre';
 
 import { useEarthquakeSearch } from '@/hooks/use-earthquake-search';
+import { getCanHover } from '@/lib/can-hover';
 import { getDistanceKm } from '@/lib/earthquakes/distance';
 import { getIntensityLevel } from '@/lib/earthquakes/intensity';
 import { earthquakesQueryOptions } from '@/lib/earthquakes/query-options';
@@ -11,7 +12,7 @@ import type { SearchCenter } from '@/lib/earthquakes/search-schema';
 import { getWindowMs } from '@/lib/earthquakes/timeline';
 import { getDecimalLabel, getKmLabel } from '@/lib/format';
 import { getIntensityLevelLabel, getNumberLabel } from '@/lib/i18n/tooltip-labels';
-import { getVisibleEpicenterId } from '@/lib/map/epicenter-hit';
+import { EPICENTER_TAP_RADIUS_PX, getVisibleEpicenterId } from '@/lib/map/epicenter-hit';
 import { getRingHits } from '@/lib/map/ring-hits';
 import type { RingHit } from '@/lib/map/ring-hits';
 import { getPlaybackSpanMs, getWaveSpanMs } from '@/lib/map/shaking-waves';
@@ -116,9 +117,24 @@ export function RingTooltip() {
       setHover(hits.length > 0 ? { ...last.cursor, hits } : null);
     };
 
-    instance.on('mousemove', update);
-    instance.on('click', update);
-    instance.on('mouseout', clear);
+    const tap = (event: MapMouseEvent) => {
+      if (
+        getVisibleEpicenterId(instance, event.point, clock, {
+          hitRadiusPx: EPICENTER_TAP_RADIUS_PX,
+        })
+      ) {
+        clear();
+        return;
+      }
+      update(event);
+    };
+
+    const canHover = getCanHover();
+    if (canHover) {
+      instance.on('mousemove', update);
+      instance.on('mouseout', clear);
+    }
+    instance.on('click', tap);
     const unsubscribe = clock.subscribe((_t, playing) => {
       if (playing) {
         clear();
@@ -127,9 +143,11 @@ export function RingTooltip() {
       if (last && getHits(last).length === 0) clear();
     });
     return () => {
-      instance.off('mousemove', update);
-      instance.off('click', update);
-      instance.off('mouseout', clear);
+      if (canHover) {
+        instance.off('mousemove', update);
+        instance.off('mouseout', clear);
+      }
+      instance.off('click', tap);
       unsubscribe();
       clear();
     };
