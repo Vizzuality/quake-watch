@@ -334,5 +334,6 @@
   "page_title_map": "Mapa de terremotos | Quake Watch",
   "page_title_not_found": "Página no encontrada | Quake Watch",
   "page_title_earthquake_not_found": "Terremoto no encontrado | Quake Watch",
-  "page_title_error": "Algo ha fallado | Quake Watch"
+  "page_title_error": "Algo ha fallado | Quake Watch",
+  "og_image_alt_detail": "Terremoto de magnitud {magnitude}, {place}, {date}"
 }

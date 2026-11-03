@@ -334,5 +334,6 @@
   "page_title_map": "Earthquake map | Quake Watch",
   "page_title_not_found": "Page not found | Quake Watch",
   "page_title_earthquake_not_found": "Earthquake not found | Quake Watch",
-  "page_title_error": "Something went wrong | Quake Watch"
+  "page_title_error": "Something went wrong | Quake Watch",
+  "og_image_alt_detail": "Magnitude {magnitude} earthquake, {place}, {date}"
 }
