@@ -5,6 +5,7 @@ import {
   Suspense,
   type ReactNode,
   useId,
+  useRef,
   useState,
   useSyncExternalStore,
 } from 'react';
@@ -14,6 +15,7 @@ import { Button } from '@/components/ui/button';
 import { SectionExplainer } from '@/components/ui/explainer';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAfterFirstPaint } from '@/hooks/use-after-first-paint';
+import { useViewportVisibility } from '@/hooks/use-visibility';
 import { reloadPage } from '@/lib/reload-page';
 import { cn } from '@/lib/utils';
 import { m } from '@/paraglide/messages';
@@ -105,17 +107,83 @@ function CrustalBlockVisual(props: CrustalBlockProps) {
   );
 }
 
+const CRUSTAL_BLOCK_ROOT_MARGIN = '400px 0px';
+
+const SKELETON_LEGEND_KINDS = 6;
+const SKELETON_LAYER_ROWS = 8;
+
+type CrustalBlockLayoutProps = { visual: ReactNode; legend: ReactNode; list: ReactNode };
+
+function CrustalBlockLayout({ visual, legend, list }: CrustalBlockLayoutProps) {
+  return (
+    <div className="flex flex-col gap-6">
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_14rem]">
+        {visual}
+        {legend}
+      </div>
+      {list}
+    </div>
+  );
+}
+
+function LegendSkeleton() {
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="flex flex-col gap-2">
+        <Skeleton className="w-12" />
+        <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 lg:grid-cols-1">
+          {Array.from({ length: SKELETON_LEGEND_KINDS }, (_, index) => (
+            <Skeleton key={index} className="w-28" />
+          ))}
+        </div>
+      </div>
+      <Skeleton className="w-56 max-w-full" />
+      <div className="flex flex-col gap-1">
+        <Skeleton className="w-14" />
+        <Skeleton className="w-full" />
+        <div className="flex flex-col gap-1 py-0.5">
+          <Skeleton className="h-3 w-full" />
+          <Skeleton className="h-3 w-2/3" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function LayerListSkeleton() {
+  return (
+    <div className="flex flex-col gap-2">
+      <Skeleton className="h-5 w-48" />
+      <div className="flex flex-col divide-y divide-line">
+        {Array.from({ length: SKELETON_LAYER_ROWS }, (_, index) => (
+          <div key={index} className="flex flex-col gap-1 py-2.5 sm:flex-row sm:gap-4">
+            <Skeleton className="h-5 w-32 sm:w-48 sm:shrink-0" />
+            <div className="flex h-8 items-center sm:flex-1">
+              <Skeleton className="w-36" />
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function CrustalBlockSkeleton() {
+  return (
+    <div data-testid="crustal-block-skeleton">
+      <CrustalBlockLayout
+        visual={<SceneSkeleton />}
+        legend={<LegendSkeleton />}
+        list={<LayerListSkeleton />}
+      />
+    </div>
+  );
+}
+
 function CrustalBlockBody(props: CrustalBlockProps) {
   const { status, refetch } = useQuery(getCrustalBlockQueryOptions(props));
 
-  if (status === 'pending') {
-    return (
-      <div className="flex flex-col gap-3" data-testid="crustal-block-skeleton">
-        <SceneSkeleton />
-        <Skeleton className="h-24 w-full" />
-      </div>
-    );
-  }
+  if (status === 'pending') return <CrustalBlockSkeleton />;
   if (status === 'error') {
     return (
       <Alert
@@ -130,18 +198,20 @@ function CrustalBlockBody(props: CrustalBlockProps) {
     );
   }
   return (
-    <div className="flex flex-col gap-6">
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_14rem]">
-        <CrustalBlockVisual {...props} />
-        <CrustalBlockLegend {...props} />
-      </div>
-      <CrustLayerList {...props} />
-    </div>
+    <CrustalBlockLayout
+      visual={<CrustalBlockVisual {...props} />}
+      legend={<CrustalBlockLegend {...props} />}
+      list={<CrustLayerList {...props} />}
+    />
   );
 }
 
 export function CrustalBlockSection(props: CrustalBlockProps) {
   const headingId = useId();
+  const bodyRef = useRef<HTMLDivElement>(null);
+  const { hasBeenVisible } = useViewportVisibility(bodyRef, {
+    rootMargin: CRUSTAL_BLOCK_ROOT_MARGIN,
+  });
 
   return (
     <section aria-labelledby={headingId} className="flex flex-col gap-3">
@@ -156,7 +226,9 @@ export function CrustalBlockSection(props: CrustalBlockProps) {
           <p>{m.crustal_block_explainer_relief()}</p>
         </SectionExplainer>
       </div>
-      <CrustalBlockBody {...props} />
+      <div ref={bodyRef}>
+        {hasBeenVisible ? <CrustalBlockBody {...props} /> : <CrustalBlockSkeleton />}
+      </div>
     </section>
   );
 }

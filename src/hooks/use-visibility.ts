@@ -21,7 +21,18 @@ export function usePageVisible(): boolean {
   );
 }
 
-export function useViewportVisibility(ref: RefObject<Element | null>) {
+type ViewportVisibilityOptions = { rootMargin?: string };
+
+// The implicit root is the top-level viewport, so inside a frame the frame's own clip ignores the
+// margin (https://w3c.github.io/IntersectionObserver/#dom-intersectionobserver-rootmargin).
+function getObserverInit(rootMargin: string | undefined): IntersectionObserverInit | undefined {
+  return rootMargin === undefined ? undefined : { root: document, rootMargin };
+}
+
+export function useViewportVisibility(
+  ref: RefObject<Element | null>,
+  { rootMargin }: ViewportVisibilityOptions = {},
+) {
   const [isVisible, setIsVisible] = useState(false);
   const [hasBeenVisible, setHasBeenVisible] = useState(false);
 
@@ -32,10 +43,10 @@ export function useViewportVisibility(ref: RefObject<Element | null>) {
       const isIntersecting = entries.at(-1)?.isIntersecting ?? false;
       setIsVisible(isIntersecting);
       if (isIntersecting) setHasBeenVisible(true);
-    });
+    }, getObserverInit(rootMargin));
     observer.observe(element);
     return () => observer.disconnect();
-  }, [ref]);
+  }, [ref, rootMargin]);
 
   return { isVisible, hasBeenVisible };
 }

@@ -1,5 +1,6 @@
 import { createElement } from 'react';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { page } from 'vitest/browser';
 
 import type { CrustCell } from '@/lib/crust/types';
 import { reloadPage } from '@/lib/reload-page';
@@ -13,6 +14,7 @@ const mocks = vi.hoisted(() => ({
   isWebGL2Available: vi.fn<() => boolean>(),
   sceneFailure: { current: null as Error | null },
   sceneRenders: { current: 0 },
+  sceneStandIn: { current: false },
 }));
 
 vi.mock('@/lib/reload-page', () => ({ reloadPage: vi.fn<() => void>() }));
@@ -21,10 +23,14 @@ vi.mock('./webgl-support', () => ({ isWebGL2Available: mocks.isWebGL2Available }
 vi.mock('./crustal-block-scene', async () => {
   const actual =
     await vi.importActual<typeof import('./crustal-block-scene')>('./crustal-block-scene');
+  const { CRUSTAL_BLOCK_HEIGHT } = await vi.importActual<typeof import('./layout')>('./layout');
   return {
     default: (props: CrustalBlockProps) => {
       mocks.sceneRenders.current += 1;
       if (mocks.sceneFailure.current) throw mocks.sceneFailure.current;
+      if (mocks.sceneStandIn.current) {
+        return createElement('div', { className: CRUSTAL_BLOCK_HEIGHT, 'data-testid': 'scene' });
+      }
       return createElement(actual.default, props);
     },
   };
@@ -70,6 +76,19 @@ async function renderSection(props: CrustalBlockProps = MADRID) {
   return renderWithRouter(() => <CrustalBlockSection {...props} />);
 }
 
+async function renderSectionBelowTheFold() {
+  return renderWithRouter(() => (
+    <>
+      <div style={{ height: window.innerHeight + 1_000 }} />
+      <CrustalBlockSection {...MADRID} />
+    </>
+  ));
+}
+
+function getSectionTop(container: HTMLElement): number {
+  return container.querySelector('section')!.getBoundingClientRect().top;
+}
+
 describe('CrustalBlockSection', () => {
   // A cold Vite transform of three/R3F can outlast any per-assertion wait, so load it once up front.
   beforeAll(() => import('./crustal-block-scene'), 60_000);
@@ -81,9 +100,14 @@ describe('CrustalBlockSection', () => {
     mocks.isWebGL2Available.mockReturnValue(false);
     mocks.sceneFailure.current = null;
     mocks.sceneRenders.current = 0;
+    mocks.sceneStandIn.current = false;
   });
 
-  afterEach(() => vi.unstubAllGlobals());
+  afterEach(async () => {
+    vi.unstubAllGlobals();
+    window.scrollTo(0, 0);
+    await page.viewport(1280, 800);
+  });
 
   it('holds the 3D scene behind its skeleton until the first frame', async () => {
     const releaseFrames = holdAnimationFrames();
@@ -100,6 +124,66 @@ describe('CrustalBlockSection', () => {
 
     releaseFrames();
     await expect.element(screen.getByText(/3D view isn't available/), SCENE_LOAD).toBeVisible();
+  });
+
+  it('skips the crust request and the 3D scene until the section nears the viewport', async () => {
+    mocks.isWebGL2Available.mockReturnValue(true);
+    mocks.sceneFailure.current = new Error('Error creating WebGL context.');
+    const { screen } = await renderSectionBelowTheFold();
+    await expect.element(screen.getByTestId('crustal-block-skeleton')).toBeInTheDocument();
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    expect(mocks.getCrustCells).not.toHaveBeenCalled();
+    expect(mocks.sceneRenders.current).toBe(0);
+
+    window.scrollBy(0, getSectionTop(screen.container) - window.innerHeight - 300);
+    await expect.poll(() => mocks.getCrustCells.mock.calls.length).toBe(1);
+    await expect.poll(() => mocks.sceneRenders.current, SCENE_LOAD).toBeGreaterThan(0);
+  });
+
+  it('keeps the skeleton height when the section starts loading', async () => {
+    mocks.getCrustCells.mockReturnValue(new Promise(() => undefined));
+    const { screen } = await renderSectionBelowTheFold();
+    const skeleton = screen.getByTestId('crustal-block-skeleton');
+    await expect.element(skeleton).toBeInTheDocument();
+    const heightBefore = skeleton.element().getBoundingClientRect().height;
+
+    window.scrollBy(0, getSectionTop(screen.container) - window.innerHeight);
+    await expect.poll(() => mocks.getCrustCells.mock.calls.length).toBe(1);
+    expect(
+      screen.getByTestId('crustal-block-skeleton').element().getBoundingClientRect().height,
+    ).toBe(heightBefore);
+  });
+
+  it.each([390, 768, 1280])(
+    'reserves the loaded height with the skeleton at %i px',
+    async (width) => {
+      await page.viewport(width, 900);
+      let resolveCells: (cells: CrustCell[]) => void = () => undefined;
+      mocks.getCrustCells.mockReturnValue(new Promise((resolve) => (resolveCells = resolve)));
+      mocks.isWebGL2Available.mockReturnValue(true);
+      mocks.sceneStandIn.current = true;
+      const { screen } = await renderSection();
+      const skeleton = screen.getByTestId('crustal-block-skeleton');
+      await expect.element(skeleton).toBeInTheDocument();
+      const skeletonHeight = skeleton.element().getBoundingClientRect().height;
+
+      resolveCells([MADRID_CELL]);
+      await expect.element(screen.getByTestId('scene'), SCENE_LOAD).toBeInTheDocument();
+      await expect.element(screen.getByText('Layers under the Epicenter')).toBeVisible();
+      const body = screen.container.querySelector('section')!.lastElementChild!;
+      expect(Math.abs(body.getBoundingClientRect().height - skeletonHeight)).toBeLessThanOrEqual(
+        24,
+      );
+    },
+  );
+
+  it('keeps the loaded layer list after scrolling away', async () => {
+    const { screen } = await renderSectionBelowTheFold();
+    window.scrollBy(0, getSectionTop(screen.container));
+    await expect.element(screen.getByText('Layers under the Epicenter')).toBeVisible();
+    window.scrollTo(0, 0);
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    await expect.element(screen.getByText('Layers under the Epicenter')).toBeInTheDocument();
   });
 
   it('renders only the layer list without WebGL', async () => {
