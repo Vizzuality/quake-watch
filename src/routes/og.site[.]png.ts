@@ -1,7 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router';
 import { createElement } from 'react';
 
-import { getSiteUrl } from '@/lib/seo/site-url';
 import { getLocale } from '@/paraglide/runtime';
 import { getShareCardPng, getShareCardResponse } from '@/server/og/render-share-card';
 import { SiteShareCard } from '@/server/og/share-card';
@@ -14,7 +13,6 @@ export const Route = createFileRoute('/og/site.png')({
       GET: async () => {
         const card = createElement(SiteShareCard, {
           locale: getLocale(),
-          host: new URL(getSiteUrl()).host,
         });
         return getShareCardResponse(await getShareCardPng(card), MAX_AGE_SECONDS);
       },

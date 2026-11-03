@@ -335,5 +335,8 @@
   "page_title_not_found": "Page not found | Quake Watch",
   "page_title_earthquake_not_found": "Earthquake not found | Quake Watch",
   "page_title_error": "Something went wrong | Quake Watch",
-  "og_image_alt_detail": "Magnitude {magnitude} earthquake, {place}, {date}"
+  "og_image_alt_detail": "Magnitude {magnitude} earthquake, {place}, {date}",
+  "og_site_headline": "Earthquakes, explained for everyone.",
+  "og_site_summary": "Where it hit, how big it was and what it meant for the places you care about.",
+  "og_site_history": "M6+ earthquakes, 2000–2025"
 }

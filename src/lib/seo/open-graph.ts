@@ -64,7 +64,7 @@ export function getSiteOpenGraphMeta({
     { name: 'twitter:card', content: 'summary_large_image' },
     ...getImageTags(
       getSiteShareImageUrl(locale),
-      `${m.app_title({}, { locale })}: ${m.app_description({}, { locale })}`,
+      `${m.app_title({}, { locale })}: ${m.og_site_headline({}, { locale })} ${m.og_site_history({}, { locale })}`,
     ),
   ];
 }

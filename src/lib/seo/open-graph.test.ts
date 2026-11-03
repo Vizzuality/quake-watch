@@ -78,7 +78,7 @@ describe('getSiteOpenGraphMeta', () => {
     expect(getContent(tags, 'og:image:width')).toBe('1200');
     expect(getContent(tags, 'og:image:height')).toBe('630');
     expect(getContent(tags, 'og:image:alt')).toBe(
-      'Quake Watch: Terremotos de todo el mundo, en cuanto ocurren.',
+      'Quake Watch: Terremotos, explicados para todos. Terremotos M6+, 2000–2025',
     );
     expect(getContent(tags, 'twitter:image:alt')).toBe(getContent(tags, 'og:image:alt'));
   });

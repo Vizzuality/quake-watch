@@ -5,7 +5,6 @@ import { SERVER_FETCH_TIMEOUT_MS } from '@/lib/earthquakes/details/detail-fetch-
 import { getEmscEarthquakeDetail } from '@/lib/earthquakes/details/emsc';
 import { getUsgsEarthquakeDetail } from '@/lib/earthquakes/details/usgs';
 import type { Earthquake } from '@/lib/earthquakes/types';
-import { getSiteUrl } from '@/lib/seo/site-url';
 import { getLocale } from '@/paraglide/runtime';
 import { getShareCardPng, getShareCardResponse } from '@/server/og/render-share-card';
 import { EarthquakeShareCard } from '@/server/og/share-card';
@@ -51,7 +50,6 @@ export const Route = createFileRoute('/og/earthquakes/$source/{$earthquakeId}.pn
         const card = createElement(EarthquakeShareCard, {
           earthquake,
           locale: getLocale(),
-          host: new URL(getSiteUrl()).host,
         });
         return getShareCardResponse(await getShareCardPng(card), MAX_AGE_SECONDS);
       },

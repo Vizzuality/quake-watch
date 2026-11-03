@@ -61,13 +61,19 @@ function getCoordinateLabel(value: number, hemispheres: readonly [string, string
   return `${getDecimalLabel(Math.abs(value), locale, COORDINATE_DIGITS)}° ${hemisphere}`;
 }
 
+export function getLatitudeLabel(latitude: number, locale: string): string {
+  return getCoordinateLabel(latitude, ['N', 'S'], locale);
+}
+
+export function getLongitudeLabel(longitude: number, locale: string): string {
+  return getCoordinateLabel(longitude, ['E', locale === 'es' ? 'O' : 'W'], locale);
+}
+
 export function getCoordinatesLabel(
   { latitude, longitude }: { latitude: number; longitude: number },
   locale: string,
 ): string {
-  const latitudeLabel = getCoordinateLabel(latitude, ['N', 'S'], locale);
-  const longitudeLabel = getCoordinateLabel(longitude, ['E', locale === 'es' ? 'O' : 'W'], locale);
-  return `${latitudeLabel}, ${longitudeLabel}`;
+  return `${getLatitudeLabel(latitude, locale)}, ${getLongitudeLabel(longitude, locale)}`;
 }
 
 export function getScientificLabel(value: number, locale: string): string {

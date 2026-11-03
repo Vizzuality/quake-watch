@@ -335,5 +335,8 @@
   "page_title_not_found": "Página no encontrada | Quake Watch",
   "page_title_earthquake_not_found": "Terremoto no encontrado | Quake Watch",
   "page_title_error": "Algo ha fallado | Quake Watch",
-  "og_image_alt_detail": "Terremoto de magnitud {magnitude}, {place}, {date}"
+  "og_image_alt_detail": "Terremoto de magnitud {magnitude}, {place}, {date}",
+  "og_site_headline": "Terremotos, explicados para todos.",
+  "og_site_summary": "Dónde fue, de qué magnitud y qué supuso para los lugares que te importan.",
+  "og_site_history": "Terremotos M6+, 2000–2025"
 }
