@@ -49,10 +49,45 @@ The distance from the Epicenter within which the estimated Intensity is at least
 _Avoid_: Radius, range
 _Spanish_: Alcance sentido
 
-**Playback window**:
-The stretch of the searched period that the map plays back, 24 hours or 7 days long.
-_Avoid_: Range, zoom
-_Spanish_: Ventana
+**Interval**:
+How far back from now the globe shows Earthquakes, and the stretch the timeline replays: 24 hours, 3 days or 7 days. Always relative to when the page is opened.
+_Avoid_: Period, range, Playback window
+_Spanish_: Intervalo
+
+**Likely felt**:
+An Earthquake whose Felt reach at the surface is greater than zero, so people near the Epicenter would probably have noticed it.
+_Avoid_: Felt (alone, which suggests felt reports), noticeable
+_Spanish_: Probablemente sentido
+
+**Depth class**:
+A band of Depth: Shallow (0–70 km), Intermediate (70–300 km) or Deep (more than 300 km).
+_Avoid_: Depth range, layer
+_Spanish_: Clase de profundidad (Superficial, Intermedio, Profundo)
+
+**Sequence**:
+A group of Earthquakes close in place and time within the Interval. The largest is the Mainshock; each other one is a Foreshock, an Aftershock or a Doublet.
+_Avoid_: Cluster, swarm, related quakes
+_Spanish_: Secuencia
+
+**Mainshock**:
+The largest Earthquake of a Sequence.
+_Avoid_: Main quake, largest event
+_Spanish_: Terremoto principal
+
+**Foreshock**:
+An Earthquake of a Sequence that happened before its Mainshock.
+_Avoid_: Precursor, warning quake
+_Spanish_: Premonitor
+
+**Aftershock**:
+A smaller Earthquake of a Sequence that happened after its Mainshock.
+_Avoid_: Replica, follow-up
+_Spanish_: Réplica
+
+**Doublet**:
+An Earthquake of a Sequence that happened after its Mainshock with almost the same Magnitude, within 0.05.
+_Avoid_: Twin, second mainshock
+_Spanish_: Doblete
 
 **Crust layer**:
 One band of the ground under the Epicenter (water, ice, sediments, upper, middle or lower crust), with the Depth of its top and bottom.
