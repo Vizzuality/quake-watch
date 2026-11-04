@@ -1,14 +1,25 @@
-import { existsSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { SERVER_ENTRY, type SmokeServer, startServer, stopProcess } from './server';
-import { EMSC_ID, USGS_ID } from './upstream-double.mjs';
+import { EMSC_ID, USGS_ESCAPE_ID, USGS_ID } from './upstream-double.mjs';
 
 const PNG_SIGNATURE = '89504e470d0a1a0a';
 
 let up: SmokeServer;
 let down: SmokeServer;
+let logDir: string;
+let fetchLog: string;
+
+function getDetailRequestCount(id: string): number {
+  return readFileSync(fetchLog, 'utf8')
+    .split('\n')
+    .filter(Boolean)
+    .filter((line) => new URL(line).searchParams.get('eventid') === id).length;
+}
 
 async function getHtml(pathname: string): Promise<string> {
   const response = await fetch(`${up.origin}${pathname}`, { headers: { accept: 'text/html' } });
@@ -40,11 +51,24 @@ async function getImage(server: SmokeServer, absoluteUrl: string) {
 
 beforeAll(async () => {
   if (!existsSync(SERVER_ENTRY)) throw new Error('Run `pnpm build` before `pnpm test:smoke`.');
-  [up, down] = await Promise.all([startServer('up'), startServer('down')]);
+  logDir = mkdtempSync(path.join(tmpdir(), 'quake-watch-smoke-'));
+  fetchLog = path.join(logDir, 'fetch.log');
+  writeFileSync(fetchLog, '');
+  [up, down] = await Promise.all([startServer('up', { fetchLog }), startServer('down')]);
 });
 
 afterAll(async () => {
   await Promise.all([up, down].map((server) => (server ? stopProcess(server.process) : undefined)));
+  rmSync(logDir, { recursive: true, force: true });
+});
+
+describe('upstream reuse', () => {
+  it('serves the detail page and its share image from one upstream response', async () => {
+    await getHtml(`/en/earthquakes/usgs/${USGS_ESCAPE_ID}`);
+    const image = await getImage(up, `http://x/en/og/earthquakes/usgs/${USGS_ESCAPE_ID}.png`);
+    expect(image.status).toBe(200);
+    expect(getDetailRequestCount(USGS_ESCAPE_ID)).toBe(1);
+  });
 });
 
 describe.each([

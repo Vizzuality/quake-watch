@@ -1,11 +1,10 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { usgsOriginOnlyDetail, usgsPanamaDetail } from '@/test/fixtures/usgs-detail';
 import { stubFetch, stubHangingFetch } from '@/test/stub-fetch';
 
 import { EarthquakeSourceError } from '../query-options';
 import { getUsgsEarthquakeDetail, getUsgsEarthquakeDetailFromFeature } from './usgs';
-import { usgsEarthquakeDetailQueryOptions } from './usgs-query-options';
 
 const runtime = vi.hoisted(() => ({ isServer: false }));
 
@@ -15,6 +14,17 @@ vi.mock('@/paraglide/runtime', async (importOriginal) => ({
     return runtime.isServer;
   },
 }));
+
+let usgsEarthquakeDetailQueryOptions: typeof import('./usgs-query-options').usgsEarthquakeDetailQueryOptions;
+
+beforeEach(async () => {
+  vi.resetModules();
+  ({ usgsEarthquakeDetailQueryOptions } = await import('./usgs-query-options'));
+});
+
+afterEach(() => {
+  runtime.isServer = false;
+});
 
 function getFeatureWith(products: Record<string, unknown>, tsunami = 0) {
   return {
