@@ -2,8 +2,8 @@ import { QueryClient } from '@tanstack/react-query';
 import { createRouter } from '@tanstack/react-router';
 import { setupRouterSsrQueryIntegration } from '@tanstack/react-router-ssr-query';
 
-import { ErrorComponent } from '@/containers/errors/error-component';
-import { NotFoundComponent } from '@/containers/errors/not-found-component';
+import { ErrorState } from '@/containers/states/error';
+import { NotFound } from '@/containers/states/not-found';
 import { deLocalizeUrl, localizeUrl } from '@/paraglide/runtime';
 
 import { routeTree } from './routeTree.gen';
@@ -16,8 +16,8 @@ export function getRouter() {
     context: { queryClient },
     scrollRestoration: true,
     defaultPreload: 'intent',
-    defaultErrorComponent: ErrorComponent,
-    defaultNotFoundComponent: NotFoundComponent,
+    defaultErrorComponent: ErrorState,
+    defaultNotFoundComponent: NotFound,
     rewrite: {
       input: ({ url }) => deLocalizeUrl(url),
       output: ({ url }) => localizeUrl(url),
