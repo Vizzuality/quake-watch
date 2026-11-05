@@ -11,9 +11,9 @@ git switch archive/v1
 pnpm install && pnpm build && pnpm start
 ```
 
-## Modules to copy back
+## Modules kept for the redesign
 
-Links point at the archived commit, so they don't move when the branch does.
+These modules stay on `main` when the rest of the old app is removed ([#80](https://github.com/Vizzuality/quake-watch/issues/80)); `magnitude.ts` there has already lost its MapLibre style expressions. Links point at the archived versions, so they don't move when the branch does.
 
 | Module                                                                                                                                                         | Reuse   | What it holds                                                                                   |
 | -------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------- | ----------------------------------------------------------------------------------------------- |
