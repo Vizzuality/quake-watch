@@ -1,6 +1,5 @@
 import { Wordmark } from '@/components/brand/wordmark';
 import { LanguageSwitch } from '@/containers/shell/language-switch';
-import { ThemeSwitch } from '@/containers/shell/theme-switch';
 import { ViewTabs } from '@/containers/shell/view-tabs';
 
 export function SearchHeader() {
@@ -10,7 +9,6 @@ export function SearchHeader() {
       <div className="flex items-center gap-3">
         <ViewTabs current="table" />
         <LanguageSwitch />
-        <ThemeSwitch />
       </div>
     </header>
   );

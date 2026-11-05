@@ -7,7 +7,6 @@ import { getAlternateLinks } from '@/lib/seo/alternate-links';
 import { isSiteIndexable } from '@/lib/seo/indexing';
 import { getSiteOpenGraphMeta } from '@/lib/seo/open-graph';
 import { getPageTitle } from '@/lib/seo/page-title';
-import { THEME_BOOT_SCRIPT } from '@/lib/theme/theme';
 import { m } from '@/paraglide/messages';
 import { getLocale } from '@/paraglide/runtime';
 
@@ -62,9 +61,8 @@ function RootComponent() {
 
 function RootDocument({ children }: { children: ReactNode }) {
   return (
-    <html lang={getLocale()} suppressHydrationWarning>
+    <html lang={getLocale()}>
       <head>
-        <script dangerouslySetInnerHTML={{ __html: THEME_BOOT_SCRIPT }} />
         <HeadContent />
       </head>
       <body className="font-sans">

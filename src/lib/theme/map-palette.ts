@@ -1,31 +1,21 @@
 import type { MagnitudeColors } from '@/lib/earthquakes/magnitude';
 
-import type { ResolvedTheme } from './theme';
-
 export type MapPalette = {
   canvas: string;
   fg: string;
   magnitude: MagnitudeColors;
 };
 
-const BASEMAP_STYLE_URLS: Record<ResolvedTheme, string> = {
-  light: 'https://tiles.openfreemap.org/styles/positron',
-  dark: 'https://tiles.openfreemap.org/styles/dark',
-};
+export const BASEMAP_STYLE_URL = 'https://tiles.openfreemap.org/styles/dark';
 
-const paletteCache = new Map<ResolvedTheme, MapPalette>();
+let paletteCache: MapPalette | undefined;
 
 function getToken(styles: CSSStyleDeclaration, name: string): string {
   return styles.getPropertyValue(`--color-${name}`).trim();
 }
 
-export function getBasemapStyleUrl(theme: ResolvedTheme): string {
-  return BASEMAP_STYLE_URLS[theme];
-}
-
-export function getMapPalette(theme: ResolvedTheme): MapPalette {
-  const cached = paletteCache.get(theme);
-  if (cached) return cached;
+export function getMapPalette(): MapPalette {
+  if (paletteCache) return paletteCache;
   const styles = getComputedStyle(document.documentElement);
   const palette: MapPalette = {
     canvas: getToken(styles, 'canvas'),
@@ -39,6 +29,6 @@ export function getMapPalette(theme: ResolvedTheme): MapPalette {
       getToken(styles, 'mag-6'),
     ],
   };
-  if (palette.canvas) paletteCache.set(theme, palette);
+  if (palette.canvas) paletteCache = palette;
   return palette;
 }

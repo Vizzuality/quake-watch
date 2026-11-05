@@ -1,6 +1,6 @@
 import { Layer, Source } from 'react-map-gl/maplibre';
 
-import { useMapPalette } from '@/hooks/use-theme';
+import { useMapPalette } from '@/hooks/use-map-palette';
 import type { SearchCenter } from '@/lib/earthquakes/search-schema';
 import { type WaveTrainShape, getTrainFronts } from '@/lib/shakemap/wave-train';
 

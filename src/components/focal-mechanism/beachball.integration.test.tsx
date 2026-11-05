@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { render } from 'vitest-browser-react';
 
 import { Beachball } from './beachball';
@@ -15,27 +15,15 @@ function getRelativeLuminance(color: string): number {
 }
 
 describe('Beachball', () => {
-  afterEach(() => {
-    delete document.documentElement.dataset.resolvedTheme;
+  it('draws compression darker than dilatation', async () => {
+    const screen = await render(
+      <Beachball plane={{ strikeDeg: 30, dipDeg: 60, rakeDeg: 90 }} size={96} title="Beachball" />,
+    );
+    const base = screen.container.querySelector('circle')!;
+    const compression = screen.container.querySelector('path')!;
+
+    expect(getRelativeLuminance(getComputedStyle(compression).fill)).toBeLessThan(
+      getRelativeLuminance(getComputedStyle(base).fill),
+    );
   });
-
-  it.each(['light', 'dark'])(
-    'draws compression darker than dilatation in the %s theme',
-    async (theme) => {
-      document.documentElement.dataset.resolvedTheme = theme;
-      const screen = await render(
-        <Beachball
-          plane={{ strikeDeg: 30, dipDeg: 60, rakeDeg: 90 }}
-          size={96}
-          title="Beachball"
-        />,
-      );
-      const base = screen.container.querySelector('circle')!;
-      const compression = screen.container.querySelector('path')!;
-
-      expect(getRelativeLuminance(getComputedStyle(compression).fill)).toBeLessThan(
-        getRelativeLuminance(getComputedStyle(base).fill),
-      );
-    },
-  );
 });
