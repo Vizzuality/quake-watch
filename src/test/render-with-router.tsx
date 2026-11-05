@@ -1,4 +1,3 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import {
   Outlet,
   RouterProvider,
@@ -10,42 +9,14 @@ import {
 import type { ReactNode } from 'react';
 import { render } from 'vitest-browser-react';
 
-import { earthquakeSearchSchema } from '@/lib/earthquakes/search-schema';
-
-export async function renderWithRouter(component: () => ReactNode, initialEntry = '/') {
+export async function renderWithRouter(component: () => ReactNode) {
   const rootRoute = createRootRoute({ component: Outlet });
-  const pageRoute = createRoute({
-    getParentRoute: () => rootRoute,
-    path: '/',
-    validateSearch: earthquakeSearchSchema,
-    component,
-  });
-  const mapRoute = createRoute({
-    getParentRoute: () => rootRoute,
-    path: '/map',
-    validateSearch: earthquakeSearchSchema,
-    component: () => null,
-  });
-  const usgsDetailRoute = createRoute({
-    getParentRoute: () => rootRoute,
-    path: '/earthquakes/usgs/$earthquakeId',
-    component,
-  });
-  const emscDetailRoute = createRoute({
-    getParentRoute: () => rootRoute,
-    path: '/earthquakes/emsc/$earthquakeId',
-    component,
-  });
+  const pageRoute = createRoute({ getParentRoute: () => rootRoute, path: '/', component });
   const router = createRouter({
-    routeTree: rootRoute.addChildren([pageRoute, mapRoute, usgsDetailRoute, emscDetailRoute]),
-    history: createMemoryHistory({ initialEntries: [initialEntry] }),
+    routeTree: rootRoute.addChildren([pageRoute]),
+    history: createMemoryHistory({ initialEntries: ['/'] }),
   });
-  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   await router.load();
-  const screen = await render(
-    <QueryClientProvider client={queryClient}>
-      <RouterProvider router={router} />
-    </QueryClientProvider>,
-  );
+  const screen = await render(<RouterProvider router={router} />);
   return { screen, router };
 }

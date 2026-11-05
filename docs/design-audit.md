@@ -1,6 +1,6 @@
 # Design audit
 
-State of the UI on 2026-10-15, before the redesign. Issues are ordered by impact on the audience: people who are not seismologists and want to know where an Earthquake happened, how big it was and what it meant for the places they care about.
+State of the UI on 2026-10-15, before the redesign. That app now lives on [archive/v1](https://github.com/Vizzuality/quake-watch/tree/archive/v1) and runs at https://quake-watch-archive.up.railway.app. Issues are ordered by impact on the audience: people who are not seismologists and want to know where an Earthquake happened, how big it was and what it meant for the places they care about.
 
 ## Method
 

@@ -1,5 +1,3 @@
-import type { ExpressionSpecification } from 'maplibre-gl';
-
 import type { Earthquake } from './types';
 
 export const MAGNITUDE_RADIUS_STOPS: ReadonlyArray<readonly [number, number]> = [
@@ -16,8 +14,6 @@ export const MAGNITUDE_CLASS_BREAKS = [3, 4, 5, 6, 7] as const;
 export const MAGNITUDE_CLASSES = [1, 2, 3, 4, 5, 6] as const;
 
 export type MagnitudeClass = (typeof MAGNITUDE_CLASSES)[number];
-
-export type MagnitudeColors = readonly [string, string, string, string, string, string];
 
 export type QuakeFeatureProperties = {
   id: string;
@@ -38,20 +34,6 @@ export type QuakeFeatureCollection = {
   type: 'FeatureCollection';
   features: QuakeFeature[];
 };
-
-export function getMagnitudeRadiusExpression(): ExpressionSpecification {
-  return ['interpolate', ['linear'], ['get', 'magnitude'], ...MAGNITUDE_RADIUS_STOPS.flat()];
-}
-
-export function getMagnitudeColorExpression(colors: MagnitudeColors): ExpressionSpecification {
-  const [below, ...above] = colors;
-  return [
-    'step',
-    ['get', 'magnitude'],
-    below,
-    ...MAGNITUDE_CLASS_BREAKS.flatMap((magnitude, index) => [magnitude, above[index]!]),
-  ];
-}
 
 export function getMagnitudeClass(magnitude: number): MagnitudeClass {
   return MAGNITUDE_CLASSES[MAGNITUDE_CLASS_BREAKS.filter((min) => magnitude >= min).length]!;

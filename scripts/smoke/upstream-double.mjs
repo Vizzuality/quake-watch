@@ -1,49 +1,18 @@
-import { getEmscFeature, getFeatureCollection } from '../../src/test/fixtures/earthquakes.ts';
 import { getEmscDetailFeature } from '../../src/test/fixtures/emsc-detail.ts';
 import { usgsPanamaDetail } from '../../src/test/fixtures/usgs-detail.ts';
 
 export const USGS_ID = 'us6000u18k';
-export const USGS_ESCAPE_ID = 'us6000escape';
-export const ESCAPE_PLACE = 'Tom & Jerry <Bay>';
-export const USGS_SCRIPT_ID = 'us6000script';
-export const SCRIPT_PLACE = '</script><script>alert(1)</script>';
 export const EMSC_ID = '20261013_0000326';
-export const EMSC_LIST_SIZE = 12;
 
-const HOUR_MS = 3_600_000;
-export const SLOW_UPSTREAM_MS = 6_000;
 const USGS_HOST = 'earthquake.usgs.gov';
 const EMSC_HOST = 'www.seismicportal.eu';
 
-const USGS_PLACES = new Map([
-  [USGS_ESCAPE_ID, ESCAPE_PLACE],
-  [USGS_SCRIPT_ID, SCRIPT_PLACE],
-]);
-
 function getUsgsResponse(id) {
   if (id === USGS_ID) return Response.json(usgsPanamaDetail);
-  const place = USGS_PLACES.get(id);
-  if (!place) return new Response(null, { status: 404 });
-  return Response.json({
-    ...usgsPanamaDetail,
-    id,
-    properties: { ...usgsPanamaDetail.properties, place },
-  });
-}
-
-function getEmscListResponse() {
-  const now = Date.now();
-  const features = Array.from({ length: EMSC_LIST_SIZE }, (_, index) =>
-    getEmscFeature({
-      id: `20261029_${String(index).padStart(7, '0')}`,
-      time: new Date(now - (index + 1) * HOUR_MS).toISOString(),
-    }),
-  );
-  return Response.json(getFeatureCollection(features));
+  return new Response(null, { status: 404 });
 }
 
 function getEmscResponse(id) {
-  if (!id) return getEmscListResponse();
   if (id === EMSC_ID) return Response.json(getEmscDetailFeature({ id }));
   return new Response(null, { status: 204 });
 }
@@ -61,18 +30,4 @@ export function getUpstreamResponse(input, isUpstreamDown) {
   if (isUpstreamDown) return new Response(null, { status: 503 });
   if (url.hostname === USGS_HOST) return getUsgsResponse(id);
   return getEmscResponse(id);
-}
-
-export function waitForSlowUpstream(signal) {
-  return new Promise((resolve, reject) => {
-    if (signal?.aborted) {
-      reject(signal.reason);
-      return;
-    }
-    const timer = setTimeout(resolve, SLOW_UPSTREAM_MS);
-    signal?.addEventListener('abort', () => {
-      clearTimeout(timer);
-      reject(signal.reason);
-    });
-  });
 }

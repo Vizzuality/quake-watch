@@ -7,7 +7,7 @@ The app is rebuilt as one page: a full-screen globe with glass overlays, followi
 ## Globe
 
 - The globe is drawn with three.js through React Three Fiber. The board's key idea is that each Earthquake sits at its Depth inside a see-through Earth, and MapLibre's globe projection can't show anything below the surface.
-- three.js is already a dependency (it drew the Crustal block), which leaves room for the Depth explorations still in design (globe cut open, tilted area).
+- three.js leaves room for the Depth explorations still in design (globe cut open, tilted area). It was removed with the old UI in [#80](https://github.com/Vizzuality/quake-watch/issues/80) and comes back with the globe.
 - MapLibre and react-map-gl are removed.
 
 ## Design system

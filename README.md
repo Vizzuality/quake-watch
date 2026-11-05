@@ -8,7 +8,7 @@ Most earthquake sites are built for experts. This one shows where an earthquake 
 
 ## Status
 
-A searchable earthquake table and a map that share the same filters in the URL: place (with a radius), period or custom dates, minimum magnitude and catalogue (EMSC by default, USGS on request). The last-24-hours view refreshes every minute. The interface is available in English and Spanish.
+A placeholder shell while the globe redesign is built: the home page shows the wordmark, in English and Spanish. Old map and detail URLs redirect to the home page. The previous table and map app lives on [archive/v1](https://github.com/Vizzuality/quake-watch/tree/archive/v1).
 
 ## Getting started
 
@@ -26,7 +26,7 @@ A searchable earthquake table and a map that share the same filters in the URL: 
 | `test`             | Run the test suite                                                              |
 | `test:coverage`    | Run the test suite with a coverage report                                       |
 | `test:integration` | Run browser-mode integration tests (Chromium via Playwright)                    |
-| `test:smoke`       | Check the raw HTML of detail pages in the build, with stubbed agencies          |
+| `test:smoke`       | Check redirects, raw HTML and share images in the build, with stubbed agencies  |
 | `typecheck`        | Type-check the project without emitting files                                   |
 | `lint`             | Lint the code with oxlint                                                       |
 | `format`           | Format the code with oxfmt                                                      |
@@ -34,13 +34,11 @@ A searchable earthquake table and a map that share the same filters in the URL: 
 
 ## Stack
 
-TanStack Start + React, MapLibre via react-map-gl, TanStack Query, Tailwind CSS. Exact versions live in [package.json](package.json).
+TanStack Start + React, TanStack Query, Tailwind CSS. Exact versions live in [package.json](package.json).
 
 ## Data
 
 - Earthquakes: [EMSC FDSN event service](https://www.seismicportal.eu/fdsnws/event/1/) (default) and [USGS FDSN event service](https://earthquake.usgs.gov/fdsnws/event/1/)
-- Place search: [Photon](https://photon.komoot.io) geocoder, data © OpenStreetMap contributors
-- Basemap: [OpenFreeMap](https://openfreemap.org). Attribution: OpenFreeMap © OpenMapTiles Data from OpenStreetMap
 
 ## Deploy (Railway)
 

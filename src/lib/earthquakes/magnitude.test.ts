@@ -5,17 +5,10 @@ import {
   getMagnitudeClass,
   getIsMagnitudeClassBelow,
   getMagnitudeClassMinimum,
-  getMagnitudeColorExpression,
   getMagnitudeRadius,
-  getMagnitudeRadiusExpression,
   MAGNITUDE_RADIUS_STOPS,
 } from '@/lib/earthquakes/magnitude';
-import type { MagnitudeColors } from '@/lib/earthquakes/magnitude';
 import type { Earthquake } from '@/lib/earthquakes/types';
-
-function getStopInputs(expression: unknown[]): number[] {
-  return expression.slice(3).filter((_, index) => index % 2 === 0) as number[];
-}
 
 function makeQuake(id: string, magnitude: number): Earthquake {
   return {
@@ -31,48 +24,6 @@ function makeQuake(id: string, magnitude: number): Earthquake {
     url: 'u',
   };
 }
-
-describe('radius expression', () => {
-  const expression = getMagnitudeRadiusExpression() as unknown[];
-
-  it('interpolates on the magnitude property', () => {
-    expect(expression[0]).toBe('interpolate');
-    expect(expression[2]).toEqual(['get', 'magnitude']);
-  });
-
-  it('is built from the exported stops', () => {
-    expect(expression.slice(3)).toEqual(MAGNITUDE_RADIUS_STOPS.flat());
-  });
-
-  it('has ascending stops from 2.5 to 8', () => {
-    const inputs = getStopInputs(expression);
-    expect(inputs[0]).toBe(2.5);
-    expect(inputs.at(-1)).toBe(8);
-    expect(inputs).toEqual([...inputs].sort((a, b) => a - b));
-  });
-});
-
-describe('getMagnitudeColorExpression', () => {
-  const colors: MagnitudeColors = ['c1', 'c2', 'c3', 'c4', 'c5', 'c6'];
-
-  it('steps through one color per magnitude class', () => {
-    expect(getMagnitudeColorExpression(colors)).toEqual([
-      'step',
-      ['get', 'magnitude'],
-      'c1',
-      3,
-      'c2',
-      4,
-      'c3',
-      5,
-      'c4',
-      6,
-      'c5',
-      7,
-      'c6',
-    ]);
-  });
-});
 
 describe('getMagnitudeClass', () => {
   it.each([

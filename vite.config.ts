@@ -16,7 +16,6 @@ export default defineConfig({
   server: { port: 3000 },
   define: { __PUBLIC_SITE_URL__: JSON.stringify(process.env.PUBLIC_SITE_URL ?? '') },
   resolve: { alias: { '@': path.resolve(import.meta.dirname, 'src') } },
-  worker: { format: 'es' },
   build: {
     modulePreload: {
       // WebKit caches a failed <link rel=modulepreload> across reloads: https://bugs.webkit.org/show_bug.cgi?id=270357

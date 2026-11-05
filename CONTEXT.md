@@ -39,11 +39,6 @@ A ring that spreads from the Epicenter out to its Felt reach and fades as the es
 _Avoid_: Ripple, shockwave
 _Spanish_: Onda sísmica
 
-**Isoseismal**:
-A line on a USGS ShakeMap joining places with the same estimated Intensity.
-_Avoid_: Contour, wave
-_Spanish_: Isosista
-
 **Felt reach**:
 The distance from the Epicenter within which the estimated Intensity is at least II.
 _Avoid_: Radius, range
@@ -88,18 +83,3 @@ _Spanish_: Réplica
 An Earthquake of a Sequence that happened after its Mainshock with almost the same Magnitude, within 0.05.
 _Avoid_: Twin, second mainshock
 _Spanish_: Doblete
-
-**Crust layer**:
-One band of the ground under the Epicenter (water, ice, sediments, upper, middle or lower crust), with the Depth of its top and bottom.
-_Avoid_: Stratum, level
-_Spanish_: Capa de la corteza
-
-**Moho**:
-The boundary between the crust and the mantle under the Epicenter.
-_Avoid_: Crust bottom, mantle top
-_Spanish_: Moho
-
-**Crustal block**:
-A 3D cut of the ground around the Epicenter that shows its Crust layers and the Depth at which the Earthquake started.
-_Avoid_: Cross-section, Earth slice
-_Spanish_: Bloque de corteza

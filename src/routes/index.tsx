@@ -1,21 +1,17 @@
-import { createFileRoute, stripSearchParams } from '@tanstack/react-router';
+import { createFileRoute } from '@tanstack/react-router';
 
-import { SearchLayout } from '@/containers/search/layout';
-import { SearchShell } from '@/containers/search/shell';
-import { seedSearchQuery } from '@/lib/earthquakes/search-loader';
-import {
-  EARTHQUAKE_SEARCH_DEFAULTS,
-  earthquakeSearchSchema,
-  isDefaultEarthquakeSearch,
-} from '@/lib/earthquakes/search-schema';
+import { Wordmark } from '@/components/brand/wordmark';
+import { m } from '@/paraglide/messages';
 
 export const Route = createFileRoute('/')({
-  ssr: ({ search }) => search.status === 'success' && isDefaultEarthquakeSearch(search.value),
-  validateSearch: earthquakeSearchSchema,
-  search: { middlewares: [stripSearchParams(EARTHQUAKE_SEARCH_DEFAULTS)] },
-  loaderDeps: ({ search }) => search,
-  loader: ({ context, deps, preload }) => seedSearchQuery(context.queryClient, deps, { preload }),
-  component: SearchLayout,
-  pendingComponent: SearchShell,
-  pendingMinMs: 0,
+  component: Home,
 });
+
+function Home() {
+  return (
+    <main className="grid min-h-dvh place-items-center bg-background text-foreground">
+      <h1 className="sr-only">{m.app_title()}</h1>
+      <Wordmark />
+    </main>
+  );
+}

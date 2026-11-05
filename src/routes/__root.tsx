@@ -12,9 +12,6 @@ import { getLocale } from '@/paraglide/runtime';
 
 import appCss from '../styles.css?url';
 
-const favicon =
-  "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cpolyline points='0,10 4,10 5.5,6 7,15 8.5,2 10,17 11.5,7 13,12 14.5,9 16,10 20,10' fill='none' stroke='%23d02e9a' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E";
-
 export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({
   head: ({ matches }) => {
     const leaf = matches.at(-1);
@@ -35,10 +32,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       ],
       links: [
         { rel: 'stylesheet', href: appCss },
-        { rel: 'icon', href: favicon },
-        { rel: 'preconnect', href: 'https://www.seismicportal.eu', crossOrigin: 'anonymous' },
-        { rel: 'preconnect', href: 'https://tiles.openfreemap.org', crossOrigin: 'anonymous' },
-        { rel: 'dns-prefetch', href: 'https://earthquake.usgs.gov' },
+        { rel: 'icon', href: '/favicon.svg', type: 'image/svg+xml' },
         { rel: 'canonical', href: canonical },
         ...alternates.map(({ hreflang, href }) => ({ rel: 'alternate', hrefLang: hreflang, href })),
       ],
