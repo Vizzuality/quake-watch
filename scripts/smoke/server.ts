@@ -11,8 +11,6 @@ const EXIT_TIMEOUT_MS = 3_000;
 
 export type SmokeServer = { origin: string; process: ChildProcess };
 
-type StartServerOptions = { fetchLog?: string };
-
 function getFreePort(): Promise<number> {
   return new Promise((resolve, reject) => {
     const probe = createServer();
@@ -50,10 +48,7 @@ export async function stopProcess(child: ChildProcess): Promise<void> {
   clearTimeout(timer);
 }
 
-export async function startServer(
-  upstream: 'up' | 'down' | 'slow',
-  { fetchLog }: StartServerOptions = {},
-): Promise<SmokeServer> {
+export async function startServer(upstream: 'up' | 'down'): Promise<SmokeServer> {
   const port = await getFreePort();
   const child = spawn(process.execPath, [SERVER_ENTRY], {
     env: {
@@ -62,7 +57,6 @@ export async function startServer(
       HOST: '127.0.0.1',
       NODE_OPTIONS: `--import ${PRELOAD}`,
       SMOKE_UPSTREAM: upstream,
-      ...(fetchLog ? { SMOKE_FETCH_LOG: fetchLog } : {}),
     },
     stdio: ['ignore', 'ignore', 'inherit'],
   });

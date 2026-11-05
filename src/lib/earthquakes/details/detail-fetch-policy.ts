@@ -1,7 +1,1 @@
 export const SERVER_FETCH_TIMEOUT_MS = 4_000;
-const SERVER_DETAIL_RETRY = 0;
-const CLIENT_DETAIL_RETRY = 1;
-
-export function getDetailRetry(isServerRuntime: boolean): number {
-  return isServerRuntime ? SERVER_DETAIL_RETRY : CLIENT_DETAIL_RETRY;
-}

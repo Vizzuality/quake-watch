@@ -1,25 +1,14 @@
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import path from 'node:path';
+import { existsSync } from 'node:fs';
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { SERVER_ENTRY, type SmokeServer, startServer, stopProcess } from './server';
-import { EMSC_ID, USGS_ESCAPE_ID, USGS_ID } from './upstream-double.mjs';
+import { EMSC_ID, USGS_ID } from './upstream-double.mjs';
 
 const PNG_SIGNATURE = '89504e470d0a1a0a';
 
 let up: SmokeServer;
 let down: SmokeServer;
-let logDir: string;
-let fetchLog: string;
-
-function getDetailRequestCount(id: string): number {
-  return readFileSync(fetchLog, 'utf8')
-    .split('\n')
-    .filter(Boolean)
-    .filter((line) => new URL(line).searchParams.get('eventid') === id).length;
-}
 
 async function getHtml(pathname: string): Promise<string> {
   const response = await fetch(`${up.origin}${pathname}`, { headers: { accept: 'text/html' } });
@@ -51,44 +40,19 @@ async function getImage(server: SmokeServer, absoluteUrl: string) {
 
 beforeAll(async () => {
   if (!existsSync(SERVER_ENTRY)) throw new Error('Run `pnpm build` before `pnpm test:smoke`.');
-  logDir = mkdtempSync(path.join(tmpdir(), 'quake-watch-smoke-'));
-  fetchLog = path.join(logDir, 'fetch.log');
-  writeFileSync(fetchLog, '');
-  [up, down] = await Promise.all([startServer('up', { fetchLog }), startServer('down')]);
+  [up, down] = await Promise.all([startServer('up'), startServer('down')]);
 });
 
 afterAll(async () => {
   await Promise.all([up, down].map((server) => (server ? stopProcess(server.process) : undefined)));
-  rmSync(logDir, { recursive: true, force: true });
-});
-
-describe('upstream reuse', () => {
-  it('serves the detail page and its share image from one upstream response', async () => {
-    await getHtml(`/en/earthquakes/usgs/${USGS_ESCAPE_ID}`);
-    const image = await getImage(up, `http://x/en/og/earthquakes/usgs/${USGS_ESCAPE_ID}.png`);
-    expect(image.status).toBe(200);
-    expect(getDetailRequestCount(USGS_ESCAPE_ID)).toBe(1);
-  });
 });
 
 describe.each([
   { catalogue: 'usgs', id: USGS_ID },
   { catalogue: 'emsc', id: EMSC_ID },
-])('$catalogue detail page share card', ({ catalogue, id }) => {
-  it('links one absolute, per-Earthquake image that renders as a 1200×630 PNG', async () => {
-    const html = await getHtml(`/en/earthquakes/${catalogue}/${id}`);
-    const images = getProperty(html, 'og:image');
-    expect(images).toEqual([
-      expect.stringMatching(
-        new RegExp(`^https?://[^/]+/en/og/earthquakes/${catalogue}/${id}\\.png$`),
-      ),
-    ]);
-    expect(getProperty(html, 'og:title')).toEqual([
-      expect.stringMatching(/^M\d\.\d earthquake · /),
-    ]);
-    expect(getProperty(html, 'og:description')).toEqual([expect.stringMatching(/^Magnitude /)]);
-
-    const image = await getImage(up, images[0]);
+])('$catalogue share card', ({ catalogue, id }) => {
+  it('renders the per-Earthquake image as a 1200×630 PNG', async () => {
+    const image = await getImage(up, `http://x/en/og/earthquakes/${catalogue}/${id}.png`);
     expect(image).toMatchObject({
       status: 200,
       contentType: 'image/png',
@@ -99,14 +63,13 @@ describe.each([
     expect(image.cacheControl).toContain('max-age=3600');
   });
 
-  it('carries the Spanish locale, copy and image under /es', async () => {
-    const html = await getHtml(`/es/earthquakes/${catalogue}/${id}`);
-    expect(getProperty(html, 'og:locale')).toEqual(['es_ES']);
-    expect(getProperty(html, 'og:locale:alternate')).toEqual(['en_US']);
-    expect(getProperty(html, 'og:title')).toEqual([expect.stringMatching(/^Terremoto M/)]);
-    expect(getProperty(html, 'og:image')).toEqual([
-      expect.stringContaining(`/es/og/earthquakes/${catalogue}/${id}.png`),
-    ]);
+  it('renders the Spanish image under /es', async () => {
+    const image = await getImage(up, `http://x/es/og/earthquakes/${catalogue}/${id}.png`);
+    expect(image).toMatchObject({
+      status: 200,
+      contentType: 'image/png',
+      signature: PNG_SIGNATURE,
+    });
   });
 
   it('answers 404 for an unknown Earthquake image', async () => {
@@ -122,19 +85,16 @@ describe.each([
 });
 
 describe('site share card', () => {
-  it.each(['/en', '/en/map', '/es'])(
-    '%s links the site image and a large card',
-    async (pathname) => {
-      const html = await getHtml(pathname);
-      const locale = pathname.slice(1, 3);
-      expect(getProperty(html, 'og:site_name')).toEqual(['Quake Watch']);
-      expect(getProperty(html, 'og:image')).toEqual([
-        expect.stringMatching(new RegExp(`^https?://[^/]+/${locale}/og/site\\.png$`)),
-      ]);
-      expect(getProperty(html, 'og:url')).toEqual([expect.stringContaining(pathname)]);
-      expect(getName(html, 'twitter:card')).toEqual(['summary_large_image']);
-    },
-  );
+  it.each(['/en', '/es'])('%s links the site image and a large card', async (pathname) => {
+    const html = await getHtml(pathname);
+    const locale = pathname.slice(1, 3);
+    expect(getProperty(html, 'og:site_name')).toEqual(['Quake Watch']);
+    expect(getProperty(html, 'og:image')).toEqual([
+      expect.stringMatching(new RegExp(`^https?://[^/]+/${locale}/og/site\\.png$`)),
+    ]);
+    expect(getProperty(html, 'og:url')).toEqual([expect.stringContaining(pathname)]);
+    expect(getName(html, 'twitter:card')).toEqual(['summary_large_image']);
+  });
 
   it('renders the site image as a 1200×630 PNG', async () => {
     const image = await getImage(up, 'http://x/es/og/site.png');

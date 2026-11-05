@@ -1,36 +1,18 @@
-import { QueryClient } from '@tanstack/react-query';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { getEmscDetailFeature } from '@/test/fixtures/emsc-detail';
-import { stubFetch, stubHangingFetch } from '@/test/stub-fetch';
+import { stubFetch } from '@/test/stub-fetch';
 
 import { EarthquakeSourceError } from '../query-options';
 import { getEmscEarthquakeDetail, getEmscEarthquakeDetailFromFeature } from './emsc';
-
-const runtime = vi.hoisted(() => ({ isServer: false }));
-
-vi.mock('@/paraglide/runtime', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('@/paraglide/runtime')>()),
-  get isServer() {
-    return runtime.isServer;
-  },
-}));
 
 function stubResponse(respond: () => Response) {
   return stubFetch([{ match: (url) => url.hostname === 'www.seismicportal.eu', respond }]);
 }
 
-let emscEarthquakeDetailQueryOptions: typeof import('./emsc-query-options').emscEarthquakeDetailQueryOptions;
-
-beforeEach(async () => {
-  vi.resetModules();
-  ({ emscEarthquakeDetailQueryOptions } = await import('./emsc-query-options'));
-});
-
 afterEach(() => {
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
-  runtime.isServer = false;
 });
 
 describe('getEmscEarthquakeDetailFromFeature', () => {
@@ -137,47 +119,5 @@ describe('getEmscEarthquakeDetail', () => {
     await expect(getEmscEarthquakeDetail('20261013_0000326')).rejects.toBeInstanceOf(
       EarthquakeSourceError,
     );
-  });
-});
-
-describe('emscEarthquakeDetailQueryOptions', () => {
-  it('keys by id with a 5 minute stale time', () => {
-    const options = emscEarthquakeDetailQueryOptions('abc');
-    expect(options.queryKey).toEqual(['earthquake-detail', 'emsc', 'abc']);
-    expect(options.staleTime).toBe(300_000);
-  });
-
-  it('retries once and passes the caller signal through in the browser', async () => {
-    const fetchMock = stubResponse(() => Response.json(getEmscDetailFeature()));
-    const timeout = vi.spyOn(AbortSignal, 'timeout');
-    runtime.isServer = false;
-    const options = emscEarthquakeDetailQueryOptions('20261013_0000326');
-    const queryFn = options.queryFn as (ctx: { signal: AbortSignal }) => Promise<unknown>;
-    const signal = new AbortController().signal;
-    await queryFn({ signal });
-    expect(options.retry).toBe(1);
-    expect(fetchMock.mock.calls[0]?.[1]?.signal).toBe(signal);
-    expect(timeout).not.toHaveBeenCalled();
-  });
-
-  it('gives up after 4 s on the server and does not retry', async () => {
-    const deadline = new AbortController();
-    const timeout = vi.spyOn(AbortSignal, 'timeout').mockReturnValue(deadline.signal);
-    stubHangingFetch();
-    runtime.isServer = true;
-    const options = emscEarthquakeDetailQueryOptions('20261013_0000326');
-    const queryFn = options.queryFn as (ctx: { signal: AbortSignal }) => Promise<unknown>;
-    const pending = queryFn({ signal: new AbortController().signal });
-    deadline.abort(new DOMException('EMSC took too long', 'TimeoutError'));
-    await expect(pending).rejects.toThrow('EMSC took too long');
-    expect(timeout).toHaveBeenCalledWith(4_000);
-    expect(options.retry).toBe(0);
-  });
-
-  it('fetches through the query client', async () => {
-    stubResponse(() => Response.json(getEmscDetailFeature()));
-    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-    const detail = await client.fetchQuery(emscEarthquakeDetailQueryOptions('20261013_0000326'));
-    expect(detail?.author).toBe('NEIC');
   });
 });

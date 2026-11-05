@@ -5,9 +5,8 @@ import { gunzipSync } from 'node:zlib';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { SERVER_ENTRY, type SmokeServer, startServer, stopProcess } from './server';
-import { USGS_ID } from './upstream-double.mjs';
 
-const DETAIL_LINK = 'href="/en/earthquakes/emsc/';
+const SHELL_HEADING = '<h1 class="sr-only">Quake Watch</h1>';
 
 type RawResponse = {
   status: number;
@@ -32,10 +31,6 @@ function getRaw(pathname: string, headers: Record<string, string> = {}): Promise
   });
 }
 
-function getDetailLinkCount(html: string): number {
-  return html.split(DETAIL_LINK).length - 1;
-}
-
 beforeAll(async () => {
   if (!existsSync(SERVER_ENTRY)) throw new Error('Run `pnpm build` before `pnpm test:smoke`.');
   server = await startServer('up');
@@ -54,7 +49,7 @@ describe('/en HTML compression', () => {
     expect(headers['content-length']).toBeUndefined();
     const html = gunzipSync(body).toString('utf8');
     expect(html).toContain('<main');
-    expect(getDetailLinkCount(html)).toBeGreaterThanOrEqual(10);
+    expect(html).toContain(SHELL_HEADING);
   });
 
   it('serves plain HTML to a client that sends no accept-encoding', async () => {
@@ -63,16 +58,14 @@ describe('/en HTML compression', () => {
     expect(headers['content-encoding']).toBeUndefined();
     const html = body.toString('utf8');
     expect(html).toContain('<main');
-    expect(getDetailLinkCount(html)).toBeGreaterThanOrEqual(10);
+    expect(html).toContain(SHELL_HEADING);
   });
 });
 
 describe('other responses', () => {
-  it('gzips a detail page', async () => {
-    const { status, headers, body } = await getRaw(`/en/earthquakes/usgs/${USGS_ID}`, {
-      'accept-encoding': 'gzip',
-    });
-    expect(status).toBe(200);
+  it('gzips the not-found page and keeps its 404', async () => {
+    const { status, headers, body } = await getRaw('/en/nope', { 'accept-encoding': 'gzip' });
+    expect(status).toBe(404);
     expect(headers['content-encoding']).toBe('gzip');
     expect(gunzipSync(body).toString('utf8')).toContain('<main');
   });

@@ -1,30 +1,10 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 
 import { usgsOriginOnlyDetail, usgsPanamaDetail } from '@/test/fixtures/usgs-detail';
-import { stubFetch, stubHangingFetch } from '@/test/stub-fetch';
+import { stubFetch } from '@/test/stub-fetch';
 
 import { EarthquakeSourceError } from '../query-options';
 import { getUsgsEarthquakeDetail, getUsgsEarthquakeDetailFromFeature } from './usgs';
-
-const runtime = vi.hoisted(() => ({ isServer: false }));
-
-vi.mock('@/paraglide/runtime', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('@/paraglide/runtime')>()),
-  get isServer() {
-    return runtime.isServer;
-  },
-}));
-
-let usgsEarthquakeDetailQueryOptions: typeof import('./usgs-query-options').usgsEarthquakeDetailQueryOptions;
-
-beforeEach(async () => {
-  vi.resetModules();
-  ({ usgsEarthquakeDetailQueryOptions } = await import('./usgs-query-options'));
-});
-
-afterEach(() => {
-  runtime.isServer = false;
-});
 
 function getFeatureWith(products: Record<string, unknown>, tsunami = 0) {
   return {
@@ -327,69 +307,5 @@ describe('getUsgsEarthquakeDetail', () => {
     const error = await getUsgsEarthquakeDetail('us6000u18k').catch((e: unknown) => e);
     expect(error).toBeInstanceOf(EarthquakeSourceError);
     expect(error).toMatchObject({ source: 'usgs', status: 500 });
-  });
-});
-
-describe('usgsEarthquakeDetailQueryOptions', () => {
-  it('keys by source and id with a five minute stale time', () => {
-    const options = usgsEarthquakeDetailQueryOptions('us6000u18k');
-    expect(options.queryKey).toEqual(['earthquake-detail', 'usgs', 'us6000u18k']);
-    expect(options.staleTime).toBe(300_000);
-  });
-
-  it('fetches through the queryFn', async () => {
-    stubFetch([{ match: () => true, respond: () => Response.json(usgsPanamaDetail) }]);
-    const options = usgsEarthquakeDetailQueryOptions('us6000u18k');
-    const queryFn = options.queryFn as (ctx: { signal: AbortSignal }) => Promise<unknown>;
-    const detail = await queryFn({ signal: new AbortController().signal });
-    expect(detail).toMatchObject({ earthquake: { id: 'us6000u18k' } });
-  });
-});
-
-describe('usgsEarthquakeDetailQueryOptions on each runtime', () => {
-  afterEach(() => {
-    vi.restoreAllMocks();
-  });
-
-  function getQueryFn(isServer: boolean) {
-    runtime.isServer = isServer;
-    const options = usgsEarthquakeDetailQueryOptions('us6000u18k');
-    return {
-      retry: options.retry,
-      queryFn: options.queryFn as (ctx: { signal: AbortSignal }) => Promise<unknown>,
-    };
-  }
-
-  it('retries once and passes the caller signal through in the browser', async () => {
-    const fetchMock = stubFetch([
-      { match: () => true, respond: () => Response.json(usgsPanamaDetail) },
-    ]);
-    const timeout = vi.spyOn(AbortSignal, 'timeout');
-    const { retry, queryFn } = getQueryFn(false);
-    const signal = new AbortController().signal;
-    await queryFn({ signal });
-    expect(retry).toBe(1);
-    expect(fetchMock.mock.calls[0]?.[1]?.signal).toBe(signal);
-    expect(timeout).not.toHaveBeenCalled();
-  });
-
-  it('gives up after 4 s on the server and does not retry', async () => {
-    const deadline = new AbortController();
-    const timeout = vi.spyOn(AbortSignal, 'timeout').mockReturnValue(deadline.signal);
-    stubHangingFetch();
-    const { retry, queryFn } = getQueryFn(true);
-    const pending = queryFn({ signal: new AbortController().signal });
-    deadline.abort(new DOMException('USGS took too long', 'TimeoutError'));
-    await expect(pending).rejects.toThrow('USGS took too long');
-    expect(timeout).toHaveBeenCalledWith(4_000);
-    expect(retry).toBe(0);
-  });
-
-  it('still stops on the server when the caller aborts first', async () => {
-    stubHangingFetch();
-    const caller = new AbortController();
-    const pending = getQueryFn(true).queryFn({ signal: caller.signal });
-    caller.abort(new DOMException('navigated away', 'AbortError'));
-    await expect(pending).rejects.toThrow('navigated away');
   });
 });

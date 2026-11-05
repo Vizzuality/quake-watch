@@ -1,39 +1,10 @@
-import { existsSync, readFileSync } from 'node:fs';
-import path from 'node:path';
+import { existsSync } from 'node:fs';
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { SERVER_ENTRY, type SmokeServer, startServer, stopProcess } from './server';
 
 const ONE_YEAR = 'max-age=31536000';
-const SERVER_MANIFEST = path.join(path.dirname(SERVER_ENTRY), 'chunks/virtual/entry.mjs');
-const CRUST_PAYLOAD = JSON.stringify({
-  t: {
-    t: 10,
-    i: 0,
-    p: {
-      k: ['data'],
-      v: [
-        {
-          t: 10,
-          i: 1,
-          p: {
-            k: ['latitude', 'longitude', 'radiusCells'],
-            v: [
-              { t: 0, s: 35 },
-              { t: 0, s: 139 },
-              { t: 0, s: 1 },
-            ],
-          },
-          o: 0,
-        },
-      ],
-    },
-    o: 0,
-  },
-  f: 127,
-  m: [],
-});
 
 let server: SmokeServer | undefined;
 
@@ -45,13 +16,6 @@ async function getCacheControl(pathname: string, headers: Record<string, string>
     cacheControl: response.headers.get('cache-control') ?? '',
     body,
   };
-}
-
-function getCrustServerFnId(): string {
-  const manifest = readFileSync(SERVER_MANIFEST, 'utf8');
-  const match = /"([a-f0-9]{64})":\s*\{\s*functionName:\s*"getCrustCells_/.exec(manifest);
-  if (!match) throw new Error('getCrustCells server fn id not found in the server manifest');
-  return match[1];
 }
 
 beforeAll(async () => {
@@ -86,15 +50,5 @@ describe('cache headers', () => {
     const { status, cacheControl } = await getCacheControl('/en', { accept: 'text/html' });
     expect(status).toBe(200);
     expect(cacheControl).not.toContain('immutable');
-  });
-
-  it('caches the crust server fn GET response for a day', async () => {
-    const query = new URLSearchParams({ payload: CRUST_PAYLOAD });
-    const { status, cacheControl } = await getCacheControl(
-      `/_serverFn/${getCrustServerFnId()}?${query}`,
-      { 'x-tsr-serverFn': 'true', 'sec-fetch-site': 'same-origin' },
-    );
-    expect(status).toBe(200);
-    expect(cacheControl).toBe('public, max-age=86400, stale-while-revalidate=604800');
   });
 });
