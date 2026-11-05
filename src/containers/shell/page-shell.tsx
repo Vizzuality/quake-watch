@@ -3,7 +3,6 @@ import type { ReactNode } from 'react';
 
 import { Wordmark } from '@/components/brand/wordmark';
 import { LanguageSwitch } from '@/containers/shell/language-switch';
-import { ThemeSwitch } from '@/containers/shell/theme-switch';
 import { m } from '@/paraglide/messages';
 
 export function PageShell({ children }: { children: ReactNode }) {
@@ -19,7 +18,6 @@ export function PageShell({ children }: { children: ReactNode }) {
         </Link>
         <div className="flex items-center gap-4">
           <LanguageSwitch />
-          <ThemeSwitch />
         </div>
       </header>
       {children}

@@ -1,36 +1,91 @@
 @import 'tailwindcss';
-@import '@fontsource-variable/ibm-plex-sans';
-@import '@fontsource/ibm-plex-mono/400.css';
-@import '@fontsource/ibm-plex-mono/500.css';
-@import '@fontsource/ibm-plex-mono/600.css';
+@import '@fontsource/inter-tight/300.css';
+@import '@fontsource/inter-tight/400.css';
+@import '@fontsource/inter-tight/500.css';
+@import '@fontsource/inter-tight/600.css';
+@import '@fontsource/inter-tight/700.css';
+@import '@fontsource/geist-mono/400.css';
+@import '@fontsource/geist-mono/500.css';
 
 @theme static {
-  --color-canvas: #f3f4f6;
-  --color-surface: #ffffff;
-  --color-raised: #e9ebef;
-  --color-fg: #12151b;
-  --color-muted: #576070;
-  --color-line: #d6dae1;
-  --color-line-strong: #7a8393;
-  --color-alert: #9a5800;
-  --color-beachball-ink: #12151b;
-  --color-beachball-paper: #ffffff;
+  --color-background: #05050b;
+  --color-foreground: #ffffff;
+  --color-muted-1: #c9cae6;
+  --color-muted-2: #afb1d8;
+  --color-muted-3: #9a9cc0;
+  --color-muted-4: #7c7fa6;
+  --color-border: #23253f;
+  --color-border-hover: #3a3d63;
+  --color-ring: #6d72c9;
+  --color-divider: rgba(154, 156, 192, 0.18);
+  --color-glass-pill: rgba(5, 5, 11, 0.4);
+  --color-glass-menu: rgba(12, 13, 32, 0.72);
+  --color-glass-tooltip: rgba(12, 13, 32, 0.55);
+  --color-glass-tooltip-border: rgba(154, 156, 192, 0.2);
+  --color-option-hover: rgba(236, 235, 250, 0.08);
+  --color-option-selected: rgba(236, 235, 250, 0.08);
 
-  --color-mag-1: #fe6ec7;
-  --color-mag-2: #ea4bb2;
-  --color-mag-3: #d02e9a;
-  --color-mag-4: #b50283;
-  --color-mag-5: #920269;
-  --color-mag-6: #700150;
-  --color-on-mag-1: #12151b;
-  --color-on-mag-2: #12151b;
-  --color-on-mag-3: #ffffff;
-  --color-on-mag-4: #ffffff;
+  --color-depth-0: #ff9a4d;
+  --color-depth-70: #ff5e6c;
+  --color-depth-300: #c04fd8;
+  --color-depth-700: #4f7bff;
+
+  --radius-pill: 1000px;
+  --radius-card: 24px;
+  --radius-menu: 16px;
+  --radius-option: 10px;
+
+  --blur-glass: 16px;
+
+  --color-canvas: #0e1116;
+  --color-surface: #161a21;
+  --color-raised: #1d222b;
+  --color-fg: #e8eaee;
+  --color-muted: #8b93a1;
+  --color-line: #2a313c;
+  --color-line-strong: #667080;
+  --color-alert: #f2a93b;
+  --color-beachball-ink: #2a313c;
+  --color-beachball-paper: #e8eaee;
+
+  --color-mag-1: #fecee8;
+  --color-mag-2: #fea2d7;
+  --color-mag-3: #fe6ec7;
+  --color-mag-4: #e849b0;
+  --color-mag-5: #cc2997;
+  --color-mag-6: #ae017e;
+  --color-on-mag-1: #0e1116;
+  --color-on-mag-2: #0e1116;
+  --color-on-mag-3: #0e1116;
+  --color-on-mag-4: #0e1116;
   --color-on-mag-5: #ffffff;
   --color-on-mag-6: #ffffff;
 
-  --font-sans: 'IBM Plex Sans Variable', 'IBM Plex Sans', ui-sans-serif, system-ui, sans-serif;
-  --font-mono: 'IBM Plex Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace;
+  --font-sans: 'Inter Tight', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'Geist Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace;
+
+  --text-eyebrow: 0.625rem;
+  --text-eyebrow--font-weight: 600;
+  --text-eyebrow--letter-spacing: 1px;
+  --text-caption: 0.6875rem;
+  --text-control: 0.75rem;
+  --text-control--line-height: 0.9375rem;
+  --text-body-sm: 0.8125rem;
+  --text-body: 0.875rem;
+  --text-body--line-height: 1.3;
+  --text-body--font-weight: 300;
+  --text-value: 0.9375rem;
+  --text-value--font-weight: 600;
+  --text-place: 1.125rem;
+  --text-place--line-height: 1.25;
+  --text-place--font-weight: 600;
+  --text-stat: 1.5rem;
+  --text-stat--line-height: 1.2;
+  --text-stat--font-weight: 700;
+  --text-magnitude: 2.5rem;
+  --text-magnitude--line-height: 1;
+  --text-magnitude--font-weight: 700;
+  --text-magnitude--letter-spacing: -0.02em;
 
   --text-2xs: 0.6875rem;
   --text-2xs--line-height: 1rem;
@@ -59,50 +114,48 @@
 
 @layer base {
   :root {
-    color-scheme: light;
-    --map-control-invert: 0;
-  }
-
-  :root[data-resolved-theme='dark'] {
     color-scheme: dark;
     --map-control-invert: 1;
-    --color-canvas: #0e1116;
-    --color-surface: #161a21;
-    --color-raised: #1d222b;
-    --color-fg: #e8eaee;
-    --color-muted: #8b93a1;
-    --color-line: #2a313c;
-    --color-line-strong: #667080;
-    --color-alert: #f2a93b;
-    --color-beachball-ink: #2a313c;
-    --color-beachball-paper: #e8eaee;
-    --color-mag-1: #fecee8;
-    --color-mag-2: #fea2d7;
-    --color-mag-3: #fe6ec7;
-    --color-mag-4: #e849b0;
-    --color-mag-5: #cc2997;
-    --color-mag-6: #ae017e;
-    --color-on-mag-1: #0e1116;
-    --color-on-mag-2: #0e1116;
-    --color-on-mag-3: #0e1116;
-    --color-on-mag-4: #0e1116;
-    --color-on-mag-5: #ffffff;
-    --color-on-mag-6: #ffffff;
   }
 
   html,
   body {
     height: 100%;
-    background: var(--color-canvas);
+    background: var(--color-background);
     color: var(--color-fg);
     caret-color: var(--color-fg);
     scrollbar-color: var(--color-line) var(--color-canvas);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-ring);
+    outline-offset: 2px;
   }
 
   ::selection {
     background: color-mix(in srgb, var(--color-mag-4) 35%, transparent);
     color: var(--color-fg);
   }
+}
+
+@utility eyebrow {
+  @apply text-eyebrow uppercase;
+}
+
+@utility glass-pill {
+  background-color: var(--color-glass-pill);
+  backdrop-filter: blur(var(--blur-glass));
+}
+
+@utility glass-menu {
+  background-color: var(--color-glass-menu);
+  backdrop-filter: blur(var(--blur-glass));
+}
+
+@utility glass-tooltip {
+  background-color: var(--color-glass-tooltip);
+  backdrop-filter: blur(var(--blur-glass));
+  border: 1px solid var(--color-glass-tooltip-border);
 }
 
 html .maplibregl-map {

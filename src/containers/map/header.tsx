@@ -6,7 +6,6 @@ import { SourceErrorAlert, WidenActions } from '@/containers/search/states';
 import { LiveMarker, getSummaryHeadline } from '@/containers/search/summary';
 import { FiltersSheet } from '@/containers/search/toolbar';
 import { LanguageSwitch } from '@/containers/shell/language-switch';
-import { ThemeSwitch } from '@/containers/shell/theme-switch';
 import { TruncatedNotice } from '@/containers/shell/truncated-notice';
 import { ViewTabs } from '@/containers/shell/view-tabs';
 import { useEarthquakeSearch } from '@/hooks/use-earthquake-search';
@@ -36,7 +35,6 @@ function DisplaySettings() {
       </h3>
       <div className="flex items-center gap-4">
         <LanguageSwitch />
-        <ThemeSwitch />
       </div>
     </section>
   );
@@ -175,7 +173,6 @@ export function MapHeader() {
       <MapSummary />
       <div className="hidden items-center gap-4 border-t border-line pt-2 sm:flex">
         <LanguageSwitch />
-        <ThemeSwitch />
       </div>
     </header>
   );

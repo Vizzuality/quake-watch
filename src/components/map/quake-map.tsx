@@ -2,8 +2,7 @@ import 'maplibre-gl/dist/maplibre-gl.css';
 import type { ReactNode } from 'react';
 import { AttributionControl, Map as MapGL, type MapProps } from 'react-map-gl/maplibre';
 
-import { useResolvedTheme } from '@/hooks/use-theme';
-import { getBasemapStyleUrl } from '@/lib/theme/map-palette';
+import { BASEMAP_STYLE_URL } from '@/lib/theme/map-palette';
 import { getLocale } from '@/paraglide/runtime';
 
 import { AttributionCollapse } from './attribution-collapse';
@@ -37,14 +36,12 @@ export function QuakeMap({
   interactive = true,
   ...mapProps
 }: QuakeMapProps) {
-  const theme = useResolvedTheme();
-
   return (
     <MapGL
       {...mapProps}
       initialViewState={initialViewState}
       interactive={interactive}
-      mapStyle={getBasemapStyleUrl(theme)}
+      mapStyle={BASEMAP_STYLE_URL}
       dragRotate={false}
       touchPitch={false}
       attributionControl={false}

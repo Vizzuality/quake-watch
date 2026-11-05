@@ -4,7 +4,7 @@ import { Layer, Source } from 'react-map-gl/maplibre';
 
 import { QuakeMap } from '@/components/map/quake-map';
 import { buttonVariants } from '@/components/ui/button';
-import { useMapPalette } from '@/hooks/use-theme';
+import { useMapPalette } from '@/hooks/use-map-palette';
 import { getEarthquakesGeoJson, getMagnitudeColorExpression } from '@/lib/earthquakes/magnitude';
 import { SOURCE_ADAPTERS } from '@/lib/earthquakes/query-options';
 import type { Earthquake } from '@/lib/earthquakes/types';

@@ -8,7 +8,7 @@ import {
   getSearchAreaLineLayer,
 } from '@/components/map/layers';
 import { useEarthquakeSearch } from '@/hooks/use-earthquake-search';
-import { useMapPalette } from '@/hooks/use-theme';
+import { useMapPalette } from '@/hooks/use-map-palette';
 import { getSearchAreaGeoJson } from '@/lib/map/search-area';
 
 export function SearchAreaLayer() {

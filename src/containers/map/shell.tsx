@@ -1,7 +1,6 @@
 import { Wordmark } from '@/components/brand/wordmark';
 import { Skeleton } from '@/components/ui/skeleton';
 import { LanguageSwitch } from '@/containers/shell/language-switch';
-import { ThemeSwitch } from '@/containers/shell/theme-switch';
 import { ViewTabs } from '@/containers/shell/view-tabs';
 
 export function MapShell() {
@@ -21,7 +20,6 @@ export function MapShell() {
         </div>
         <div className="hidden items-center gap-4 border-t border-line pt-2 sm:flex">
           <LanguageSwitch />
-          <ThemeSwitch />
         </div>
       </header>
       <div

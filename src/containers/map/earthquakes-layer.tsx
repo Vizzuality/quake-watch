@@ -4,7 +4,7 @@ import { Layer, Source } from 'react-map-gl/maplibre';
 
 import { QUAKE_SOURCE_ID, getCoreLayer, getHaloLayer } from '@/components/map/layers';
 import { useEarthquakeSearch } from '@/hooks/use-earthquake-search';
-import { useMapPalette } from '@/hooks/use-theme';
+import { useMapPalette } from '@/hooks/use-map-palette';
 import { getEarthquakesGeoJson } from '@/lib/earthquakes/magnitude';
 import { earthquakesQueryOptions } from '@/lib/earthquakes/query-options';
 
