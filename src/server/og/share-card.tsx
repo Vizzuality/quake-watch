@@ -286,7 +286,7 @@ export function EarthquakeShareCard({
             backgroundColor: magnitude.fill,
             color: magnitude.on,
             fontFamily: MONO_FONT,
-            fontWeight: 600,
+            fontWeight: 500,
             fontSize: BADGE_SIZE,
             lineHeight: 1.12,
           }}
