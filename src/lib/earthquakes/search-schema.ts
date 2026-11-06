@@ -1,94 +1,65 @@
+import { stripSearchParams } from '@tanstack/react-router';
 import { z } from 'zod';
 
 export const SOURCES = ['emsc', 'usgs'] as const;
-export const RADII_KM = [50, 100, 250, 500] as const;
-export const PERIODS = ['24h', '7d', '30d', '1y', 'custom'] as const;
-export const MIN_MAGNITUDES = [0, 1, 2, 2.5, 3, 4, 5, 6] as const;
-const SORT_COLUMNS = ['magnitude', 'time', 'place', 'distance', 'depth', 'magnitudeType'] as const;
+export const INTERVALS = ['24h', '3d', '7d'] as const;
+export const MIN_MAGNITUDES = [0, 3, 4, 5, 6] as const;
+export const DEPTHS = ['all', 'shallow', 'mid', 'deep'] as const;
 
-export const PLAYBACK_WINDOWS = ['24h', '7d'] as const;
-
-export type PlaybackWindow = (typeof PLAYBACK_WINDOWS)[number];
 export type EarthquakeSource = (typeof SOURCES)[number];
-export type RadiusKm = (typeof RADII_KM)[number];
-export type Period = (typeof PERIODS)[number];
-type SortColumn = (typeof SORT_COLUMNS)[number];
-export type SearchCenter = { latitude: number; longitude: number };
+export type Interval = (typeof INTERVALS)[number];
+export type MinMagnitude = (typeof MIN_MAGNITUDES)[number];
+export type Depth = (typeof DEPTHS)[number];
 
-export const DEFAULT_SORT = 'time.desc';
-const SORT_PATTERN = new RegExp(`^(${SORT_COLUMNS.join('|')})\\.(asc|desc)$`);
-const DAY_MS = 86_400_000;
-const PERIOD_MS: Record<Exclude<Period, 'custom'>, number> = {
-  '24h': DAY_MS,
-  '7d': 7 * DAY_MS,
-  '30d': 30 * DAY_MS,
-  '1y': 365 * DAY_MS,
+export const DEPTH_RANGES_KM: Record<Exclude<Depth, 'all'>, { min: number; max?: number }> = {
+  shallow: { min: 0, max: 70 },
+  mid: { min: 70, max: 300 },
+  deep: { min: 300 },
 };
+
+export const QUAKE_PATTERN = /^(emsc|usgs):[A-Za-z0-9_-]{1,64}$/;
+
+const DAY_MS = 86_400_000;
+const INTERVAL_MS: Record<Interval, number> = {
+  '24h': DAY_MS,
+  '3d': 3 * DAY_MS,
+  '7d': 7 * DAY_MS,
+};
+
+export function getRoundedCoordinate(value: number): number {
+  return Math.round(value * 100) / 100;
+}
+
+function getRoundedNumberSchema(min: number, max: number) {
+  return z.number().min(min).max(max).transform(getRoundedCoordinate).optional().catch(undefined);
+}
 
 export const earthquakeSearchSchema = z.object({
   source: z.enum(SOURCES).default('emsc').catch('emsc'),
   place: z.string().trim().min(1).max(120).optional().catch(undefined),
-  lat: z.number().min(-90).max(90).optional().catch(undefined),
-  lon: z.number().min(-180).max(180).optional().catch(undefined),
-  radius: z.literal(RADII_KM).default(100).catch(100),
-  period: z.enum(PERIODS).default('24h').catch('24h'),
-  from: z.iso.date().optional().catch(undefined),
-  to: z.iso.date().optional().catch(undefined),
-  minmag: z.literal(MIN_MAGNITUDES).default(2.5).catch(2.5),
-  sort: z.string().regex(SORT_PATTERN).default(DEFAULT_SORT).catch(DEFAULT_SORT),
-  page: z.int().min(1).default(1).catch(1),
-  t: z.iso.datetime().optional().catch(undefined),
-  window: z.enum(PLAYBACK_WINDOWS).default('24h').catch('24h'),
+  interval: z.enum(INTERVALS).default('7d').catch('7d'),
+  minmag: z.literal(MIN_MAGNITUDES).default(0).catch(0),
+  depth: z.enum(DEPTHS).default('all').catch('all'),
+  quake: z.string().regex(QUAKE_PATTERN).optional().catch(undefined),
+  lat: getRoundedNumberSchema(-90, 90),
+  lon: getRoundedNumberSchema(-180, 180),
+  zoom: getRoundedNumberSchema(0, 20),
 });
 
 export type EarthquakeSearch = z.infer<typeof earthquakeSearchSchema>;
 
-export const EARTHQUAKE_SEARCH_DEFAULTS: EarthquakeSearch = earthquakeSearchSchema.parse({});
+export const EARTHQUAKE_SEARCH_DEFAULTS = {
+  source: 'emsc',
+  interval: '7d',
+  minmag: 0,
+  depth: 'all',
+} as const satisfies Partial<EarthquakeSearch>;
 
-const SEARCH_KEYS = Object.keys(earthquakeSearchSchema.shape) as (keyof EarthquakeSearch)[];
+export const EARTHQUAKE_SEARCH_ROUTE = {
+  validateSearch: earthquakeSearchSchema,
+  search: { middlewares: [stripSearchParams<EarthquakeSearch>(EARTHQUAKE_SEARCH_DEFAULTS)] },
+};
 
-export function isDefaultEarthquakeSearch(search: EarthquakeSearch): boolean {
-  return SEARCH_KEYS.every((key) => search[key] === EARTHQUAKE_SEARCH_DEFAULTS[key]);
-}
-
-const {
-  source: _source,
-  sort: _sort,
-  page: _page,
-  t: _t,
-  window: _window,
-  ...filterDefaults
-} = EARTHQUAKE_SEARCH_DEFAULTS;
-export const EARTHQUAKE_FILTER_DEFAULTS = filterDefaults;
-
-export function getSearchCenter({ lat, lon }: EarthquakeSearch): SearchCenter | null {
-  if (lat === undefined || lon === undefined) return null;
-  return { latitude: lat, longitude: lon };
-}
-
-function getCustomRange(from: string | undefined, to: string | undefined, now: Date) {
-  const [first, last] = from && to ? [from, to].sort() : [from, to];
-  const end = last ? new Date(`${last}T23:59:59.999Z`) : null;
-  const fallbackEndMs = Math.min(now.getTime(), end?.getTime() ?? Number.POSITIVE_INFINITY);
-  const start = first ? new Date(`${first}T00:00:00.000Z`) : new Date(fallbackEndMs - DAY_MS);
-  return { start, end };
-}
-
-export function getTimeRange(
-  search: Pick<EarthquakeSearch, 'period' | 'from' | 'to'>,
-  now: Date,
-): { start: Date; end: Date | null } {
-  if (search.period === 'custom') return getCustomRange(search.from, search.to, now);
-  return { start: new Date(now.getTime() - PERIOD_MS[search.period]), end: null };
-}
-
-export function getSortingState(sort: string): { id: SortColumn; desc: boolean }[] {
-  const [id, direction] = sort.split('.') as [SortColumn, 'asc' | 'desc'];
-  return [{ id, desc: direction === 'desc' }];
-}
-
-export function getSortParam(sorting: { id: string; desc: boolean }[]): string {
-  const [first] = sorting;
-  if (!first) return DEFAULT_SORT;
-  return `${first.id}.${first.desc ? 'desc' : 'asc'}`;
+export function getIntervalStart(interval: Interval, now: Date): Date {
+  return new Date(now.getTime() - INTERVAL_MS[interval]);
 }

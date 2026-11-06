@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { getEmscDetailFeature } from '@/test/fixtures/emsc-detail';
 import { stubFetch } from '@/test/stub-fetch';
 
-import { EarthquakeSourceError } from '../query-options';
+import { EarthquakeSourceError } from '../sources/source-error';
 import { getEmscEarthquakeDetail, getEmscEarthquakeDetailFromFeature } from './emsc';
 
 function stubResponse(respond: () => Response) {

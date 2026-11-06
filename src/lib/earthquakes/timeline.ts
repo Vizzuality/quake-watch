@@ -1,7 +1,7 @@
-import { getTimeRange } from './search-schema';
-import type { EarthquakeSearch, Period, PlaybackWindow } from './search-schema';
+import type { Interval } from './search-schema';
 import type { Earthquake } from './types';
 
+type PlaybackWindow = '24h' | '7d';
 export type TimeRange = { start: number; end: number };
 export type HistogramBin = { start: number; end: number; count: number };
 
@@ -21,14 +21,12 @@ export function getLoadedRange(earthquakes: Earthquake[]): TimeRange | null {
 
 export function getTimelineRange(input: {
   earthquakes: Earthquake[];
-  search: Pick<EarthquakeSearch, 'period' | 'from' | 'to'>;
   nowMs: number;
 }): TimeRange | null {
-  const { earthquakes, search, nowMs } = input;
+  const { earthquakes, nowMs } = input;
   const loaded = getLoadedRange(earthquakes);
   if (!loaded) return null;
-  const periodEnd = getTimeRange(search, new Date(nowMs)).end?.getTime() ?? nowMs;
-  return { start: loaded.start, end: Math.max(loaded.start, Math.min(periodEnd, nowMs)) };
+  return { start: loaded.start, end: Math.max(loaded.start, nowMs) };
 }
 
 export function getWindowMs(window: PlaybackWindow): number {
@@ -57,8 +55,8 @@ export function getClampedT(t: string | undefined, loaded: TimeRange | null): nu
 
 export type HistogramUnit = 'hour' | 'day';
 
-export function getHistogramUnit(period: Period): HistogramUnit {
-  return period === '24h' ? 'hour' : 'day';
+export function getHistogramUnit(interval: Interval): HistogramUnit {
+  return interval === '24h' ? 'hour' : 'day';
 }
 
 function getBinStart(time: number, unit: HistogramUnit): Date {

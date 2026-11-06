@@ -1,6 +1,5 @@
 import { z } from 'zod';
 
-import type { EarthquakeSearch } from '../search-schema';
 import type { Earthquake } from '../types';
 
 const featureCollectionSchema = z.object({
@@ -16,7 +15,6 @@ export const coordinatesSchema = z.tuple([
 
 export type SourceAdapter = {
   label: string;
-  getQueryUrl(search: EarthquakeSearch, now: Date, limit: number): string;
   getEarthquake(feature: unknown): Earthquake | null;
 };
 

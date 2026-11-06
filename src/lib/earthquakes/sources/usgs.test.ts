@@ -2,35 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { getUsgsFeature } from '@/test/fixtures/earthquakes';
 
-import { earthquakeSearchSchema } from '../search-schema';
 import { usgsAdapter } from './usgs';
-
-const NOW = new Date('2026-10-08T12:00:00.000Z');
-
-describe('usgsAdapter.getQueryUrl', () => {
-  it('builds a radius query in km', () => {
-    const search = earthquakeSearchSchema.parse({
-      source: 'usgs',
-      lat: 37.17,
-      lon: -3.6,
-      radius: 250,
-      period: '7d',
-      minmag: 0,
-    });
-    const url = new URL(usgsAdapter.getQueryUrl(search, NOW, 1000));
-    expect(url.origin + url.pathname).toBe('https://earthquake.usgs.gov/fdsnws/event/1/query');
-    expect(Object.fromEntries(url.searchParams)).toEqual({
-      format: 'geojson',
-      orderby: 'time',
-      limit: '1000',
-      minmagnitude: '0',
-      starttime: '2026-10-01T12:00:00.000Z',
-      latitude: '37.17',
-      longitude: '-3.6',
-      maxradiuskm: '250',
-    });
-  });
-});
 
 describe('usgsAdapter.getEarthquake', () => {
   it('normalises a USGS feature', () => {
