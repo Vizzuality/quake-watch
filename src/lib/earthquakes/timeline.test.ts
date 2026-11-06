@@ -1,6 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { earthquakeSearchSchema } from './search-schema';
 import {
   AGE_OPACITY_FLOOR,
   getAgeOpacity,
@@ -120,7 +119,7 @@ describe('getHistogramUnit', () => {
   it('is hourly for 24h and daily otherwise', () => {
     expect(getHistogramUnit('24h')).toBe('hour');
     expect(getHistogramUnit('7d')).toBe('day');
-    expect(getHistogramUnit('custom')).toBe('day');
+    expect(getHistogramUnit('3d')).toBe('day');
   });
 });
 
@@ -254,66 +253,26 @@ describe('getTimelineRange', () => {
   const quakes = [getQuake(first + HOUR), getQuake(first)];
   const nowMs = Date.parse('2026-10-05T12:00:00.000Z');
 
-  it('never ends after now, whatever the custom end date', () => {
-    const search = earthquakeSearchSchema.parse({
-      period: 'custom',
-      from: '2026-10-01',
-      to: '9999-12-31',
-    });
-    expect(getTimelineRange({ earthquakes: quakes, search, nowMs })).toEqual({
-      start: first,
-      end: nowMs,
-    });
-  });
-
   it('returns null for an empty list', () => {
-    const search = earthquakeSearchSchema.parse({});
-    expect(getTimelineRange({ earthquakes: [], search, nowMs })).toBeNull();
+    expect(getTimelineRange({ earthquakes: [], nowMs })).toBeNull();
   });
 
-  it('ends at now for a relative period and starts at the first earthquake', () => {
-    const search = earthquakeSearchSchema.parse({ period: '7d' });
-    expect(getTimelineRange({ earthquakes: quakes, search, nowMs })).toEqual({
-      start: first,
-      end: nowMs,
-    });
-  });
-
-  it('ends at the end of the to date for a custom period', () => {
-    const search = earthquakeSearchSchema.parse({
-      period: 'custom',
-      from: '2026-10-03',
-      to: '2026-10-04',
-    });
-    expect(getTimelineRange({ earthquakes: quakes, search, nowMs })).toEqual({
-      start: first,
-      end: Date.parse('2026-10-04T23:59:59.999Z'),
-    });
-  });
-
-  it('ends at now for a custom period without a to date', () => {
-    const search = earthquakeSearchSchema.parse({ period: 'custom', from: '2026-10-03' });
-    expect(getTimelineRange({ earthquakes: quakes, search, nowMs })).toEqual({
+  it('starts at the first earthquake and ends at now', () => {
+    expect(getTimelineRange({ earthquakes: quakes, nowMs })).toEqual({
       start: first,
       end: nowMs,
     });
   });
 
   it('never ends before the first earthquake', () => {
-    const search = earthquakeSearchSchema.parse({
-      period: 'custom',
-      from: '2026-10-01',
-      to: '2026-10-02',
-    });
-    expect(getTimelineRange({ earthquakes: quakes, search, nowMs })).toEqual({
+    expect(getTimelineRange({ earthquakes: quakes, nowMs: first - HOUR })).toEqual({
       start: first,
       end: first,
     });
   });
 
   it('extends histogram bins to now', () => {
-    const search = earthquakeSearchSchema.parse({ period: '7d' });
-    const range = getTimelineRange({ earthquakes: quakes, search, nowMs });
+    const range = getTimelineRange({ earthquakes: quakes, nowMs });
     const bins = range ? getHistogramBins(quakes, range, 'day') : [];
     const last = bins.at(-1);
     expect(last?.start).toBeLessThanOrEqual(nowMs);

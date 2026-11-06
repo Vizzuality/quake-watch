@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { usgsOriginOnlyDetail, usgsPanamaDetail } from '@/test/fixtures/usgs-detail';
 import { stubFetch } from '@/test/stub-fetch';
 
-import { EarthquakeSourceError } from '../query-options';
+import { EarthquakeSourceError } from '../sources/source-error';
 import { getUsgsEarthquakeDetail, getUsgsEarthquakeDetailFromFeature } from './usgs';
 
 function getFeatureWith(products: Record<string, unknown>, tsunami = 0) {

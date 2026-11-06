@@ -1,14 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
 import {
-  EARTHQUAKE_FILTER_DEFAULTS,
+  DEPTH_RANGES_KM,
   EARTHQUAKE_SEARCH_DEFAULTS,
+  EARTHQUAKE_SEARCH_ROUTE,
   earthquakeSearchSchema,
-  getSearchCenter,
-  getSortParam,
-  getSortingState,
-  getTimeRange,
-  isDefaultEarthquakeSearch,
+  getIntervalStart,
+  getRoundedCoordinate,
 } from './search-schema';
 
 const NOW = new Date('2026-10-08T12:00:00.000Z');
@@ -18,192 +16,183 @@ function getSearch(input: Record<string, unknown> = {}) {
 }
 
 describe('earthquakeSearchSchema', () => {
-  it('fills defaults', () => {
-    expect(EARTHQUAKE_SEARCH_DEFAULTS).toMatchObject({
+  it('fills the four defaults and leaves the rest undefined', () => {
+    expect(getSearch()).toEqual({
       source: 'emsc',
-      radius: 100,
-      period: '24h',
-      minmag: 2.5,
-      sort: 'time.desc',
-      page: 1,
+      interval: '7d',
+      minmag: 0,
+      depth: 'all',
+      place: undefined,
+      quake: undefined,
+      lat: undefined,
+      lon: undefined,
+      zoom: undefined,
     });
   });
 
-  it('keeps valid values', () => {
+  it('keeps every valid value', () => {
     expect(
       getSearch({
         source: 'usgs',
-        place: 'Granada',
+        place: '  Granada ',
+        interval: '3d',
+        minmag: 5,
+        depth: 'deep',
+        quake: 'usgs:us7000abcd',
         lat: 37.17,
         lon: -3.6,
-        radius: 250,
-        period: '1y',
-        minmag: 4,
-        sort: 'magnitude.asc',
-        page: 3,
+        zoom: 4.5,
       }),
-    ).toMatchObject({
+    ).toEqual({
       source: 'usgs',
       place: 'Granada',
+      interval: '3d',
+      minmag: 5,
+      depth: 'deep',
+      quake: 'usgs:us7000abcd',
       lat: 37.17,
       lon: -3.6,
-      radius: 250,
-      period: '1y',
-      minmag: 4,
-      sort: 'magnitude.asc',
-      page: 3,
+      zoom: 4.5,
     });
   });
 
-  it('falls back field by field on invalid values', () => {
-    expect(
-      getSearch({
-        source: 'nope',
-        lat: 120,
-        lon: 'x',
-        radius: 75,
-        period: '2w',
-        minmag: 'banana',
-        sort: 'id.desc',
-        page: 0,
-        from: '2026-13-01',
-      }),
-    ).toMatchObject({
-      source: 'emsc',
-      lat: undefined,
-      lon: undefined,
-      radius: 100,
-      period: '24h',
-      minmag: 2.5,
-      sort: 'time.desc',
-      page: 1,
-      from: undefined,
-    });
-  });
-});
-
-describe('isDefaultEarthquakeSearch', () => {
-  it('is true for a search with no params', () => {
-    expect(isDefaultEarthquakeSearch(getSearch())).toBe(true);
+  it.each(['24h', '3d', '7d'])('accepts interval %s', (interval) => {
+    expect(getSearch({ interval }).interval).toBe(interval);
   });
 
-  it('is true when every param spells out its default', () => {
-    expect(isDefaultEarthquakeSearch(getSearch({ minmag: 2.5, sort: 'time.desc', page: 1 }))).toBe(
-      true,
-    );
+  it.each([0, 3, 4, 5, 6])('accepts minmag %s', (minmag) => {
+    expect(getSearch({ minmag }).minmag).toBe(minmag);
   });
+
+  it.each(['emsc:20261013_0000326', 'usgs:us6000u4j2', `usgs:${'a'.repeat(64)}`])(
+    'accepts quake %s',
+    (quake) => {
+      expect(getSearch({ quake }).quake).toBe(quake);
+    },
+  );
 
   it.each([
-    { minmag: 4 },
-    { page: 2 },
-    { sort: 'magnitude.desc' },
-    { t: '2026-10-08T12:00:00.000Z' },
-    { source: 'usgs' },
-    { lat: 37.17, lon: -3.6 },
-    { period: 'custom', from: '2026-10-01' },
-    { window: '7d' },
-  ])('is false for %o', (input) => {
-    expect(isDefaultEarthquakeSearch(getSearch(input))).toBe(false);
+    ['source', 'nope', 'emsc'],
+    ['source', 1, 'emsc'],
+    ['interval', '30d', '7d'],
+    ['interval', 'custom', '7d'],
+    ['minmag', 2.5, 0],
+    ['minmag', '5', 0],
+    ['minmag', 'banana', 0],
+    ['depth', 'foo', 'all'],
+    ['place', '', undefined],
+    ['place', '   ', undefined],
+    ['place', 'x'.repeat(121), undefined],
+    ['place', 12_345, undefined],
+    ['quake', 'foo:1', undefined],
+    ['quake', 'usgs:', undefined],
+    ['quake', 'usgs:a/b', undefined],
+    ['quake', `usgs:${'a'.repeat(65)}`, undefined],
+    ['quake', 'usgs:a&b=c', undefined],
+    ['lat', 91, undefined],
+    ['lat', -90.01, undefined],
+    ['lat', 'x', undefined],
+    ['lon', -181, undefined],
+    ['lon', 180.5, undefined],
+    ['zoom', 21, undefined],
+    ['zoom', -1, undefined],
+    ['zoom', 'abc', undefined],
+    ['zoom', Number.NaN, undefined],
+  ])('falls back %s=%o to %o', (key, value, expected) => {
+    expect(getSearch({ [key]: value })[key as keyof ReturnType<typeof getSearch>]).toBe(expected);
   });
-});
 
-describe('playback search params', () => {
-  it('defaults window to 24h and t to undefined', () => {
-    expect(EARTHQUAKE_SEARCH_DEFAULTS.window).toBe('24h');
-    expect(EARTHQUAKE_SEARCH_DEFAULTS.t).toBeUndefined();
-  });
-
-  it('accepts a toISOString datetime and a 7d window', () => {
-    const t = new Date(1_760_000_000_123).toISOString();
-    expect(getSearch({ t, window: '7d' })).toMatchObject({ t, window: '7d' });
-  });
-
-  it('drops an invalid t and falls back an invalid window', () => {
-    expect(getSearch({ t: 'banana', window: '30d' })).toMatchObject({
-      t: undefined,
-      window: '24h',
+  it('keeps the other params when one is invalid', () => {
+    expect(getSearch({ zoom: 'abc', depth: 'foo', minmag: 5 })).toMatchObject({
+      zoom: undefined,
+      depth: 'all',
+      minmag: 5,
     });
   });
 
-  it('keeps t and window out of the filter defaults', () => {
-    expect(EARTHQUAKE_FILTER_DEFAULTS).not.toHaveProperty('t');
-    expect(EARTHQUAKE_FILTER_DEFAULTS).not.toHaveProperty('window');
+  it('accepts a 120-character place', () => {
+    const place = 'x'.repeat(120);
+    expect(getSearch({ place }).place).toBe(place);
   });
-});
 
-describe('getSearchCenter', () => {
-  it('returns the centre when both coordinates are set', () => {
-    expect(getSearchCenter(getSearch({ lat: 37.17, lon: -3.6 }))).toEqual({
-      latitude: 37.17,
-      longitude: -3.6,
+  it('accepts the coordinate bounds', () => {
+    expect(getSearch({ lat: -90, lon: 180, zoom: 0 })).toMatchObject({
+      lat: -90,
+      lon: 180,
+      zoom: 0,
+    });
+    expect(getSearch({ lat: 90, lon: -180, zoom: 20 })).toMatchObject({
+      lat: 90,
+      lon: -180,
+      zoom: 20,
     });
   });
 
-  it('returns null when one coordinate is missing or invalid', () => {
-    expect(getSearchCenter(getSearch({ lat: 37.17 }))).toBeNull();
-    expect(getSearchCenter(getSearch({ lat: 37.17, lon: 400 }))).toBeNull();
+  it('rounds lat, lon and zoom to 2 decimals', () => {
+    const search = getSearch({ lat: 37.1789, lon: -3.60449, zoom: 3.456 });
+    expect(search.lat).toBeCloseTo(37.18, 10);
+    expect(search.lon).toBeCloseTo(-3.6, 10);
+    expect(search.zoom).toBeCloseTo(3.46, 10);
   });
 });
 
-describe('getTimeRange', () => {
+describe('getRoundedCoordinate', () => {
+  it('rounds to 2 decimals', () => {
+    expect(getRoundedCoordinate(37.1789)).toBeCloseTo(37.18, 10);
+    expect(getRoundedCoordinate(12.344)).toBeCloseTo(12.34, 10);
+  });
+});
+
+describe('EARTHQUAKE_SEARCH_DEFAULTS', () => {
+  it('holds exactly the four defaulted params', () => {
+    expect(EARTHQUAKE_SEARCH_DEFAULTS).toEqual({
+      source: 'emsc',
+      interval: '7d',
+      minmag: 0,
+      depth: 'all',
+    });
+  });
+
+  it('matches what the schema fills in', () => {
+    expect(getSearch()).toMatchObject(EARTHQUAKE_SEARCH_DEFAULTS);
+  });
+});
+
+describe('EARTHQUAKE_SEARCH_ROUTE', () => {
+  it('validates with the schema', () => {
+    expect(EARTHQUAKE_SEARCH_ROUTE.validateSearch).toBe(earthquakeSearchSchema);
+  });
+
+  it('strips params equal to their default', () => {
+    const [strip] = EARTHQUAKE_SEARCH_ROUTE.search.middlewares;
+    const search = getSearch({ interval: '7d', minmag: 5, lat: 10 });
+    expect(strip?.({ search, next: (value) => value })).toEqual({
+      minmag: 5,
+      place: undefined,
+      quake: undefined,
+      lat: 10,
+      lon: undefined,
+      zoom: undefined,
+    });
+  });
+});
+
+describe('DEPTH_RANGES_KM', () => {
+  it('covers contiguous depth bands', () => {
+    expect(DEPTH_RANGES_KM).toEqual({
+      shallow: { min: 0, max: 70 },
+      mid: { min: 70, max: 300 },
+      deep: { min: 300 },
+    });
+  });
+});
+
+describe('getIntervalStart', () => {
   it.each([
     ['24h', '2026-10-07T12:00:00.000Z'],
+    ['3d', '2026-10-05T12:00:00.000Z'],
     ['7d', '2026-10-01T12:00:00.000Z'],
-    ['30d', '2026-09-08T12:00:00.000Z'],
-    ['1y', '2025-10-08T12:00:00.000Z'],
-  ])('%s starts at %s with an open end', (period, start) => {
-    const range = getTimeRange(getSearch({ period }), NOW);
-    expect(range.start.toISOString()).toBe(start);
-    expect(range.end).toBeNull();
-  });
-
-  it('uses whole UTC days for a custom range', () => {
-    const range = getTimeRange(
-      getSearch({ period: 'custom', from: '2026-08-14', to: '2026-08-16' }),
-      NOW,
-    );
-    expect(range.start.toISOString()).toBe('2026-08-14T00:00:00.000Z');
-    expect(range.end?.toISOString()).toBe('2026-08-16T23:59:59.999Z');
-  });
-
-  it('swaps a reversed custom range', () => {
-    const range = getTimeRange(
-      getSearch({ period: 'custom', from: '2026-08-16', to: '2026-08-14' }),
-      NOW,
-    );
-    expect(range.start.toISOString()).toBe('2026-08-14T00:00:00.000Z');
-    expect(range.end?.toISOString()).toBe('2026-08-16T23:59:59.999Z');
-  });
-
-  it('treats a custom range without from as the last 24 h and without to as open', () => {
-    const range = getTimeRange(getSearch({ period: 'custom' }), NOW);
-    expect(range.start.toISOString()).toBe('2026-10-07T12:00:00.000Z');
-    expect(range.end).toBeNull();
-  });
-
-  it('keeps to when from is missing', () => {
-    const range = getTimeRange(getSearch({ period: 'custom', to: '2026-10-08' }), NOW);
-    expect(range.start.toISOString()).toBe('2026-10-07T12:00:00.000Z');
-    expect(range.end?.toISOString()).toBe('2026-10-08T23:59:59.999Z');
-  });
-});
-
-describe('getTimeRange with a past to and no from', () => {
-  it('starts 24 h before the end of the to day', () => {
-    const range = getTimeRange(getSearch({ period: 'custom', to: '2026-08-01' }), NOW);
-    expect(range.end?.toISOString()).toBe('2026-08-01T23:59:59.999Z');
-    expect(range.start.toISOString()).toBe('2026-07-31T23:59:59.999Z');
-    expect(range.start.getTime()).toBeLessThan(range.end?.getTime() ?? 0);
-  });
-});
-
-describe('sorting', () => {
-  it('round-trips between the URL and TanStack state', () => {
-    expect(getSortingState('distance.asc')).toEqual([{ id: 'distance', desc: false }]);
-    expect(getSortParam([{ id: 'magnitude', desc: true }])).toBe('magnitude.desc');
-  });
-
-  it('falls back to the default sort when sorting is cleared', () => {
-    expect(getSortParam([])).toBe('time.desc');
+  ] as const)('%s starts at %s', (interval, start) => {
+    expect(getIntervalStart(interval, NOW).toISOString()).toBe(start);
   });
 });

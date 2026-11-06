@@ -2,57 +2,18 @@ import { describe, expect, it } from 'vitest';
 
 import { earthquakeSearchSchema } from '@/lib/earthquakes/search-schema';
 
-import { getPeriodLabel, getPeriodOptionLabel, getPlaceLabel } from './labels';
+import { getIntervalLabel, getPlaceLabel } from './labels';
 
-const NOW = new Date('2026-10-08T12:00:00.000Z');
-
-function getCustomSearch(from: string | undefined, to: string | undefined) {
-  return earthquakeSearchSchema.parse({ period: 'custom', from, to });
-}
-
-describe('getPeriodLabel', () => {
-  it('names relative periods', () => {
-    expect(getPeriodLabel(earthquakeSearchSchema.parse({ period: '7d' }), 'en')).toBe(
-      'last 7 days',
-    );
-    expect(getPeriodLabel(earthquakeSearchSchema.parse({ period: '1y' }), 'es')).toBe('último año');
-  });
-
-  it('formats a closed custom range', () => {
-    expect(getPeriodLabel(getCustomSearch('2026-08-01', '2026-08-14'), 'en', NOW)).toBe(
-      'Aug 1, 2026 – Aug 14, 2026',
-    );
-  });
-
-  it('labels a reversed custom range in fetch order', () => {
-    expect(getPeriodLabel(getCustomSearch('2026-08-14', '2026-08-01'), 'en', NOW)).toBe(
-      'Aug 1, 2026 – Aug 14, 2026',
-    );
-  });
-
-  it('starts a range without a start date 24 hours before its end', () => {
-    expect(getPeriodLabel(getCustomSearch(undefined, '2026-08-14'), 'en', NOW)).toBe(
-      'Aug 13, 2026 – Aug 14, 2026',
-    );
-  });
-
-  it('formats a custom range in spanish', () => {
-    expect(getPeriodLabel(getCustomSearch('2026-08-01', '2026-08-14'), 'es', NOW)).toBe(
-      '1 ago 2026 – 14 ago 2026',
-    );
-  });
-
-  it('formats a custom range with an open end', () => {
-    expect(
-      getPeriodLabel(earthquakeSearchSchema.parse({ period: 'custom', from: '2026-08-14' }), 'en'),
-    ).toBe('Aug 14, 2026 – today');
-  });
-});
-
-describe('getPeriodOptionLabel', () => {
-  it('names the custom option', () => {
-    expect(getPeriodOptionLabel('custom', 'en')).toBe('Custom dates');
-    expect(getPeriodOptionLabel('7d', 'es')).toBe('últimos 7 días');
+describe('getIntervalLabel', () => {
+  it.each([
+    ['24h', 'en', 'last 24 hours'],
+    ['3d', 'en', 'last 3 days'],
+    ['7d', 'en', 'last 7 days'],
+    ['24h', 'es', 'últimas 24 horas'],
+    ['3d', 'es', 'últimos 3 días'],
+    ['7d', 'es', 'últimos 7 días'],
+  ] as const)('names %s in %s', (interval, locale, label) => {
+    expect(getIntervalLabel(interval, locale)).toBe(label);
   });
 });
 

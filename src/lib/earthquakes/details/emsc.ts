@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
-import { EarthquakeSourceError } from '../query-options';
 import { EMSC_QUERY_URL, emscFeatureSchema, getEarthquake } from '../sources/emsc';
+import { EarthquakeSourceError } from '../sources/source-error';
 import type { Earthquake } from '../types';
 
 const emscDetailSchema = emscFeatureSchema.extend({

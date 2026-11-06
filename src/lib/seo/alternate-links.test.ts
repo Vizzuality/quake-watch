@@ -27,31 +27,35 @@ describe('getAlternateLinks', () => {
   it('canonicalises to the current locale with reciprocal alternates', () => {
     overwriteGetLocale(() => 'es');
 
-    expect(getAlternateLinks({ pathname: '/map', search: EARTHQUAKE_SEARCH_DEFAULTS })).toEqual({
-      canonical: `${ORIGIN}/es/map`,
+    expect(getAlternateLinks({ pathname: '/', search: EARTHQUAKE_SEARCH_DEFAULTS })).toEqual({
+      canonical: `${ORIGIN}/es`,
       alternates: [
-        { hreflang: 'en', href: `${ORIGIN}/en/map` },
-        { hreflang: 'es', href: `${ORIGIN}/es/map` },
-        { hreflang: 'x-default', href: `${ORIGIN}/en/map` },
+        { hreflang: 'en', href: `${ORIGIN}/en` },
+        { hreflang: 'es', href: `${ORIGIN}/es` },
+        { hreflang: 'x-default', href: `${ORIGIN}/en` },
       ],
       isNoindex: false,
     });
   });
 
-  it('drops search params from a detail canonical and noindexes it', () => {
-    const links = getAlternateLinks({
-      pathname: '/earthquakes/usgs/us6000u4j2',
-      search: { tab: 'waves' },
-    });
+  it('drops search params from the canonical', () => {
+    const links = getAlternateLinks({ pathname: '/', search: { quake: 'usgs:us6000u4j2' } });
 
-    expect(links.canonical).toBe(`${ORIGIN}/en/earthquakes/usgs/us6000u4j2`);
+    expect(links.canonical).toBe(`${ORIGIN}/en`);
     expect(links.isNoindex).toBe(true);
   });
 
-  it('indexes a detail page without search params', () => {
+  it('indexes the home page without search params', () => {
+    expect(getAlternateLinks({ pathname: '/', search: {} }).isNoindex).toBe(false);
+  });
+
+  it('noindexes a camera URL', () => {
     expect(
-      getAlternateLinks({ pathname: '/earthquakes/emsc/20261013_0000326', search: {} }).isNoindex,
-    ).toBe(false);
+      getAlternateLinks({
+        pathname: '/',
+        search: { ...EARTHQUAKE_SEARCH_DEFAULTS, lat: 10, lon: 20, zoom: 2 },
+      }).isNoindex,
+    ).toBe(true);
   });
 
   it('noindexes a filter that differs from the defaults', () => {

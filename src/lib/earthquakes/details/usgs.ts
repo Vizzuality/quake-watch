@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-import { EarthquakeSourceError } from '../query-options';
+import { EarthquakeSourceError } from '../sources/source-error';
 import { usgsAdapter } from '../sources/usgs';
 import type { Earthquake } from '../types';
 
