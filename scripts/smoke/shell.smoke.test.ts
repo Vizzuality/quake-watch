@@ -1,4 +1,4 @@
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
@@ -73,6 +73,17 @@ describe('globe search params', () => {
     const { status, html } = await getPage('/en?zoom=abc&depth=foo');
     expect(status).toBe(200);
     expect(html).toContain('data-depth="all"');
+  });
+});
+
+describe('earthquake list prefetch', () => {
+  it('renders the globe without fetching or embedding the list on the server', async () => {
+    for (const pathname of ['/en', '/en?interval=24h&depth=deep&source=usgs']) {
+      const { status, html } = await getPage(pathname);
+      expect(status).toBe(200);
+      expect(html).not.toContain('smokelistsentinel');
+    }
+    expect(readFileSync(server?.upstreamLog ?? '', 'utf8')).toBe('');
   });
 });
 

@@ -1,5 +1,8 @@
 import { type ChildProcess, spawn } from 'node:child_process';
+import { randomUUID } from 'node:crypto';
+import { rmSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:net';
+import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 
@@ -9,7 +12,7 @@ const PRELOAD = pathToFileURL(path.join(import.meta.dirname, 'preload.mjs')).hre
 const READY_TIMEOUT_MS = 15_000;
 const EXIT_TIMEOUT_MS = 3_000;
 
-export type SmokeServer = { origin: string; process: ChildProcess };
+export type SmokeServer = { origin: string; process: ChildProcess; upstreamLog: string };
 
 function getFreePort(): Promise<number> {
   return new Promise((resolve, reject) => {
@@ -50,6 +53,8 @@ export async function stopProcess(child: ChildProcess): Promise<void> {
 
 export async function startServer(upstream: 'up' | 'down'): Promise<SmokeServer> {
   const port = await getFreePort();
+  const upstreamLog = path.join(tmpdir(), `quake-watch-smoke-upstream-${randomUUID()}.log`);
+  writeFileSync(upstreamLog, '');
   const child = spawn(process.execPath, [SERVER_ENTRY], {
     env: {
       ...process.env,
@@ -57,15 +62,17 @@ export async function startServer(upstream: 'up' | 'down'): Promise<SmokeServer>
       HOST: '127.0.0.1',
       NODE_OPTIONS: `--import ${PRELOAD}`,
       SMOKE_UPSTREAM: upstream,
+      SMOKE_UPSTREAM_LOG: upstreamLog,
     },
     stdio: ['ignore', 'ignore', 'inherit'],
   });
+  child.once('exit', () => rmSync(upstreamLog, { force: true }));
   const origin = `http://127.0.0.1:${port}`;
   let isReady = false;
   try {
     await waitForServer(origin, child);
     isReady = true;
-    return { origin, process: child };
+    return { origin, process: child, upstreamLog };
   } finally {
     if (!isReady) await stopProcess(child);
   }
