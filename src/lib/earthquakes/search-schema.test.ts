@@ -5,6 +5,7 @@ import {
   EARTHQUAKE_SEARCH_DEFAULTS,
   EARTHQUAKE_SEARCH_ROUTE,
   earthquakeSearchSchema,
+  getEarthquakeFilters,
   getIntervalStart,
   getRoundedCoordinate,
 } from './search-schema';
@@ -180,7 +181,7 @@ describe('EARTHQUAKE_SEARCH_ROUTE', () => {
 describe('DEPTH_RANGES_KM', () => {
   it('covers contiguous depth bands', () => {
     expect(DEPTH_RANGES_KM).toEqual({
-      shallow: { min: 0, max: 70 },
+      shallow: { max: 70 },
       mid: { min: 70, max: 300 },
       deep: { min: 300 },
     });
@@ -194,5 +195,27 @@ describe('getIntervalStart', () => {
     ['7d', '2026-10-01T12:00:00.000Z'],
   ] as const)('%s starts at %s', (interval, start) => {
     expect(getIntervalStart(interval, NOW).toISOString()).toBe(start);
+  });
+});
+
+describe('getEarthquakeFilters', () => {
+  it('keeps only source, interval, minmag and depth', () => {
+    const search = getSearch({
+      source: 'usgs',
+      interval: '24h',
+      minmag: 4,
+      depth: 'mid',
+      place: 'Granada',
+      quake: 'usgs:us6000u4j2',
+      lat: 10,
+      lon: 20,
+      zoom: 3,
+    });
+    expect(getEarthquakeFilters(search)).toStrictEqual({
+      source: 'usgs',
+      interval: '24h',
+      minmag: 4,
+      depth: 'mid',
+    });
   });
 });
