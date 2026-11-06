@@ -22,6 +22,15 @@ async function getPage(pathname: string) {
   return { status: response.status, html: await response.text() };
 }
 
+async function getRedirect(pathname: string) {
+  const response = await fetch(`${server?.origin}${pathname}`, {
+    headers: { accept: 'text/html' },
+    redirect: 'manual',
+  });
+  const target = new URL(response.headers.get('location') ?? '', server?.origin);
+  return { status: response.status, target: `${target.pathname}${target.search}` };
+}
+
 beforeAll(async () => {
   if (!existsSync(SERVER_ENTRY)) throw new Error('Run `pnpm build` before `pnpm test:smoke`.');
   server = await startServer('up');
@@ -40,6 +49,30 @@ describe('placeholder shell', () => {
     expect(status).toBe(200);
     expect(html).toContain(`<html lang="${locale}"`);
     expect(html).toContain('<h1 class="sr-only">Quake Watch</h1>');
+  });
+});
+
+describe('globe search params', () => {
+  it('restores the filters from the URL on the placeholder', async () => {
+    const { status, html } = await getPage('/en?interval=3d&minmag=5&depth=deep&source=usgs');
+    expect(status).toBe(200);
+    expect(html).toContain('data-source="usgs"');
+    expect(html).toContain('data-interval="3d"');
+    expect(html).toContain('data-minmag="5"');
+    expect(html).toContain('data-depth="deep"');
+  });
+
+  it.each(['/en?zoom=abc&depth=foo', '/en?interval=7d'])(
+    '%s redirects to the canonical URL',
+    async (pathname) => {
+      expect(await getRedirect(pathname)).toEqual({ status: 307, target: '/en' });
+    },
+  );
+
+  it('renders the default view after following the invalid-params redirect', async () => {
+    const { status, html } = await getPage('/en?zoom=abc&depth=foo');
+    expect(status).toBe(200);
+    expect(html).toContain('data-depth="all"');
   });
 });
 
