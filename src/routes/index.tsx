@@ -1,16 +1,26 @@
+import { useQuery } from '@tanstack/react-query';
 import { createFileRoute } from '@tanstack/react-router';
 
 import { Wordmark } from '@/components/brand/wordmark';
-import { EARTHQUAKE_SEARCH_ROUTE } from '@/lib/earthquakes/search-schema';
+import { earthquakesQueryOptions } from '@/lib/earthquakes/query-options';
+import { EARTHQUAKE_SEARCH_ROUTE, getEarthquakeFilters } from '@/lib/earthquakes/search-schema';
 import { m } from '@/paraglide/messages';
+import { isServer } from '@/paraglide/runtime';
 
 export const Route = createFileRoute('/')({
   ...EARTHQUAKE_SEARCH_ROUTE,
+  loaderDeps: ({ search }) => getEarthquakeFilters(search),
+  loader: ({ context, deps, preload }) => {
+    if (preload || isServer) return;
+    void context.queryClient.prefetchQuery(earthquakesQueryOptions(deps));
+  },
   component: Home,
 });
 
 function Home() {
-  const { source, interval, minmag, depth } = Route.useSearch();
+  const search = Route.useSearch();
+  useQuery(earthquakesQueryOptions(getEarthquakeFilters(search)));
+  const { source, interval, minmag, depth } = search;
 
   return (
     <main

@@ -1,8 +1,11 @@
 import { z } from 'zod';
 
+import type { EarthquakeFilters } from '../search-schema';
 import type { Earthquake } from '../types';
-import { coordinatesSchema } from './feature-collection';
+import { coordinatesSchema, getFdsnQueryParams } from './feature-collection';
 import type { SourceAdapter } from './feature-collection';
+
+export const USGS_QUERY_URL = 'https://earthquake.usgs.gov/fdsnws/event/1/query';
 
 const usgsFeatureSchema = z.object({
   id: z.string(),
@@ -15,6 +18,14 @@ const usgsFeatureSchema = z.object({
     url: z.url({ protocol: /^https$/ }),
   }),
 });
+
+function getQueryUrl(filters: EarthquakeFilters, now: Date, limit: number): string {
+  const params = new URLSearchParams([
+    ['format', 'geojson'],
+    ...getFdsnQueryParams(filters, now, limit),
+  ]);
+  return `${USGS_QUERY_URL}?${params}`;
+}
 
 function getEarthquake(feature: unknown): Earthquake | null {
   const result = usgsFeatureSchema.safeParse(feature);
@@ -35,4 +46,4 @@ function getEarthquake(feature: unknown): Earthquake | null {
   };
 }
 
-export const usgsAdapter: SourceAdapter = { label: 'USGS', getEarthquake };
+export const usgsAdapter: SourceAdapter = { label: 'USGS', getQueryUrl, getEarthquake };

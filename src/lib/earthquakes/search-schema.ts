@@ -11,8 +11,8 @@ export type Interval = (typeof INTERVALS)[number];
 export type MinMagnitude = (typeof MIN_MAGNITUDES)[number];
 export type Depth = (typeof DEPTHS)[number];
 
-export const DEPTH_RANGES_KM: Record<Exclude<Depth, 'all'>, { min: number; max?: number }> = {
-  shallow: { min: 0, max: 70 },
+export const DEPTH_RANGES_KM: Record<Exclude<Depth, 'all'>, { min?: number; max?: number }> = {
+  shallow: { max: 70 },
   mid: { min: 70, max: 300 },
   deep: { min: 300 },
 };
@@ -47,6 +47,17 @@ export const earthquakeSearchSchema = z.object({
 });
 
 export type EarthquakeSearch = z.infer<typeof earthquakeSearchSchema>;
+
+export type EarthquakeFilters = Pick<EarthquakeSearch, 'source' | 'interval' | 'minmag' | 'depth'>;
+
+export function getEarthquakeFilters({
+  source,
+  interval,
+  minmag,
+  depth,
+}: EarthquakeFilters): EarthquakeFilters {
+  return { source, interval, minmag, depth };
+}
 
 export const EARTHQUAKE_SEARCH_DEFAULTS = {
   source: 'emsc',
