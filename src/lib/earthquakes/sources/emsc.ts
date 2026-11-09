@@ -1,7 +1,8 @@
 import { z } from 'zod';
 
+import type { EarthquakeFilters } from '../search-schema';
 import type { Earthquake } from '../types';
-import { coordinatesSchema } from './feature-collection';
+import { coordinatesSchema, getFdsnQueryParams } from './feature-collection';
 import type { SourceAdapter } from './feature-collection';
 
 export const EMSC_QUERY_URL = 'https://www.seismicportal.eu/fdsnws/event/1/query';
@@ -29,6 +30,14 @@ function getRegionLabel(region: string | null | undefined): string | null {
     .join(' ');
 }
 
+function getQueryUrl(filters: EarthquakeFilters, now: Date, limit: number): string {
+  const params = new URLSearchParams([
+    ['format', 'json'],
+    ...getFdsnQueryParams(filters, now, limit),
+  ]);
+  return `${EMSC_QUERY_URL}?${params}`;
+}
+
 export function getEarthquake(feature: unknown): Earthquake | null {
   const result = emscFeatureSchema.safeParse(feature);
   if (!result.success) return null;
@@ -48,4 +57,4 @@ export function getEarthquake(feature: unknown): Earthquake | null {
   };
 }
 
-export const emscAdapter: SourceAdapter = { label: 'EMSC', getEarthquake };
+export const emscAdapter: SourceAdapter = { label: 'EMSC', getQueryUrl, getEarthquake };
