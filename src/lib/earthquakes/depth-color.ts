@@ -7,7 +7,7 @@ export const DEPTH_COLOR_STOPS = [
 
 type DepthColorStop = (typeof DEPTH_COLOR_STOPS)[number];
 
-function getRgb([, r, g, b]: readonly number[]): string {
+function getRgb([r, g, b]: readonly number[]): string {
   return `rgb(${Math.round(r)}, ${Math.round(g)}, ${Math.round(b)})`;
 }
 
@@ -18,13 +18,18 @@ function getClampedDepth(depthKm: number): number {
   return Math.min(Math.max(depthKm, first), last);
 }
 
-export function getDepthColor(depthKm: number): string {
+export function getDepthRgb(depthKm: number): [number, number, number] {
   const depth = getClampedDepth(depthKm);
   const upperIndex = DEPTH_COLOR_STOPS.findIndex(([km]) => km >= depth);
   const upper: DepthColorStop = DEPTH_COLOR_STOPS[upperIndex];
-  if (upperIndex === 0 || upper[0] === depth) return getRgb(upper);
+  if (upperIndex === 0 || upper[0] === depth) return [upper[1], upper[2], upper[3]];
 
   const lower: DepthColorStop = DEPTH_COLOR_STOPS[upperIndex - 1];
   const t = (depth - lower[0]) / (upper[0] - lower[0]);
-  return getRgb(lower.map((value, i) => value + (upper[i] - value) * t));
+  const getChannel = (i: 1 | 2 | 3) => lower[i] + (upper[i] - lower[i]) * t;
+  return [getChannel(1), getChannel(2), getChannel(3)];
+}
+
+export function getDepthColor(depthKm: number): string {
+  return getRgb(getDepthRgb(depthKm));
 }

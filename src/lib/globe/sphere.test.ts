@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { getFibonacciPoints, getLatLonVector, getPointLatLon } from './sphere';
+import { getFibonacciPoints, getLatLonVector, getPointLatLon, getRotatedVector } from './sphere';
 
 describe('sphere', () => {
   it('builds unit Fibonacci points with the board formula', () => {
@@ -31,5 +31,30 @@ describe('sphere', () => {
     const north = getLatLonVector(90, 0);
     [1, 0, 0].forEach((value, index) => expect(east[index]).toBeCloseTo(value, 10));
     [0, 1, 0].forEach((value, index) => expect(north[index]).toBeCloseTo(value, 10));
+  });
+
+  it('rotates the view centre to z = 1 like the shader getRotated', () => {
+    const lon = (150 * Math.PI) / 180;
+    const lat = 0.12;
+    const centre = getLatLonVector((lat * 180) / Math.PI, 150);
+    [0, 0, 1].forEach((value, index) =>
+      expect(getRotatedVector(centre, lon, lat)[index]).toBeCloseTo(value, 10),
+    );
+  });
+
+  it('matches the shader rotation sign for sign', () => {
+    const lon = 0.7;
+    const lat = -0.3;
+    const [x, y, z] = [0.2, 0.5, -0.4];
+    const x1 = x * Math.cos(lon) - z * Math.sin(lon);
+    const z1 = x * Math.sin(lon) + z * Math.cos(lon);
+    const expected = [
+      x1,
+      y * Math.cos(lat) - z1 * Math.sin(lat),
+      y * Math.sin(lat) + z1 * Math.cos(lat),
+    ];
+    expected.forEach((value, index) =>
+      expect(getRotatedVector([x, y, z], lon, lat)[index]).toBeCloseTo(value, 12),
+    );
   });
 });

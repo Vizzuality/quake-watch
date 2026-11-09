@@ -1,3 +1,12 @@
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import {
+  Outlet,
+  RouterProvider,
+  createMemoryHistory,
+  createRootRoute,
+  createRoute,
+  createRouter,
+} from '@tanstack/react-router';
 import { createRef, useImperativeHandle, useRef } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-react';
@@ -8,14 +17,44 @@ import {
   MAX_RELEASE_SPEED,
   useGlobeControls,
 } from '@/containers/globe/use-globe-controls';
+import { EARTHQUAKE_SEARCH_ROUTE, type MinMagnitude } from '@/lib/earthquakes/search-schema';
 import { getGlobeFrame } from '@/lib/globe/frame';
 import { INITIAL_VIEW } from '@/lib/globe/motion';
+import { QUAKE_MARKER_LOOK, getHypocentreRadius } from '@/lib/globe/quakes';
+import { getLatLonVector, getRotatedVector } from '@/lib/globe/sphere';
 import { overwriteGetLocale } from '@/paraglide/runtime';
+import { getEmscFeature, getFeatureCollection } from '@/test/fixtures/earthquakes';
+import { stubFetch } from '@/test/stub-fetch';
+
+type Point = { x: number; y: number };
+type Snapshot = { data: Uint8Array; width: number; height: number; dpr: number };
+type TestQuake = { lat: number; lon: number; depth: number; mag: number };
 
 const WIDTH = 1280;
 const HEIGHT = 800;
 const { cx: CX, cy: CY, radius: RADIUS } = getGlobeFrame(WIDTH, HEIGHT);
+const CENTRE: Point = { x: CX, y: CY };
 const FRAME = 1 / 60;
+const LIST_PATH = '/fdsnws/event/1/query';
+const PAINT_THRESHOLD = 8;
+const DEEPEST_RGB = [0x4f, 0x7b, 0xff];
+const VIEW_LAT = (INITIAL_VIEW.lat * 180) / Math.PI;
+const VIEW_LON = (INITIAL_VIEW.lon * 180) / Math.PI;
+
+const DEEP_QUAKE: TestQuake = { lat: VIEW_LAT, lon: -173, depth: 600, mag: 6 };
+const SHALLOW_QUAKE: TestQuake = { lat: -30, lon: 175, depth: 10, mag: 6 };
+const STRONG_QUAKE: TestQuake = { lat: 25, lon: VIEW_LON + 20, depth: 300, mag: 6 };
+const LIGHT_QUAKE: TestQuake = { lat: 25, lon: VIEW_LON - 20, depth: 300, mag: 3 };
+const DEEPEST_QUAKE: TestQuake = { lat: 25, lon: -175, depth: 700, mag: 6 };
+const FAR_SIDE_QUAKE: TestQuake = { lat: -VIEW_LAT, lon: VIEW_LON - 180, depth: 300, mag: 6 };
+const PAST_LIMB_QUAKE: TestQuake = {
+  lat: VIEW_LAT,
+  lon: VIEW_LON + 101.5 - 360,
+  depth: 300,
+  mag: 6,
+};
+const NORTH_QUAKE: TestQuake = { lat: 20, lon: 175, depth: 300, mag: 5 };
+const SOUTH_QUAKE: TestQuake = { lat: -20, lon: -170, depth: 300, mag: 5 };
 
 function waitFrames(count: number): Promise<void> {
   return new Promise((resolve) => {
@@ -91,12 +130,163 @@ function getPaintedPixelCount(
   return count;
 }
 
-async function renderGlobe() {
-  return render(
-    <div style={{ position: 'relative', width: WIDTH, height: HEIGHT }}>
-      <Globe />
-    </div>,
+function getSnapshot(canvas: HTMLCanvasElement): Snapshot {
+  const gl = canvas.getContext('webgl2');
+  if (!gl) throw new Error('globe canvas has no WebGL2 context');
+  const { drawingBufferWidth: width, drawingBufferHeight: height } = gl;
+  const data = new Uint8Array(width * height * 4);
+  gl.readPixels(0, 0, width, height, gl.RGBA, gl.UNSIGNED_BYTE, data);
+  return { data, width, height, dpr: width / canvas.clientWidth };
+}
+
+function getRgb(snapshot: Snapshot, { x, y }: Point): number[] {
+  const column = Math.floor(x * snapshot.dpr);
+  const row = snapshot.height - 1 - Math.floor(y * snapshot.dpr);
+  const index = (row * snapshot.width + column) * 4;
+  return [...snapshot.data.subarray(index, index + 3)];
+}
+
+function getRgbDiff(before: Snapshot, after: Snapshot, point: Point): number[] {
+  const base = getRgb(before, point);
+  return getRgb(after, point).map((channel, index) => channel - base[index]);
+}
+
+function getPaintedDiffCount(before: Snapshot, after: Snapshot, centre: Point, size: number) {
+  const left = Math.floor(centre.x - size / 2);
+  const top = Math.floor(centre.y - size / 2);
+  let count = 0;
+  for (let dy = 0; dy < size; dy++) {
+    for (let dx = 0; dx < size; dx++) {
+      const diff = getRgbDiff(before, after, { x: left + dx + 0.5, y: top + dy + 0.5 });
+      if (diff.some((channel) => channel > PAINT_THRESHOLD)) count++;
+    }
+  }
+  return count;
+}
+
+function getScreenPoint(lat: number, lon: number, radius: number): Point {
+  const [x, y] = getRotatedVector(getLatLonVector(lat, lon), INITIAL_VIEW.lon, INITIAL_VIEW.lat);
+  return { x: CX + x * radius * RADIUS, y: CY - y * radius * RADIUS };
+}
+
+function getQuakePoints({ lat, lon, depth }: TestQuake) {
+  return {
+    epicentre: getScreenPoint(lat, lon, 1),
+    hypocentre: getScreenPoint(lat, lon, getHypocentreRadius(depth)),
+  };
+}
+
+function getDistance(a: Point, b: Point): number {
+  return Math.hypot(a.x - b.x, a.y - b.y);
+}
+
+function getPointToward(from: Point, to: Point, distance: number): Point {
+  const k = distance / getDistance(from, to);
+  return { x: from.x + (to.x - from.x) * k, y: from.y + (to.y - from.y) * k };
+}
+
+function getSegmentDistance(point: Point, start: Point, end: Point): number {
+  const dx = end.x - start.x;
+  const dy = end.y - start.y;
+  const t = ((point.x - start.x) * dx + (point.y - start.y) * dy) / (dx * dx + dy * dy);
+  const clamped = Math.min(1, Math.max(0, t));
+  return getDistance(point, { x: start.x + dx * clamped, y: start.y + dy * clamped });
+}
+
+function getOffNeedlePixel(epicentre: Point, hypocentre: Point): Point {
+  const pixels = [-2, -1, 0, 1, 2].flatMap((dy) =>
+    [-2, -1, 0, 1, 2].map((dx) => ({
+      x: Math.floor(hypocentre.x) + dx + 0.5,
+      y: Math.floor(hypocentre.y) + dy + 0.5,
+    })),
   );
+  const inside = pixels.filter((pixel) => getDistance(pixel, hypocentre) <= 1.6);
+  return inside.reduce((best, pixel) =>
+    getSegmentDistance(pixel, epicentre, hypocentre) >
+    getSegmentDistance(best, epicentre, hypocentre)
+      ? pixel
+      : best,
+  );
+}
+
+function getQuakeResponse(quakes: readonly TestQuake[]): Response {
+  const features = quakes.map(({ lat, lon, depth, mag }, index) =>
+    getEmscFeature({ id: `test_${index}`, lat, lon, depth, mag }),
+  );
+  return Response.json(getFeatureCollection(features));
+}
+
+function isListRequest(url: URL): boolean {
+  return url.pathname === LIST_PATH;
+}
+
+async function renderGlobe(quakesByMinMagnitude: Partial<Record<MinMagnitude, TestQuake[]>> = {}) {
+  const fetchMock = stubFetch([
+    ...Object.entries(quakesByMinMagnitude).map(([minmag, quakes]) => ({
+      match: (url: URL) => isListRequest(url) && url.searchParams.get('minmagnitude') === minmag,
+      respond: () => getQuakeResponse(quakes),
+    })),
+    { match: isListRequest, respond: () => getQuakeResponse([]) },
+  ]);
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const rootRoute = createRootRoute({ component: Outlet });
+  const indexRoute = createRoute({
+    getParentRoute: () => rootRoute,
+    path: '/',
+    ...EARTHQUAKE_SEARCH_ROUTE,
+    component: () => (
+      <div style={{ position: 'relative', width: WIDTH, height: HEIGHT }}>
+        <Globe />
+      </div>
+    ),
+  });
+  const router = createRouter({
+    routeTree: rootRoute.addChildren([indexRoute]),
+    history: createMemoryHistory({ initialEntries: ['/'] }),
+  });
+  await router.load();
+  const screen = await render(
+    <QueryClientProvider client={queryClient}>
+      <RouterProvider router={router} />
+    </QueryClientProvider>,
+  );
+
+  function getCanvas(): HTMLCanvasElement {
+    const canvas = screen.container.querySelector('canvas');
+    if (!canvas) throw new Error('globe canvas is not mounted');
+    return canvas;
+  }
+
+  async function getSettledSnapshot(): Promise<Snapshot> {
+    await expect.poll(() => fetchMock.mock.calls.length).toBeGreaterThan(0);
+    await expect.poll(() => queryClient.isFetching()).toBe(0);
+    await vi.waitFor(getCanvas);
+    await waitFrames(10);
+    return getSnapshot(getCanvas());
+  }
+
+  async function showMinMagnitude(minmag: MinMagnitude): Promise<Snapshot> {
+    const calls = fetchMock.mock.calls.length;
+    await router.navigate({ to: '/', search: { minmag } });
+    await expect.poll(() => fetchMock.mock.calls.length).toBeGreaterThan(calls);
+    return getSettledSnapshot();
+  }
+
+  return { screen, getCanvas, getSettledSnapshot, showMinMagnitude };
+}
+
+async function renderQuakes(quakes: TestQuake[]) {
+  stubReducedMotion(true);
+  stubPreservedDrawingBuffer();
+  const globe = await renderGlobe({ 3: quakes });
+  const before = await globe.getSettledSnapshot();
+  const after = await globe.showMinMagnitude(3);
+  return {
+    getPaintedCount: (centre: Point, size: number) =>
+      getPaintedDiffCount(before, after, centre, size),
+    getBeforeRgb: (point: Point) => getRgb(before, point),
+    getDiff: (point: Point) => getRgbDiff(before, after, point),
+  };
 }
 
 async function renderControls() {
@@ -149,7 +339,7 @@ describe('globe', () => {
 
   it('draws a labelled WebGL canvas without errors', async () => {
     const consoleError = vi.spyOn(console, 'error');
-    const screen = await renderGlobe();
+    const { screen } = await renderGlobe();
 
     await expect
       .element(
@@ -164,7 +354,7 @@ describe('globe', () => {
 
   it('leaves the canvas transparent around the globe and paints dots on it', async () => {
     stubPreservedDrawingBuffer();
-    const screen = await renderGlobe();
+    const { screen } = await renderGlobe();
 
     await vi.waitFor(() => expect(screen.container.querySelector('canvas')).not.toBeNull());
     await waitFrames(10);
@@ -174,9 +364,93 @@ describe('globe', () => {
     expect(getPaintedPixelCount(canvas, CX - 8, CY - 8, 16)).toBeGreaterThan(0);
   });
 
+  it('draws a 600 km Earthquake inside the sphere and a 10 km one at the surface', async () => {
+    const { getPaintedCount } = await renderQuakes([DEEP_QUAKE, SHALLOW_QUAKE]);
+
+    const deep = getQuakePoints(DEEP_QUAKE);
+    expect(getDistance(deep.hypocentre, CENTRE)).toBeCloseTo(
+      getDistance(deep.epicentre, CENTRE) * 0.34076,
+      3,
+    );
+    expect(getPaintedCount(deep.hypocentre, 6)).toBeGreaterThanOrEqual(9);
+    expect(getPaintedCount(getPointToward(deep.hypocentre, CENTRE, 6), 3)).toBe(0);
+
+    const shallow = getQuakePoints(SHALLOW_QUAKE);
+    expect(getDistance(shallow.hypocentre, shallow.epicentre)).toBeLessThan(4);
+    expect(getPaintedCount(shallow.hypocentre, 6)).toBeGreaterThanOrEqual(9);
+    for (const distance of [7, 10, 20, 40]) {
+      expect(getPaintedCount(getPointToward(shallow.epicentre, CENTRE, distance), 3)).toBe(0);
+    }
+  });
+
+  it('paints an M6 hypocentre larger than an M3 one at the same Depth', async () => {
+    const { getPaintedCount } = await renderQuakes([STRONG_QUAKE, LIGHT_QUAKE]);
+
+    const strong = getQuakePoints(STRONG_QUAKE).hypocentre;
+    const light = getQuakePoints(LIGHT_QUAKE).hypocentre;
+    expect(strong.y).toBeCloseTo(light.y, 6);
+    expect(strong.x - CX).toBeCloseTo(CX - light.x, 6);
+    const lightCount = getPaintedCount(light, 9);
+    expect(lightCount).toBeGreaterThan(0);
+    expect(getPaintedCount(strong, 9)).toBeGreaterThan(lightCount + 5);
+  });
+
+  it('colours the hypocentre and the needle by Depth', async () => {
+    const { getPaintedCount, getBeforeRgb, getDiff } = await renderQuakes([DEEPEST_QUAKE]);
+
+    const { epicentre, hypocentre } = getQuakePoints(DEEPEST_QUAKE);
+    const pixel = getOffNeedlePixel(epicentre, hypocentre);
+    expect(getSegmentDistance(pixel, epicentre, hypocentre)).toBeGreaterThanOrEqual(1);
+    for (const channel of getBeforeRgb(pixel)) expect(channel).toBeLessThan(60);
+    getDiff(pixel).forEach((channel, index) =>
+      expect(
+        Math.abs(channel / QUAKE_MARKER_LOOK.hypocentreA - DEEPEST_RGB[index]),
+      ).toBeLessThanOrEqual(40),
+    );
+    const midpoint = { x: (epicentre.x + hypocentre.x) / 2, y: (epicentre.y + hypocentre.y) / 2 };
+    expect(getPaintedCount(midpoint, 3)).toBeGreaterThanOrEqual(1);
+  });
+
+  it('hides Earthquakes on the far side of the globe', async () => {
+    const { getPaintedCount } = await renderQuakes([FAR_SIDE_QUAKE, PAST_LIMB_QUAKE, DEEP_QUAKE]);
+
+    expect(getPaintedCount(getQuakePoints(DEEP_QUAKE).hypocentre, 6)).toBeGreaterThan(0);
+    const [, , pastLimbZ] = getRotatedVector(
+      getLatLonVector(PAST_LIMB_QUAKE.lat, PAST_LIMB_QUAKE.lon),
+      INITIAL_VIEW.lon,
+      INITIAL_VIEW.lat,
+    );
+    expect(pastLimbZ).toBeCloseTo(-0.2, 1);
+    for (const quake of [FAR_SIDE_QUAKE, PAST_LIMB_QUAKE]) {
+      const { epicentre, hypocentre } = getQuakePoints(quake);
+      expect(getPaintedCount(epicentre, 16)).toBe(0);
+      expect(getPaintedCount(hypocentre, 16)).toBe(0);
+    }
+  });
+
+  it('redraws the Earthquakes on a filter change without remounting the canvas', async () => {
+    stubReducedMotion(true);
+    stubPreservedDrawingBuffer();
+    const globe = await renderGlobe({ 3: [NORTH_QUAKE], 5: [SOUTH_QUAKE] });
+    const empty = await globe.getSettledSnapshot();
+    const canvas = globe.getCanvas();
+
+    const north = await globe.showMinMagnitude(3);
+    expect(globe.getCanvas()).toBe(canvas);
+    const south = await globe.showMinMagnitude(5);
+    expect(globe.getCanvas()).toBe(canvas);
+
+    const northPoint = getQuakePoints(NORTH_QUAKE).hypocentre;
+    const southPoint = getQuakePoints(SOUTH_QUAKE).hypocentre;
+    expect(getPaintedDiffCount(empty, north, northPoint, 6)).toBeGreaterThan(0);
+    expect(getPaintedDiffCount(empty, north, southPoint, 6)).toBe(0);
+    expect(getPaintedDiffCount(empty, south, southPoint, 6)).toBeGreaterThan(0);
+    expect(getPaintedDiffCount(empty, south, northPoint, 6)).toBe(0);
+  });
+
   it('keeps the shell and says so inline when WebGL is missing', async () => {
     stubWebGL(0);
-    const screen = await renderGlobe();
+    const { screen } = await renderGlobe();
 
     await expect
       .element(screen.getByRole('status'))
@@ -187,7 +461,7 @@ describe('globe', () => {
   it('falls back to the same line when the renderer cannot start', async () => {
     vi.spyOn(console, 'error').mockImplementation(() => {});
     stubWebGL(1);
-    const screen = await renderGlobe();
+    const { screen } = await renderGlobe();
 
     await expect
       .element(screen.getByRole('status'))
@@ -197,7 +471,7 @@ describe('globe', () => {
   it('speaks Spanish without WebGL', async () => {
     overwriteGetLocale(() => 'es');
     stubWebGL(0);
-    const screen = await renderGlobe();
+    const { screen } = await renderGlobe();
 
     await expect
       .element(screen.getByRole('status'))

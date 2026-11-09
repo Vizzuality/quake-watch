@@ -3,7 +3,7 @@ import path from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-import { DEPTH_COLOR_STOPS, getDepthColor } from './depth-color';
+import { DEPTH_COLOR_STOPS, getDepthColor, getDepthRgb } from './depth-color';
 
 function getStopRgb(index: number): string {
   const [, r, g, b] = DEPTH_COLOR_STOPS[index];
@@ -32,6 +32,19 @@ describe('getDepthColor', () => {
 
   it('interpolates linearly between stops', () => {
     expect(getDepthColor(35)).toBe('rgb(255, 124, 93)');
+  });
+});
+
+describe('getDepthRgb', () => {
+  it.each(DEPTH_COLOR_STOPS.map((stop) => [stop[0], stop.slice(1)]))(
+    'returns the stop channels at %i km',
+    (km, channels) => {
+      expect(getDepthRgb(km)).toEqual(channels);
+    },
+  );
+
+  it('interpolates unrounded channels between stops', () => {
+    expect(getDepthRgb(35)).toEqual([255, 124, 92.5]);
   });
 });
 

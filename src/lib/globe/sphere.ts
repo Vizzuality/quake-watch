@@ -1,5 +1,5 @@
 type LatLon = { lat: number; lon: number };
-type Vector3 = [number, number, number];
+export type Vector3 = [number, number, number];
 
 const GOLDEN_ANGLE = Math.PI * (3 - Math.sqrt(5));
 const DEGREES_PER_RADIAN = 180 / Math.PI;
@@ -28,4 +28,14 @@ export function getLatLonVector(lat: number, lon: number): Vector3 {
   const phi = lat / DEGREES_PER_RADIAN;
   const lambda = lon / DEGREES_PER_RADIAN;
   return [Math.cos(phi) * Math.sin(lambda), Math.sin(phi), Math.cos(phi) * Math.cos(lambda)];
+}
+
+export function getRotatedVector([x, y, z]: Vector3, lon: number, lat: number): Vector3 {
+  const ca = Math.cos(lon);
+  const sa = Math.sin(lon);
+  const cb = Math.cos(lat);
+  const sb = Math.sin(lat);
+  const x1 = x * ca - z * sa;
+  const z1 = x * sa + z * ca;
+  return [x1, y * cb - z1 * sb, y * sb + z1 * cb];
 }
