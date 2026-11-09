@@ -5,7 +5,7 @@ import { m } from '@/paraglide/messages';
 export function GlobeUnavailable() {
   return (
     <div className="grid h-full place-items-center">
-      <output className="text-body text-muted-2">{m.globe_unavailable()}</output>
+      <output className="text-body text-muted">{m.globe_unavailable()}</output>
     </div>
   );
 }

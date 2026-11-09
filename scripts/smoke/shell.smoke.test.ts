@@ -79,6 +79,29 @@ describe('globe first paint', () => {
   });
 });
 
+describe('web fonts', () => {
+  it('self-hosts Space Grotesk and ships no Inter Tight or Geist Mono to the browser', async () => {
+    const { status, html } = await getPage('/en');
+    expect(status).toBe(200);
+    expect(html).not.toContain('fonts.googleapis.com');
+    const stylesheets = [...new Set(html.match(/\/assets\/[\w.-]+\.css/g))];
+    expect(stylesheets.length).toBeGreaterThan(0);
+    let css = '';
+    for (const stylesheet of stylesheets) {
+      css += await (await fetch(`${server?.origin}${stylesheet}`)).text();
+    }
+    for (const weight of [300, 400, 500, 700]) {
+      expect(css).toMatch(new RegExp(`space-grotesk-latin-${weight}-normal[\\w-]*\\.woff2`));
+    }
+    expect(css).not.toMatch(/inter-tight|geist-mono/i);
+    expect(
+      readdirSync(ASSETS_DIR).filter((name) =>
+        /inter-tight|geist-mono|space-grotesk-[\w-]+-600-/.test(name),
+      ),
+    ).toEqual([]);
+  });
+});
+
 describe('globe search params', () => {
   it('restores the filters from the URL on the placeholder', async () => {
     const { status, html } = await getPage('/en?interval=3d&minmag=5&depth=deep&source=usgs');
