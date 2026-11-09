@@ -1,24 +1,11 @@
 export const GLOBE_DOT_COUNT = 30_000;
 
-export const GLOBE_VEIL_RGB = [24, 26, 54] as const;
-
 export const GLOBE_LOOK = {
-  ocean: [63, 127, 217],
-  oceanA: 1,
-  land: [124, 214, 178],
-  landA: 0.25,
-  landS: 0.9,
-  dot: 0.7,
-  rim: 1,
-  outA: 0.15,
-  outW: 0.5,
-  veil: 0.7,
-  backK: 0.75,
-} as const;
-
-export const GLOBE_GLOW = {
-  from: 0.92,
-  to: 1.28,
-  rgb: [90, 100, 255],
-  alpha: 0.1,
+  ocean: [96, 104, 200],
+  oceanA: 0.27,
+  land: [240, 208, 178],
+  landA: 1,
+  landS: 1.5,
+  dot: 1.5,
+  rim: 1.15,
 } as const;

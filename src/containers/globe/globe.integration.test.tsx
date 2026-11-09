@@ -76,6 +76,21 @@ function getPixelAlpha(canvas: HTMLCanvasElement, x: number, y: number): number 
   return pixel[3];
 }
 
+function getPaintedPixelCount(
+  canvas: HTMLCanvasElement,
+  x: number,
+  y: number,
+  size: number,
+): number {
+  let count = 0;
+  for (let dy = 0; dy < size; dy++) {
+    for (let dx = 0; dx < size; dx++) {
+      if (getPixelAlpha(canvas, x + dx, y + dy) > 0) count++;
+    }
+  }
+  return count;
+}
+
 async function renderGlobe() {
   return render(
     <div style={{ position: 'relative', width: WIDTH, height: HEIGHT }}>
@@ -147,7 +162,7 @@ describe('globe', () => {
     expect(consoleError).not.toHaveBeenCalled();
   });
 
-  it('leaves the canvas transparent around the globe and paints the disc', async () => {
+  it('leaves the canvas transparent around the globe and paints dots on it', async () => {
     stubPreservedDrawingBuffer();
     const screen = await renderGlobe();
 
@@ -155,7 +170,8 @@ describe('globe', () => {
     await waitFrames(10);
     const canvas = screen.container.querySelector('canvas') as HTMLCanvasElement;
     expect(getPixelAlpha(canvas, 1, 1)).toBe(0);
-    expect(getPixelAlpha(canvas, CX, CY)).toBeGreaterThan(0);
+    expect(getPaintedPixelCount(canvas, CX + RADIUS * 1.05, CY, 16)).toBe(0);
+    expect(getPaintedPixelCount(canvas, CX - 8, CY - 8, 16)).toBeGreaterThan(0);
   });
 
   it('keeps the shell and says so inline when WebGL is missing', async () => {

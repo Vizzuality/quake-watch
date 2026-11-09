@@ -11,6 +11,7 @@ const SITE_ROBOTS = isSiteIndexableFromEnv(process.env.VITE_SITE_INDEXABLE)
   : ['noindex,follow'];
 
 const THREE_MARKER = 'THREE.WebGLRenderer';
+const BORDER_DATA_MARKER = 'UEaI+RBGcPkQRnD5';
 const ASSETS_DIR = path.join(path.dirname(SERVER_ENTRY), '../public/assets');
 
 let server: SmokeServer | undefined;
@@ -61,6 +62,14 @@ describe('globe first paint', () => {
     const chunks = readdirSync(ASSETS_DIR).filter((name) => /^globe-[\w-]+\.js$/.test(name));
     expect(chunks).toHaveLength(1);
     expect(readFileSync(path.join(ASSETS_DIR, chunks[0]), 'utf8')).toContain(THREE_MARKER);
+  });
+
+  it('ships no country border data to the browser', () => {
+    const scripts = readdirSync(ASSETS_DIR).filter((name) => name.endsWith('.js'));
+    expect(scripts.length).toBeGreaterThan(0);
+    for (const name of scripts) {
+      expect(readFileSync(path.join(ASSETS_DIR, name), 'utf8')).not.toContain(BORDER_DATA_MARKER);
+    }
   });
 
   it('server-renders the shell without a canvas or any three.js code in the first-paint scripts', async () => {
