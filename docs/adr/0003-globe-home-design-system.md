@@ -1,8 +1,8 @@
-# A three.js globe home with the Visual language board's dark design system
+# A three.js globe home with the Figma handoff's dark design system
 
 Supersedes [0002](0002-seismograph-design-system.md).
 
-The app is rebuilt as one page: a full-screen globe with glass overlays, following the "Design" page of the [Quake Watch — Visual language](https://claude.ai/artifact/9to4jj5c7d7QzPowNUcFR4) board.
+The app is rebuilt as one page: a full-screen globe with glass overlays, following the [QW · Handoff](https://www.figma.com/design/8eNSPpbMBnR6bGNEdO9CGc/Vizz-lab-%F0%9F%A5%BC?node-id=1397-673) section of the Figma file. The idea started on the "Design" page of the [Quake Watch — Visual language](https://claude.ai/artifact/9to4jj5c7d7QzPowNUcFR4) board, which now serves only as a reference for how the globe is drawn, because the globe in Figma is a pasted image.
 
 ## Globe
 
