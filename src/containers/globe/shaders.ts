@@ -67,3 +67,64 @@ void main() {
   gl_FragColor = vec4(vColor.rgb, vColor.a * coverage);
 }
 `;
+
+export const QUAKE_VERTEX_SHADER = `
+${VIEW_CHUNK}
+attribute float aRadius;
+attribute float aSize;
+attribute vec3 aColor;
+attribute float aAlpha;
+varying vec4 vColor;
+varying float vSize;
+
+void main() {
+  vec3 r = getRotated(position);
+  if (r.z < 0.0) {
+    gl_Position = vec4(2.0, 2.0, 2.0, 1.0);
+    gl_PointSize = 0.0;
+    return;
+  }
+  vSize = 2.0 * aSize * uDpr;
+  vColor = vec4(aColor, aAlpha);
+  gl_PointSize = ceil(vSize) + 2.0;
+  gl_Position = getClipPosition(r.xy * aRadius * uRadius);
+}
+`;
+
+export const QUAKE_FRAGMENT_SHADER = `
+varying vec4 vColor;
+varying float vSize;
+
+void main() {
+  float offset = length(gl_PointCoord - 0.5) * (ceil(vSize) + 2.0);
+  float coverage = clamp(vSize * 0.5 + 0.5 - offset, 0.0, 1.0);
+  if (coverage <= 0.0) discard;
+  gl_FragColor = vec4(vColor.rgb, vColor.a * coverage);
+}
+`;
+
+export const NEEDLE_VERTEX_SHADER = `
+${VIEW_CHUNK}
+attribute float aRadius;
+attribute vec3 aColor;
+attribute float aAlpha;
+varying vec4 vColor;
+
+void main() {
+  vec3 r = getRotated(position);
+  if (r.z < 0.0) {
+    gl_Position = vec4(2.0, 2.0, 2.0, 1.0);
+    return;
+  }
+  vColor = vec4(aColor, aAlpha);
+  gl_Position = getClipPosition(r.xy * aRadius * uRadius);
+}
+`;
+
+export const NEEDLE_FRAGMENT_SHADER = `
+varying vec4 vColor;
+
+void main() {
+  gl_FragColor = vColor;
+}
+`;

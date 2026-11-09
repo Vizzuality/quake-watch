@@ -11,13 +11,22 @@ import {
   Vector3,
 } from 'three';
 
+import type { Earthquake } from '@/lib/earthquakes/types';
 import { getGlobeFrame } from '@/lib/globe/frame';
 import { getLandMask } from '@/lib/globe/land-mask';
 import { GLOBE_DOT_COUNT, GLOBE_LOOK } from '@/lib/globe/look';
 import type { GlobeView } from '@/lib/globe/motion';
+import { type QuakeVertexAttributes, getQuakeMarkerAttributes } from '@/lib/globe/quakes';
 import { getFibonacciPoints } from '@/lib/globe/sphere';
 
-import { DOT_FRAGMENT_SHADER, DOT_VERTEX_SHADER } from './shaders';
+import {
+  DOT_FRAGMENT_SHADER,
+  DOT_VERTEX_SHADER,
+  NEEDLE_FRAGMENT_SHADER,
+  NEEDLE_VERTEX_SHADER,
+  QUAKE_FRAGMENT_SHADER,
+  QUAKE_VERTEX_SHADER,
+} from './shaders';
 import type { GlobeControls } from './use-globe-controls';
 
 type GlobeAssets = ReturnType<typeof getGlobeAssets>;
@@ -28,6 +37,17 @@ type ViewUniforms = {
   uCenter: { value: Vector2 };
   uDpr: { value: number };
 };
+
+const ADDITIVE_BLENDING = {
+  blending: CustomBlending,
+  blendSrc: SrcAlphaFactor,
+  blendDst: OneFactor,
+  blendSrcAlpha: OneFactor,
+  blendDstAlpha: OneFactor,
+  transparent: true,
+  depthTest: false,
+  depthWrite: false,
+} as const;
 
 function getRgb(rgb: readonly [number, number, number]): Vector3 {
   return new Vector3(rgb[0] / 255, rgb[1] / 255, rgb[2] / 255);
@@ -54,15 +74,29 @@ function getDotMaterial(view: ViewUniforms): ShaderMaterial {
       uDotSize: { value: GLOBE_LOOK.dot },
       uRim: { value: GLOBE_LOOK.rim },
     },
-    blending: CustomBlending,
-    blendSrc: SrcAlphaFactor,
-    blendDst: OneFactor,
-    blendSrcAlpha: OneFactor,
-    blendDstAlpha: OneFactor,
-    transparent: true,
-    depthTest: false,
-    depthWrite: false,
+    ...ADDITIVE_BLENDING,
   });
+}
+
+function getQuakeGeometry({
+  direction,
+  radius,
+  color,
+  alpha,
+}: QuakeVertexAttributes): BufferGeometry {
+  const geometry = new BufferGeometry();
+  geometry.setAttribute('position', new BufferAttribute(direction, 3));
+  geometry.setAttribute('aRadius', new BufferAttribute(radius, 1));
+  geometry.setAttribute('aColor', new BufferAttribute(color, 3));
+  geometry.setAttribute('aAlpha', new BufferAttribute(alpha, 1));
+  return geometry;
+}
+
+function getQuakeGeometries(earthquakes: readonly Earthquake[]) {
+  const { markers, needles } = getQuakeMarkerAttributes(earthquakes);
+  const markerGeometry = getQuakeGeometry(markers);
+  markerGeometry.setAttribute('aSize', new BufferAttribute(markers.size, 1));
+  return { markerGeometry, needleGeometry: getQuakeGeometry(needles) };
 }
 
 function getGlobeAssets() {
@@ -77,6 +111,18 @@ function getGlobeAssets() {
     view,
     dotGeometry: getDotGeometry(),
     dotMaterial: getDotMaterial(view),
+    markerMaterial: new ShaderMaterial({
+      vertexShader: QUAKE_VERTEX_SHADER,
+      fragmentShader: QUAKE_FRAGMENT_SHADER,
+      uniforms: { ...view },
+      ...ADDITIVE_BLENDING,
+    }),
+    needleMaterial: new ShaderMaterial({
+      vertexShader: NEEDLE_VERTEX_SHADER,
+      fragmentShader: NEEDLE_FRAGMENT_SHADER,
+      uniforms: { ...view },
+      ...ADDITIVE_BLENDING,
+    }),
   };
 }
 
@@ -95,8 +141,15 @@ function setFrameUniforms(
   view.uDpr.value = dpr;
 }
 
-export function GlobeScene({ controls }: { controls: GlobeControls }) {
+export function GlobeScene({
+  controls,
+  earthquakes,
+}: {
+  controls: GlobeControls;
+  earthquakes: readonly Earthquake[];
+}) {
   const assets = useMemo(() => getGlobeAssets(), []);
+  const quakes = useMemo(() => getQuakeGeometries(earthquakes), [earthquakes]);
 
   useFrame((state, delta) => {
     const view = controls.advance(delta, state.clock.elapsedTime * 1000);
@@ -112,7 +165,33 @@ export function GlobeScene({ controls }: { controls: GlobeControls }) {
     [assets],
   );
 
+  useEffect(
+    () => () => {
+      quakes.markerGeometry.dispose();
+      quakes.needleGeometry.dispose();
+    },
+    [quakes],
+  );
+
   return (
-    <points geometry={assets.dotGeometry} material={assets.dotMaterial} frustumCulled={false} />
+    <>
+      <points geometry={assets.dotGeometry} material={assets.dotMaterial} frustumCulled={false} />
+      {earthquakes.length > 0 && (
+        <>
+          <lineSegments
+            geometry={quakes.needleGeometry}
+            material={assets.needleMaterial}
+            renderOrder={1}
+            frustumCulled={false}
+          />
+          <points
+            geometry={quakes.markerGeometry}
+            material={assets.markerMaterial}
+            renderOrder={2}
+            frustumCulled={false}
+          />
+        </>
+      )}
+    </>
   );
 }

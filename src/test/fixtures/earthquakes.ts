@@ -1,18 +1,27 @@
 export function getEmscFeature(
-  overrides: { id?: string; mag?: number; time?: string; region?: string | null } = {},
+  overrides: {
+    id?: string;
+    mag?: number;
+    time?: string;
+    region?: string | null;
+    lat?: number;
+    lon?: number;
+    depth?: number;
+  } = {},
 ) {
   const id = overrides.id ?? '20260814_0000322';
+  const { lat = 37.1147, lon = -3.6316, depth = 2.1 } = overrides;
   return {
     type: 'Feature',
     id,
-    geometry: { type: 'Point', coordinates: [-3.6316, 37.1147, -2.1] },
+    geometry: { type: 'Point', coordinates: [lon, lat, -depth] },
     properties: {
       unid: id,
       time: overrides.time ?? '2026-08-14T23:04:40.18Z',
       flynn_region: overrides.region === undefined ? 'SOUTHERN SPAIN' : overrides.region,
-      lat: 37.1147,
-      lon: -3.6316,
-      depth: 2.1,
+      lat,
+      lon,
+      depth,
       mag: overrides.mag ?? 5.2,
       magtype: 'mb',
     },

@@ -1,6 +1,11 @@
 import { Canvas } from '@react-three/fiber';
+import { useQuery } from '@tanstack/react-query';
+import { getRouteApi } from '@tanstack/react-router';
 import { useRef, useState } from 'react';
 
+import { earthquakesQueryOptions } from '@/lib/earthquakes/query-options';
+import { getEarthquakeFilters } from '@/lib/earthquakes/search-schema';
+import type { Earthquake } from '@/lib/earthquakes/types';
 import { m } from '@/paraglide/messages';
 
 import { GlobeScene } from './globe-scene';
@@ -8,6 +13,8 @@ import { GlobeErrorBoundary, GlobeUnavailable } from './globe-unavailable';
 import { useGlobeControls } from './use-globe-controls';
 
 const CAMERA = { zoom: 1, position: [0, 0, 1000], near: 0.1, far: 5000 } as const;
+const EMPTY_EARTHQUAKES: readonly Earthquake[] = [];
+const homeRoute = getRouteApi('/');
 
 function isWebGLAvailable(): boolean {
   const context = document.createElement('canvas').getContext('webgl2');
@@ -16,8 +23,11 @@ function isWebGLAvailable(): boolean {
 }
 
 function GlobeCanvas() {
+  const search = homeRoute.useSearch();
+  const { data } = useQuery(earthquakesQueryOptions(getEarthquakeFilters(search)));
   const containerRef = useRef<HTMLDivElement>(null);
   const controls = useGlobeControls(containerRef);
+  const earthquakes = data?.earthquakes ?? EMPTY_EARTHQUAKES;
 
   return (
     <div
@@ -28,7 +38,7 @@ function GlobeCanvas() {
       className="absolute inset-0 cursor-grab touch-none select-none"
     >
       <Canvas orthographic flat dpr={[1, 2]} gl={{ antialias: true }} camera={CAMERA}>
-        <GlobeScene controls={controls} />
+        <GlobeScene controls={controls} earthquakes={earthquakes} />
       </Canvas>
     </div>
   );
