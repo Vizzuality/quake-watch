@@ -5,59 +5,22 @@ import {
   BufferGeometry,
   CustomBlending,
   OneFactor,
-  OneMinusSrcAlphaFactor,
-  PlaneGeometry,
   ShaderMaterial,
   SrcAlphaFactor,
   Vector2,
   Vector3,
 } from 'three';
-import type { ShaderMaterialParameters } from 'three';
 
-import { getBorderSegments } from '@/lib/globe/borders';
 import { getGlobeFrame } from '@/lib/globe/frame';
 import { getLandMask } from '@/lib/globe/land-mask';
-import { GLOBE_DOT_COUNT, GLOBE_GLOW, GLOBE_LOOK, GLOBE_VEIL_RGB } from '@/lib/globe/look';
+import { GLOBE_DOT_COUNT, GLOBE_LOOK } from '@/lib/globe/look';
 import type { GlobeView } from '@/lib/globe/motion';
 import { getFibonacciPoints } from '@/lib/globe/sphere';
 
-import {
-  BORDER_FRAGMENT_SHADER,
-  BORDER_VERTEX_SHADER,
-  DISC_VERTEX_SHADER,
-  DOT_FRAGMENT_SHADER,
-  DOT_VERTEX_SHADER,
-  GLOW_FRAGMENT_SHADER,
-  VEIL_FRAGMENT_SHADER,
-} from './shaders';
+import { DOT_FRAGMENT_SHADER, DOT_VERTEX_SHADER } from './shaders';
 import type { GlobeControls } from './use-globe-controls';
 
 type GlobeAssets = ReturnType<typeof getGlobeAssets>;
-type Composite = Pick<
-  ShaderMaterialParameters,
-  'blending' | 'blendSrc' | 'blendDst' | 'blendSrcAlpha' | 'blendDstAlpha'
->;
-
-const SOURCE_OVER: Composite = {
-  blending: CustomBlending,
-  blendSrc: SrcAlphaFactor,
-  blendDst: OneMinusSrcAlphaFactor,
-  blendSrcAlpha: OneFactor,
-  blendDstAlpha: OneMinusSrcAlphaFactor,
-};
-
-const LIGHTER: Composite = {
-  blending: CustomBlending,
-  blendSrc: SrcAlphaFactor,
-  blendDst: OneFactor,
-  blendSrcAlpha: OneFactor,
-  blendDstAlpha: OneFactor,
-};
-
-const VEIL_EXTENT = 1.01;
-
-const RENDER_ORDER = { glow: 0, backDots: 1, veil: 2, frontDots: 3, borders: 4 } as const;
-
 type ViewUniforms = {
   uLon: { value: number };
   uLat: { value: number };
@@ -70,23 +33,6 @@ function getRgb(rgb: readonly [number, number, number]): Vector3 {
   return new Vector3(rgb[0] / 255, rgb[1] / 255, rgb[2] / 255);
 }
 
-function getMaterial(
-  vertexShader: string,
-  fragmentShader: string,
-  uniforms: Record<string, { value: unknown }>,
-  composite: Composite,
-): ShaderMaterial {
-  return new ShaderMaterial({
-    vertexShader,
-    fragmentShader,
-    uniforms,
-    ...composite,
-    transparent: true,
-    depthTest: false,
-    depthWrite: false,
-  });
-}
-
 function getDotGeometry(): BufferGeometry {
   const geometry = new BufferGeometry();
   geometry.setAttribute('position', new BufferAttribute(getFibonacciPoints(GLOBE_DOT_COUNT), 3));
@@ -94,19 +40,12 @@ function getDotGeometry(): BufferGeometry {
   return geometry;
 }
 
-function getBorderGeometry(): BufferGeometry {
-  const geometry = new BufferGeometry();
-  geometry.setAttribute('position', new BufferAttribute(getBorderSegments(), 3));
-  return geometry;
-}
-
-function getDotMaterial(view: ViewUniforms, isFront: boolean): ShaderMaterial {
-  return getMaterial(
-    DOT_VERTEX_SHADER,
-    DOT_FRAGMENT_SHADER,
-    {
+function getDotMaterial(view: ViewUniforms): ShaderMaterial {
+  return new ShaderMaterial({
+    vertexShader: DOT_VERTEX_SHADER,
+    fragmentShader: DOT_FRAGMENT_SHADER,
+    uniforms: {
       ...view,
-      uFront: { value: Number(isFront) },
       uOcean: { value: getRgb(GLOBE_LOOK.ocean) },
       uLand: { value: getRgb(GLOBE_LOOK.land) },
       uOceanAlpha: { value: GLOBE_LOOK.oceanA },
@@ -115,8 +54,15 @@ function getDotMaterial(view: ViewUniforms, isFront: boolean): ShaderMaterial {
       uDotSize: { value: GLOBE_LOOK.dot },
       uRim: { value: GLOBE_LOOK.rim },
     },
-    LIGHTER,
-  );
+    blending: CustomBlending,
+    blendSrc: SrcAlphaFactor,
+    blendDst: OneFactor,
+    blendSrcAlpha: OneFactor,
+    blendDstAlpha: OneFactor,
+    transparent: true,
+    depthTest: false,
+    depthWrite: false,
+  });
 }
 
 function getGlobeAssets() {
@@ -127,45 +73,10 @@ function getGlobeAssets() {
     uCenter: { value: new Vector2() },
     uDpr: { value: 1 },
   };
-  const borderAlpha: { value: number } = { value: GLOBE_LOOK.outA };
   return {
     view,
-    borderAlpha,
     dotGeometry: getDotGeometry(),
-    borderGeometry: getBorderGeometry(),
-    discGeometry: new PlaneGeometry(2, 2),
-    glowMaterial: getMaterial(
-      DISC_VERTEX_SHADER,
-      GLOW_FRAGMENT_SHADER,
-      {
-        ...view,
-        uExtent: { value: GLOBE_GLOW.to },
-        uFrom: { value: GLOBE_GLOW.from },
-        uTo: { value: GLOBE_GLOW.to },
-        uColor: { value: getRgb(GLOBE_GLOW.rgb) },
-        uAlpha: { value: GLOBE_GLOW.alpha },
-      },
-      SOURCE_OVER,
-    ),
-    backDotMaterial: getDotMaterial(view, false),
-    veilMaterial: getMaterial(
-      DISC_VERTEX_SHADER,
-      VEIL_FRAGMENT_SHADER,
-      {
-        ...view,
-        uExtent: { value: VEIL_EXTENT },
-        uColor: { value: getRgb(GLOBE_VEIL_RGB) },
-        uAlpha: { value: GLOBE_LOOK.veil },
-      },
-      SOURCE_OVER,
-    ),
-    frontDotMaterial: getDotMaterial(view, true),
-    borderMaterial: getMaterial(
-      BORDER_VERTEX_SHADER,
-      BORDER_FRAGMENT_SHADER,
-      { ...view, uAlpha: borderAlpha },
-      SOURCE_OVER,
-    ),
+    dotMaterial: getDotMaterial(view),
   };
 }
 
@@ -182,7 +93,6 @@ function setFrameUniforms(
   view.uRadius.value = frame.radius * zoom;
   view.uCenter.value.set(frame.cx - width / 2, height / 2 - frame.cy);
   view.uDpr.value = dpr;
-  assets.borderAlpha.value = GLOBE_LOOK.outA * Math.min(1, GLOBE_LOOK.outW * dpr);
 }
 
 export function GlobeScene({ controls }: { controls: GlobeControls }) {
@@ -203,37 +113,6 @@ export function GlobeScene({ controls }: { controls: GlobeControls }) {
   );
 
   return (
-    <>
-      <mesh
-        geometry={assets.discGeometry}
-        material={assets.glowMaterial}
-        renderOrder={RENDER_ORDER.glow}
-        frustumCulled={false}
-      />
-      <points
-        geometry={assets.dotGeometry}
-        material={assets.backDotMaterial}
-        renderOrder={RENDER_ORDER.backDots}
-        frustumCulled={false}
-      />
-      <mesh
-        geometry={assets.discGeometry}
-        material={assets.veilMaterial}
-        renderOrder={RENDER_ORDER.veil}
-        frustumCulled={false}
-      />
-      <points
-        geometry={assets.dotGeometry}
-        material={assets.frontDotMaterial}
-        renderOrder={RENDER_ORDER.frontDots}
-        frustumCulled={false}
-      />
-      <lineSegments
-        geometry={assets.borderGeometry}
-        material={assets.borderMaterial}
-        renderOrder={RENDER_ORDER.borders}
-        frustumCulled={false}
-      />
-    </>
+    <points geometry={assets.dotGeometry} material={assets.dotMaterial} frustumCulled={false} />
   );
 }
