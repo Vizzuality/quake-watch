@@ -14,7 +14,7 @@ import { overwriteGetLocale } from '@/paraglide/runtime';
 
 const WIDTH = 1280;
 const HEIGHT = 800;
-const RADIUS = getGlobeFrame(WIDTH, HEIGHT).radius;
+const { cx: CX, cy: CY, radius: RADIUS } = getGlobeFrame(WIDTH, HEIGHT);
 const FRAME = 1 / 60;
 
 function waitFrames(count: number): Promise<void> {
@@ -46,6 +46,34 @@ function stubWebGL(availableCalls: number) {
     calls += 1;
     return calls <= availableCalls ? original.apply(this, args) : null;
   } as HTMLCanvasElement['getContext']);
+}
+
+function stubPreservedDrawingBuffer() {
+  const original = HTMLCanvasElement.prototype.getContext;
+  vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockImplementation(function (
+    this: HTMLCanvasElement,
+    type: string,
+    attributes?: WebGLContextAttributes,
+  ) {
+    return original.call(this, type, { ...attributes, preserveDrawingBuffer: true });
+  } as HTMLCanvasElement['getContext']);
+}
+
+function getPixelAlpha(canvas: HTMLCanvasElement, x: number, y: number): number {
+  const gl = canvas.getContext('webgl2');
+  if (!gl) throw new Error('globe canvas has no WebGL2 context');
+  const dpr = gl.drawingBufferWidth / canvas.clientWidth;
+  const pixel = new Uint8Array(4);
+  gl.readPixels(
+    Math.floor(x * dpr),
+    Math.floor(gl.drawingBufferHeight - y * dpr),
+    1,
+    1,
+    gl.RGBA,
+    gl.UNSIGNED_BYTE,
+    pixel,
+  );
+  return pixel[3];
 }
 
 async function renderGlobe() {
@@ -117,6 +145,17 @@ describe('globe', () => {
     await waitFrames(10);
     expect(screen.container.querySelector('output')).toBeNull();
     expect(consoleError).not.toHaveBeenCalled();
+  });
+
+  it('leaves the canvas transparent around the globe and paints the disc', async () => {
+    stubPreservedDrawingBuffer();
+    const screen = await renderGlobe();
+
+    await vi.waitFor(() => expect(screen.container.querySelector('canvas')).not.toBeNull());
+    await waitFrames(10);
+    const canvas = screen.container.querySelector('canvas') as HTMLCanvasElement;
+    expect(getPixelAlpha(canvas, 1, 1)).toBe(0);
+    expect(getPixelAlpha(canvas, CX, CY)).toBeGreaterThan(0);
   });
 
   it('keeps the shell and says so inline when WebGL is missing', async () => {

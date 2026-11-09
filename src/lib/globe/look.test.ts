@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
-import { GLOBE_BACKGROUND, GLOBE_DOT_COUNT, GLOBE_GLOW, GLOBE_LOOK } from './look';
+import { GLOBE_DOT_COUNT, GLOBE_GLOW, GLOBE_LOOK, GLOBE_VEIL_RGB } from './look';
 
 describe('globe look', () => {
   it('pins the board LK constants', () => {
     expect(GLOBE_DOT_COUNT).toBe(30_000);
-    expect(GLOBE_BACKGROUND).toBe('#05050B');
+    expect(GLOBE_VEIL_RGB).toEqual([24, 26, 54]);
     expect(GLOBE_LOOK).toEqual({
       ocean: [63, 127, 217],
       oceanA: 1,

@@ -1,21 +1,23 @@
 import { useFrame } from '@react-three/fiber';
 import { useEffect, useMemo } from 'react';
 import {
-  AdditiveBlending,
   BufferAttribute,
   BufferGeometry,
-  NormalBlending,
+  CustomBlending,
+  OneFactor,
+  OneMinusSrcAlphaFactor,
   PlaneGeometry,
   ShaderMaterial,
+  SrcAlphaFactor,
   Vector2,
   Vector3,
 } from 'three';
-import type { Blending } from 'three';
+import type { ShaderMaterialParameters } from 'three';
 
 import { getBorderSegments } from '@/lib/globe/borders';
 import { getGlobeFrame } from '@/lib/globe/frame';
 import { getLandMask } from '@/lib/globe/land-mask';
-import { GLOBE_BACKGROUND, GLOBE_DOT_COUNT, GLOBE_GLOW, GLOBE_LOOK } from '@/lib/globe/look';
+import { GLOBE_DOT_COUNT, GLOBE_GLOW, GLOBE_LOOK, GLOBE_VEIL_RGB } from '@/lib/globe/look';
 import type { GlobeView } from '@/lib/globe/motion';
 import { getFibonacciPoints } from '@/lib/globe/sphere';
 
@@ -31,6 +33,26 @@ import {
 import type { GlobeControls } from './use-globe-controls';
 
 type GlobeAssets = ReturnType<typeof getGlobeAssets>;
+type Composite = Pick<
+  ShaderMaterialParameters,
+  'blending' | 'blendSrc' | 'blendDst' | 'blendSrcAlpha' | 'blendDstAlpha'
+>;
+
+const SOURCE_OVER: Composite = {
+  blending: CustomBlending,
+  blendSrc: SrcAlphaFactor,
+  blendDst: OneMinusSrcAlphaFactor,
+  blendSrcAlpha: OneFactor,
+  blendDstAlpha: OneMinusSrcAlphaFactor,
+};
+
+const LIGHTER: Composite = {
+  blending: CustomBlending,
+  blendSrc: SrcAlphaFactor,
+  blendDst: OneFactor,
+  blendSrcAlpha: OneFactor,
+  blendDstAlpha: OneFactor,
+};
 
 const VEIL_EXTENT = 1.01;
 
@@ -48,22 +70,17 @@ function getRgb(rgb: readonly [number, number, number]): Vector3 {
   return new Vector3(rgb[0] / 255, rgb[1] / 255, rgb[2] / 255);
 }
 
-function getHexRgb(hex: string): Vector3 {
-  const value = Number.parseInt(hex.slice(1), 16);
-  return getRgb([(value >> 16) & 255, (value >> 8) & 255, value & 255]);
-}
-
 function getMaterial(
   vertexShader: string,
   fragmentShader: string,
   uniforms: Record<string, { value: unknown }>,
-  blending: Blending,
+  composite: Composite,
 ): ShaderMaterial {
   return new ShaderMaterial({
     vertexShader,
     fragmentShader,
     uniforms,
-    blending,
+    ...composite,
     transparent: true,
     depthTest: false,
     depthWrite: false,
@@ -98,7 +115,7 @@ function getDotMaterial(view: ViewUniforms, isFront: boolean): ShaderMaterial {
       uDotSize: { value: GLOBE_LOOK.dot },
       uRim: { value: GLOBE_LOOK.rim },
     },
-    AdditiveBlending,
+    LIGHTER,
   );
 }
 
@@ -128,7 +145,7 @@ function getGlobeAssets() {
         uColor: { value: getRgb(GLOBE_GLOW.rgb) },
         uAlpha: { value: GLOBE_GLOW.alpha },
       },
-      NormalBlending,
+      SOURCE_OVER,
     ),
     backDotMaterial: getDotMaterial(view, false),
     veilMaterial: getMaterial(
@@ -137,17 +154,17 @@ function getGlobeAssets() {
       {
         ...view,
         uExtent: { value: VEIL_EXTENT },
-        uColor: { value: getHexRgb(GLOBE_BACKGROUND) },
+        uColor: { value: getRgb(GLOBE_VEIL_RGB) },
         uAlpha: { value: GLOBE_LOOK.veil },
       },
-      NormalBlending,
+      SOURCE_OVER,
     ),
     frontDotMaterial: getDotMaterial(view, true),
     borderMaterial: getMaterial(
       BORDER_VERTEX_SHADER,
       BORDER_FRAGMENT_SHADER,
       { ...view, uAlpha: borderAlpha },
-      NormalBlending,
+      SOURCE_OVER,
     ),
   };
 }
@@ -187,7 +204,6 @@ export function GlobeScene({ controls }: { controls: GlobeControls }) {
 
   return (
     <>
-      <color attach="background" args={[GLOBE_BACKGROUND]} />
       <mesh
         geometry={assets.discGeometry}
         material={assets.glowMaterial}

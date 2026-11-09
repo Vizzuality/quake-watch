@@ -1,7 +1,7 @@
 export type GlobeView = { lon: number; lat: number; zoom: number };
 export type GlobeVelocity = { lon: number; lat: number };
 
-export const INITIAL_VIEW: GlobeView = { lon: (150 * Math.PI) / 180, lat: 0.18, zoom: 1 };
+export const INITIAL_VIEW: GlobeView = { lon: (150 * Math.PI) / 180, lat: 0.12, zoom: 1 };
 export const ZOOM_RANGE = [1, 5] as const;
 export const LAT_LIMIT = 1.45;
 const WHEEL_ZOOM_RATE = 0.0015;

@@ -1,6 +1,6 @@
 type GlobeFrame = { cx: number; cy: number; radius: number; scale: number };
 
-const BOARD_FRAME = { width: 1440, height: 800, cx: 720, cy: 384, radius: 362 } as const;
+const BOARD_FRAME = { width: 1440, height: 900, cx: 720, cy: 462, radius: 330 } as const;
 
 export function getGlobeFrame(width: number, height: number): GlobeFrame {
   const scale = Math.min(width / BOARD_FRAME.width, height / BOARD_FRAME.height);
