@@ -20,6 +20,37 @@ function getRings(geometry: Geometry): Ring[] {
   return geometry.type === 'Polygon' ? geometry.coordinates : geometry.coordinates.flat();
 }
 
+const LAND_COVERAGE = 0.5;
+const CELL_RADIUS = Math.sqrt((4 * Math.PI) / GLOBE_DOT_COUNT) / 2;
+const CELL_RINGS = [
+  { radius: 0, count: 1 },
+  { radius: CELL_RADIUS / 2, count: 6 },
+  { radius: CELL_RADIUS, count: 12 },
+];
+
+function getOffsetLatLon(lat: number, lon: number, distance: number, bearing: number) {
+  const phi = (lat * Math.PI) / 180;
+  const lambda = (lon * Math.PI) / 180;
+  const phi2 = Math.asin(
+    Math.sin(phi) * Math.cos(distance) + Math.cos(phi) * Math.sin(distance) * Math.cos(bearing),
+  );
+  const lambda2 =
+    lambda +
+    Math.atan2(
+      Math.sin(bearing) * Math.sin(distance) * Math.cos(phi),
+      Math.cos(distance) - Math.sin(phi) * Math.sin(phi2),
+    );
+  return { lat: (phi2 * 180) / Math.PI, lon: (((lambda2 * 180) / Math.PI + 540) % 360) - 180 };
+}
+
+function getCellSamples(lat: number, lon: number) {
+  return CELL_RINGS.flatMap(({ radius, count }) =>
+    Array.from({ length: count }, (_, k) =>
+      getOffsetLatLon(lat, lon, radius, (2 * Math.PI * k) / count),
+    ),
+  );
+}
+
 function isInsideRing(ring: Ring, lon: number, lat: number): boolean {
   let inside = false;
   for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
@@ -40,14 +71,19 @@ const { features } = JSON.parse(readFileSync(inputPath, 'utf8')) as {
   features: { geometry: Geometry }[];
 };
 const rings = features.flatMap(({ geometry }) => getRings(geometry));
+
+function isLand(lat: number, lon: number): boolean {
+  return rings.filter((ring) => isInsideRing(ring, lon, lat)).length % 2 === 1;
+}
 const points = getFibonacciPoints(GLOBE_DOT_COUNT);
 const bits = new Uint8Array(Math.ceil(GLOBE_DOT_COUNT / 8));
 let landCount = 0;
 
 for (let i = 0; i < GLOBE_DOT_COUNT; i++) {
   const { lat, lon } = getPointLatLon(points[i * 3], points[i * 3 + 1], points[i * 3 + 2]);
-  const crossings = rings.filter((ring) => isInsideRing(ring, lon, lat)).length;
-  if (crossings % 2 === 1) {
+  const samples = getCellSamples(lat, lon);
+  const landSamples = samples.filter((sample) => isLand(sample.lat, sample.lon)).length;
+  if (landSamples / samples.length >= LAND_COVERAGE) {
     bits[i >> 3] |= 1 << (i & 7);
     landCount++;
   }
