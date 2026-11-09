@@ -35,5 +35,7 @@
   "og_site_history": "Terremotos M6+, 2000–2025",
   "not_found_line": "Aquí no hay nada.",
   "error_line": "Algo ha ido mal.",
-  "back_to_globe": "Volver al globo"
+  "back_to_globe": "Volver al globo",
+  "globe_label": "Globo de terremotos. Arrastra para girar y desplázate para hacer zoom.",
+  "globe_unavailable": "Tu navegador no puede dibujar el globo."
 }

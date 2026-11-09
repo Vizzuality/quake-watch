@@ -35,5 +35,7 @@
   "og_site_history": "M6+ earthquakes, 2000–2025",
   "not_found_line": "Nothing here.",
   "error_line": "Something went wrong.",
-  "back_to_globe": "Back to the globe"
+  "back_to_globe": "Back to the globe",
+  "globe_label": "Globe of Earthquakes. Drag to rotate, scroll to zoom.",
+  "globe_unavailable": "Your browser can't draw the globe."
 }

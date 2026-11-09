@@ -1,4 +1,5 @@
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
+import path from 'node:path';
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
@@ -8,6 +9,9 @@ import { SERVER_ENTRY, type SmokeServer, startServer, stopProcess } from './serv
 const SITE_ROBOTS = isSiteIndexableFromEnv(process.env.VITE_SITE_INDEXABLE)
   ? []
   : ['noindex,follow'];
+
+const THREE_MARKER = 'THREE.WebGLRenderer';
+const ASSETS_DIR = path.join(path.dirname(SERVER_ENTRY), '../public/assets');
 
 let server: SmokeServer | undefined;
 
@@ -49,6 +53,29 @@ describe('placeholder shell', () => {
     expect(status).toBe(200);
     expect(html).toContain(`<html lang="${locale}"`);
     expect(html).toContain('<h1 class="sr-only">Quake Watch</h1>');
+  });
+});
+
+describe('globe first paint', () => {
+  it('builds three.js into its own lazy globe chunk', () => {
+    const chunks = readdirSync(ASSETS_DIR).filter((name) => /^globe-[\w-]+\.js$/.test(name));
+    expect(chunks).toHaveLength(1);
+    expect(readFileSync(path.join(ASSETS_DIR, chunks[0]), 'utf8')).toContain(THREE_MARKER);
+  });
+
+  it('server-renders the shell without a canvas or any three.js code in the first-paint scripts', async () => {
+    const { status, html } = await getPage('/en');
+    expect(status).toBe(200);
+    expect(html).not.toContain('<canvas');
+    expect(html).not.toMatch(/\/assets\/globe-/);
+    const scripts = [...new Set(html.match(/\/assets\/[\w.-]+\.js/g))];
+    expect(scripts.length).toBeGreaterThan(0);
+    const scriptsWithThree = [];
+    for (const script of scripts) {
+      const response = await fetch(`${server?.origin}${script}`);
+      if ((await response.text()).includes(THREE_MARKER)) scriptsWithThree.push(script);
+    }
+    expect(scriptsWithThree).toEqual([]);
   });
 });
 
