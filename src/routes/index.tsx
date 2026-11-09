@@ -28,7 +28,7 @@ function Home() {
 
   return (
     <main
-      className="relative min-h-dvh overflow-hidden bg-background text-foreground"
+      className="relative min-h-dvh overflow-hidden text-foreground"
       data-source={source}
       data-interval={interval}
       data-minmag={minmag}

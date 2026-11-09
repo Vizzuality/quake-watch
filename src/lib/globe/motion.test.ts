@@ -13,8 +13,8 @@ import {
 } from './motion';
 
 describe('motion', () => {
-  it('starts at lon 150°, lat 0.18, zoom 1', () => {
-    expect(INITIAL_VIEW).toEqual({ lon: (150 * Math.PI) / 180, lat: 0.18, zoom: 1 });
+  it('starts at lon 150°, lat 0.12, zoom 1', () => {
+    expect(INITIAL_VIEW).toEqual({ lon: (150 * Math.PI) / 180, lat: 0.12, zoom: 1 });
     expect(ZOOM_RANGE).toEqual([1, 5]);
     expect(LAT_LIMIT).toBe(1.45);
   });

@@ -1,6 +1,6 @@
 export const GLOBE_DOT_COUNT = 30_000;
 
-export const GLOBE_BACKGROUND = '#05050B';
+export const GLOBE_VEIL_RGB = [24, 26, 54] as const;
 
 export const GLOBE_LOOK = {
   ocean: [63, 127, 217],

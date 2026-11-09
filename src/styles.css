@@ -1,69 +1,134 @@
 @import 'tailwindcss';
-@import '@fontsource/inter-tight/300.css';
-@import '@fontsource/inter-tight/400.css';
-@import '@fontsource/inter-tight/500.css';
-@import '@fontsource/inter-tight/600.css';
-@import '@fontsource/inter-tight/700.css';
-@import '@fontsource/geist-mono/400.css';
-@import '@fontsource/geist-mono/500.css';
+@import '@fontsource/space-grotesk/300.css';
+@import '@fontsource/space-grotesk/400.css';
+@import '@fontsource/space-grotesk/500.css';
+@import '@fontsource/space-grotesk/700.css';
 
 @theme static {
-  --color-background: #05050b;
-  --color-foreground: #ffffff;
-  --color-muted-1: #c9cae6;
-  --color-muted-2: #afb1d8;
-  --color-muted-3: #9a9cc0;
-  --color-muted-4: #7c7fa6;
-  --color-border: #23253f;
-  --color-border-hover: #3a3d63;
-  --color-ring: #6d72c9;
-  --color-divider: rgba(154, 156, 192, 0.18);
-  --color-glass-pill: rgba(5, 5, 11, 0.4);
-  --color-glass-menu: rgba(12, 13, 32, 0.72);
-  --color-glass-tooltip: rgba(12, 13, 32, 0.55);
-  --color-glass-tooltip-border: rgba(154, 156, 192, 0.2);
-  --color-option-hover: rgba(236, 235, 250, 0.08);
-  --color-option-selected: rgba(236, 235, 250, 0.08);
+  --color-background: #171a33;
+  --color-foreground: #e6e4f5;
+  --color-muted: #a09dc1;
+  --color-accent: #eb598e;
+  --color-line: rgba(185, 182, 224, 0.16);
+  --color-line-tick: rgba(230, 228, 245, 0.3);
+  --color-line-control: rgba(185, 182, 224, 0.25);
+  --color-line-sheet: rgba(185, 182, 224, 0.2);
+  --color-line-toast: rgba(235, 89, 142, 0.7);
+  --color-handle: rgba(230, 228, 245, 0.35);
+  --color-selected: #e6e4f5;
+  --color-on-selected: #171a33;
+  --color-glass-panel: rgba(23, 26, 51, 0.2);
+  --color-glass-tooltip: rgba(23, 26, 51, 0.2);
+  --color-glass-toast: rgba(23, 26, 51, 0.6);
+  --color-glass-sheet: rgba(23, 26, 51, 0.62);
+  --color-glass-modal: rgba(23, 26, 51, 0.55);
+  --color-scrim: rgba(12, 13, 30, 0.45);
 
   --color-depth-0: #ff9a4d;
   --color-depth-70: #ff5e6c;
   --color-depth-300: #c04fd8;
   --color-depth-700: #4f7bff;
 
-  --radius-pill: 1000px;
-  --radius-card: 24px;
-  --radius-menu: 16px;
-  --radius-option: 10px;
+  --background-image-page:
+    radial-gradient(ellipse 60% 55% at 50% 48%, rgba(70, 80, 190, 0.32), rgba(70, 80, 190, 0) 100%),
+    radial-gradient(
+      ellipse 70% 60% at 15% 105%,
+      rgba(150, 70, 95, 0.38),
+      rgba(150, 70, 95, 0) 100%
+    ),
+    linear-gradient(165deg, #15172e 0%, #1c1c38 50%, #2c2340 100%);
 
-  --blur-glass: 16px;
+  --radius-pill: 999px;
+  --radius-modal: 6px;
+  --radius-sheet: 18px;
+  --radius-handle: 2px;
 
-  --font-sans: 'Inter Tight', ui-sans-serif, system-ui, sans-serif;
-  --font-mono: 'Geist Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace;
+  --spacing-control: 34px;
 
-  --text-eyebrow: 0.625rem;
-  --text-eyebrow--font-weight: 600;
-  --text-eyebrow--letter-spacing: 1px;
-  --text-caption: 0.6875rem;
-  --text-control: 0.75rem;
-  --text-control--line-height: 0.9375rem;
-  --text-body-sm: 0.8125rem;
-  --text-body: 0.875rem;
-  --text-body--line-height: 1.3;
-  --text-body--font-weight: 300;
-  --text-value: 0.9375rem;
-  --text-value--font-weight: 600;
-  --text-place: 1.125rem;
-  --text-place--line-height: 1.25;
-  --text-place--font-weight: 600;
-  --text-stat: 1.5rem;
-  --text-stat--line-height: 1.2;
-  --text-stat--font-weight: 700;
-  --text-magnitude: 2.5rem;
-  --text-magnitude--line-height: 1;
-  --text-magnitude--font-weight: 700;
-  --text-magnitude--letter-spacing: -0.02em;
+  --font-sans: 'Space Grotesk', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: initial;
 
-  --ease-out-quart: cubic-bezier(0.25, 1, 0.5, 1);
+  --text-label: 10px;
+  --text-label--line-height: 1.2;
+  --text-label--font-weight: 700;
+  --text-label--letter-spacing: 0.15em;
+  --text-label-s: 9px;
+  --text-label-s--line-height: 1.2;
+  --text-label-s--font-weight: 500;
+  --text-label-s--letter-spacing: 0.18em;
+  --text-caption: 10px;
+  --text-caption--line-height: 1.3;
+  --text-caption--font-weight: 500;
+  --text-caption--letter-spacing: 0.2em;
+  --text-caption-bold: 10px;
+  --text-caption-bold--line-height: 1.3;
+  --text-caption-bold--font-weight: 700;
+  --text-caption-bold--letter-spacing: 0.2em;
+  --text-button: 11px;
+  --text-button--line-height: 1.2;
+  --text-button--font-weight: 500;
+  --text-button--letter-spacing: 0.2em;
+  --text-country: 10px;
+  --text-country--line-height: 1.2;
+  --text-country--font-weight: 500;
+  --text-country--letter-spacing: 0.32em;
+  --text-sea: 10px;
+  --text-sea--line-height: 1.2;
+  --text-sea--font-weight: 300;
+  --text-sea--letter-spacing: 0.3em;
+  --text-body-s: 12px;
+  --text-body-s--line-height: 1.4;
+  --text-body-s--font-weight: 400;
+  --text-body: 14px;
+  --text-body--line-height: 1.5;
+  --text-body--font-weight: 400;
+  --text-lead: 15px;
+  --text-lead--line-height: 1.25;
+  --text-lead--font-weight: 300;
+  --text-place: 11px;
+  --text-place--line-height: 1.2;
+  --text-place--font-weight: 400;
+  --text-place-l: 17px;
+  --text-place-l--line-height: 1.25;
+  --text-place-l--font-weight: 400;
+  --text-title: 28px;
+  --text-title--line-height: 1.15;
+  --text-title--font-weight: 300;
+  --text-title-m: 30px;
+  --text-title-m--line-height: 1.1;
+  --text-title-m--font-weight: 300;
+  --text-value: 26px;
+  --text-value--line-height: 1.2;
+  --text-value--font-weight: 300;
+  --text-value-m: 30px;
+  --text-value-m--line-height: 1;
+  --text-value-m--font-weight: 300;
+  --text-value-s: 22px;
+  --text-value-s--line-height: 1.25;
+  --text-value-s--font-weight: 300;
+  --text-tooltip-value: 28px;
+  --text-tooltip-value--line-height: 1;
+  --text-tooltip-value--font-weight: 300;
+  --text-stat: 42px;
+  --text-stat--line-height: 1;
+  --text-stat--font-weight: 300;
+  --text-stat--letter-spacing: -0.02em;
+  --text-display: 38px;
+  --text-display--line-height: 1.05;
+  --text-display--font-weight: 300;
+  --text-display--letter-spacing: -0.02em;
+  --text-numeral-m: 72px;
+  --text-numeral-m--line-height: 0.95;
+  --text-numeral-m--font-weight: 300;
+  --text-numeral-m--letter-spacing: -0.04em;
+  --text-numeral-l: 52px;
+  --text-numeral-l--line-height: 1;
+  --text-numeral-l--font-weight: 300;
+  --text-numeral-l--letter-spacing: -0.02em;
+  --text-numeral-xl: 250px;
+  --text-numeral-xl--line-height: 1;
+  --text-numeral-xl--font-weight: 300;
+  --text-numeral-xl--letter-spacing: -0.05em;
 }
 
 @layer base {
@@ -71,42 +136,60 @@
     color-scheme: dark;
   }
 
+  html {
+    height: 100%;
+  }
+
   html,
   body {
-    height: 100%;
-    background: var(--color-background);
+    background-color: var(--color-background);
     color: var(--color-foreground);
     caret-color: var(--color-foreground);
-    scrollbar-color: var(--color-border) var(--color-background);
+    scrollbar-color: var(--color-line-control) var(--color-background);
+  }
+
+  body {
+    min-height: 100dvh;
+    background-image: var(--background-image-page);
   }
 
   :focus-visible {
-    outline: 2px solid var(--color-ring);
-    outline-offset: 2px;
+    outline: 2px solid var(--color-accent);
+    outline-offset: 3px;
   }
 
   ::selection {
-    background: color-mix(in srgb, var(--color-ring) 35%, transparent);
+    background: color-mix(in srgb, var(--color-accent) 35%, transparent);
     color: var(--color-foreground);
   }
 }
 
-@utility eyebrow {
-  @apply text-eyebrow uppercase;
-}
-
-@utility glass-pill {
-  background-color: var(--color-glass-pill);
-  backdrop-filter: blur(var(--blur-glass));
-}
-
-@utility glass-menu {
-  background-color: var(--color-glass-menu);
-  backdrop-filter: blur(var(--blur-glass));
+@utility glass-panel {
+  background-color: var(--color-glass-panel);
+  backdrop-filter: blur(14px);
 }
 
 @utility glass-tooltip {
   background-color: var(--color-glass-tooltip);
-  backdrop-filter: blur(var(--blur-glass));
-  border: 1px solid var(--color-glass-tooltip-border);
+  backdrop-filter: blur(100px);
+}
+
+@utility glass-toast {
+  background-color: var(--color-glass-toast);
+  backdrop-filter: blur(24px);
+}
+
+@utility glass-sheet {
+  background-color: var(--color-glass-sheet);
+  backdrop-filter: blur(24px);
+}
+
+@utility glass-modal {
+  background-color: var(--color-glass-modal);
+  backdrop-filter: blur(100px);
+}
+
+@utility scrim {
+  background-color: var(--color-scrim);
+  backdrop-filter: blur(6px);
 }
