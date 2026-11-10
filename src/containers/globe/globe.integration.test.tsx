@@ -17,10 +17,18 @@ import {
   MAX_RELEASE_SPEED,
   useGlobeControls,
 } from '@/containers/globe/use-globe-controls';
+import { getFeltReachKm } from '@/lib/earthquakes/intensity';
 import { EARTHQUAKE_SEARCH_ROUTE, type MinMagnitude } from '@/lib/earthquakes/search-schema';
+import {
+  FELT_RING_LOOK,
+  getFeltRingAngle,
+  getMinRingRadiusPx,
+  getWaveFronts,
+  getWaveLifeSeconds,
+} from '@/lib/globe/felt-rings';
 import { getGlobeFrame } from '@/lib/globe/frame';
-import { INITIAL_VIEW } from '@/lib/globe/motion';
-import { QUAKE_MARKER_LOOK, getHypocentreRadius } from '@/lib/globe/quakes';
+import { INITIAL_VIEW, ZOOM_RANGE } from '@/lib/globe/motion';
+import { QUAKE_MARKER_LOOK, getEpicentreRadiusPx, getHypocentreRadius } from '@/lib/globe/quakes';
 import { getLatLonVector, getRotatedVector } from '@/lib/globe/sphere';
 import { overwriteGetLocale } from '@/paraglide/runtime';
 import { getEmscFeature, getFeatureCollection } from '@/test/fixtures/earthquakes';
@@ -55,6 +63,14 @@ const PAST_LIMB_QUAKE: TestQuake = {
 };
 const NORTH_QUAKE: TestQuake = { lat: 20, lon: 175, depth: 300, mag: 5 };
 const SOUTH_QUAKE: TestQuake = { lat: -20, lon: -170, depth: 300, mag: 5 };
+const FELT_M5: TestQuake = { lat: VIEW_LAT, lon: VIEW_LON, depth: 10, mag: 5 };
+const HOLLOW_M4: TestQuake = { lat: VIEW_LAT, lon: VIEW_LON + 15, depth: 500, mag: 4 };
+const CENTRE_M3: TestQuake = { lat: VIEW_LAT, lon: VIEW_LON, depth: 10, mag: 3 };
+const LIMB_M3: TestQuake = { lat: VIEW_LAT, lon: VIEW_LON + 72.5 - 360, depth: 10, mag: 3 };
+const WAVE_M7: TestQuake = { lat: VIEW_LAT, lon: VIEW_LON, depth: 10, mag: 7 };
+const ANTIPODE_M8: TestQuake = { lat: -VIEW_LAT, lon: VIEW_LON - 180, depth: 10, mag: 8 };
+const LIMB_M7: TestQuake = { lat: VIEW_LAT, lon: VIEW_LON + 80 - 360, depth: 10, mag: 7 };
+const realMatchMedia = window.matchMedia.bind(window);
 
 function waitFrames(count: number): Promise<void> {
   return new Promise((resolve) => {
@@ -69,10 +85,20 @@ function waitFrames(count: number): Promise<void> {
 }
 
 function stubReducedMotion(matches: boolean) {
-  const original = window.matchMedia.bind(window);
   vi.stubGlobal('matchMedia', (query: string) =>
-    Object.defineProperty(original(query), 'matches', { value: matches }),
+    Object.defineProperty(realMatchMedia(query), 'matches', { value: matches }),
   );
+}
+
+function freezeClock() {
+  let now = performance.now();
+  const spy = vi.spyOn(performance, 'now').mockImplementation(() => now);
+  return {
+    advance: (ms: number) => {
+      now += ms;
+    },
+    restore: () => spy.mockRestore(),
+  };
 }
 
 function stubWebGL(availableCalls: number) {
@@ -162,6 +188,74 @@ function getPaintedDiffCount(before: Snapshot, after: Snapshot, centre: Point, s
     }
   }
   return count;
+}
+
+function getDiffLevel(before: Snapshot, after: Snapshot, point: Point): number {
+  return Math.max(...getRgbDiff(before, after, point));
+}
+
+function getChangedPixelCount(before: Snapshot, after: Snapshot): number {
+  let count = 0;
+  for (let index = 0; index < before.data.length; index += 4) {
+    const pixel = before.data.subarray(index, index + 4);
+    if (pixel.some((channel, offset) => channel !== after.data[index + offset])) count++;
+  }
+  return count;
+}
+
+function getRayPoints(from: Point, min: number, max: number): { distance: number; point: Point }[] {
+  const points = [];
+  for (let distance = Math.floor(min) + 0.5; distance <= max; distance += 1) {
+    points.push({ distance, point: { x: from.x + distance, y: from.y } });
+  }
+  return points;
+}
+
+function getPeakDistance(
+  before: Snapshot,
+  after: Snapshot,
+  from: Point,
+  [min, max]: readonly [number, number],
+): number {
+  return getRayPoints(from, min, max).reduce(
+    (best, ray) => {
+      const level = getDiffLevel(before, after, ray.point);
+      return level > best.level ? { distance: ray.distance, level } : best;
+    },
+    { distance: Number.NaN, level: -Infinity },
+  ).distance;
+}
+
+function getOutermostPaintedDistance(before: Snapshot, after: Snapshot, from: Point, max: number) {
+  return getRayPoints(from, 0, max)
+    .filter(({ point }) => getDiffLevel(before, after, point) > PAINT_THRESHOLD)
+    .reduce((outermost, { distance }) => Math.max(outermost, distance), 0);
+}
+
+function getPixelsAround(
+  centre: Point,
+  isIncluded: (pixel: Point, distance: number) => boolean,
+): Point[] {
+  const pixels: Point[] = [];
+  for (let dy = -12; dy <= 12; dy++) {
+    for (let dx = -12; dx <= 12; dx++) {
+      const pixel = { x: Math.floor(centre.x) + dx + 0.5, y: Math.floor(centre.y) + dy + 0.5 };
+      if (isIncluded(pixel, getDistance(pixel, centre))) pixels.push(pixel);
+    }
+  }
+  return pixels;
+}
+
+function getPixelGrid(topLeft: Point, bottomRight: Point): Point[] {
+  const pixels: Point[] = [];
+  for (let y = Math.floor(topLeft.y) + 0.5; y <= bottomRight.y; y += 2) {
+    for (let x = Math.floor(topLeft.x) + 0.5; x <= bottomRight.x; x += 2) pixels.push({ x, y });
+  }
+  return pixels;
+}
+
+function getRotatedZ({ lat, lon }: TestQuake): number {
+  return getRotatedVector(getLatLonVector(lat, lon), INITIAL_VIEW.lon, INITIAL_VIEW.lat)[2];
 }
 
 function getScreenPoint(lat: number, lon: number, radius: number): Point {
@@ -289,6 +383,30 @@ async function renderQuakes(quakes: TestQuake[]) {
   };
 }
 
+async function renderRings(quakes: TestQuake[], { zoom = 1 } = {}) {
+  stubReducedMotion(true);
+  stubPreservedDrawingBuffer();
+  const globe = await renderGlobe({ 3: quakes });
+  const container = globe.screen.getByRole('img').element();
+  if (zoom > 1) {
+    for (let i = 0; i < 20; i++) {
+      container.dispatchEvent(
+        new WheelEvent('wheel', { deltaY: -200, bubbles: true, cancelable: true }),
+      );
+    }
+  }
+  const empty = await globe.getSettledSnapshot();
+  const rest = await globe.showMinMagnitude(3);
+  const snapshot = () => getSnapshot(globe.getCanvas());
+  return { empty, rest, snapshot };
+}
+
+function playWaves() {
+  const play = window.__playGlobeWaves;
+  expect(play).toBeTypeOf('function');
+  play?.();
+}
+
 async function renderControls() {
   const controlsRef = createRef<GlobeControls>();
 
@@ -365,7 +483,7 @@ describe('globe', () => {
   });
 
   it('draws a 600 km Earthquake inside the sphere and a 10 km one at the surface', async () => {
-    const { getPaintedCount } = await renderQuakes([DEEP_QUAKE, SHALLOW_QUAKE]);
+    const { getPaintedCount, getDiff } = await renderQuakes([DEEP_QUAKE, SHALLOW_QUAKE]);
 
     const deep = getQuakePoints(DEEP_QUAKE);
     expect(getDistance(deep.hypocentre, CENTRE)).toBeCloseTo(
@@ -378,7 +496,13 @@ describe('globe', () => {
     const shallow = getQuakePoints(SHALLOW_QUAKE);
     expect(getDistance(shallow.hypocentre, shallow.epicentre)).toBeLessThan(4);
     expect(getPaintedCount(shallow.hypocentre, 6)).toBeGreaterThanOrEqual(9);
-    for (const distance of [7, 10, 20, 40]) {
+    const feltFill = Math.ceil(255 * FELT_RING_LOOK.fillA) + 2;
+    for (const distance of [7, 10, 14]) {
+      for (const channel of getDiff(getPointToward(shallow.epicentre, CENTRE, distance))) {
+        expect(channel).toBeLessThanOrEqual(feltFill);
+      }
+    }
+    for (const distance of [30, 40]) {
       expect(getPaintedCount(getPointToward(shallow.epicentre, CENTRE, distance), 3)).toBe(0);
     }
   });
@@ -446,6 +570,166 @@ describe('globe', () => {
     expect(getPaintedDiffCount(empty, north, southPoint, 6)).toBe(0);
     expect(getPaintedDiffCount(empty, south, southPoint, 6)).toBeGreaterThan(0);
     expect(getPaintedDiffCount(empty, south, northPoint, 6)).toBe(0);
+  });
+
+  it('fills a shallow M5 ring out to its Felt reach', async () => {
+    const { empty, rest } = await renderRings([FELT_M5], { zoom: ZOOM_RANGE[1] });
+
+    const expected = RADIUS * ZOOM_RANGE[1] * Math.sin(getFeltRingAngle(5, 10));
+    expect(getFeltReachKm({ magnitude: 5, depthKm: 10 })).toBeGreaterThan(180);
+    expect(expected).toBeCloseTo(42.8, 0);
+    const edge = getPeakDistance(empty, rest, CENTRE, [expected * 0.8, expected * 1.2]);
+    expect(Math.abs(edge - expected)).toBeLessThanOrEqual(expected * 0.05);
+    const fill = getDiffLevel(empty, rest, { x: CX + expected / 2, y: CY });
+    expect(fill).toBeGreaterThan(PAINT_THRESHOLD);
+    expect(getDiffLevel(empty, rest, { x: CX + edge, y: CY })).toBeGreaterThan(fill * 2);
+    expect(getDiffLevel(empty, rest, { x: CX + expected + 3, y: CY })).toBeLessThanOrEqual(
+      PAINT_THRESHOLD,
+    );
+  });
+
+  it('draws a hollow ring around a 500 km M4 nobody feels', async () => {
+    const { empty, rest } = await renderRings([HOLLOW_M4]);
+
+    expect(getFeltRingAngle(4, 500)).toBe(0);
+    const { epicentre, hypocentre } = getQuakePoints(HOLLOW_M4);
+    const minPx = getMinRingRadiusPx(4);
+    const isOffNeedle = (pixel: Point) => getSegmentDistance(pixel, epicentre, hypocentre) > 2;
+    const gap = getPixelsAround(
+      epicentre,
+      (pixel, distance) =>
+        distance >= getEpicentreRadiusPx(4) + 0.5 && distance <= minPx - 1 && isOffNeedle(pixel),
+    );
+    expect(gap.length).toBeGreaterThanOrEqual(8);
+    expect(gap.filter((pixel) => getDiffLevel(empty, rest, pixel) > PAINT_THRESHOLD)).toEqual([]);
+    const stroke = getPixelsAround(
+      epicentre,
+      (pixel, distance) => Math.abs(distance - minPx) <= 0.5 && isOffNeedle(pixel),
+    );
+    expect(stroke.length).toBeGreaterThanOrEqual(4);
+    for (const pixel of stroke) {
+      expect(getDiffLevel(empty, rest, pixel)).toBeGreaterThan(PAINT_THRESHOLD);
+    }
+  });
+
+  it('never draws a Felt ring smaller than the epicentre plus 3 px', async () => {
+    const { empty, rest } = await renderRings([CENTRE_M3, LIMB_M3]);
+
+    const minPx = getMinRingRadiusPx(3);
+    expect(getFeltRingAngle(3, 10) * RADIUS).toBeLessThan(minPx - 2);
+    const outermost = getOutermostPaintedDistance(empty, rest, CENTRE, 15);
+    expect(outermost).toBeGreaterThanOrEqual(minPx);
+    expect(outermost).toBeLessThanOrEqual(minPx + 2);
+
+    expect(getRotatedZ(LIMB_M3)).toBeCloseTo(0.3, 1);
+    const { epicentre, hypocentre } = getQuakePoints(LIMB_M3);
+    const isOffNeedle = (pixel: Point) => getSegmentDistance(pixel, epicentre, hypocentre) > 2;
+    const stroke = getPixelsAround(
+      epicentre,
+      (pixel, distance) => Math.abs(distance - minPx) <= 0.5 && isOffNeedle(pixel),
+    );
+    expect(stroke.length).toBeGreaterThanOrEqual(4);
+    for (const pixel of stroke) {
+      expect(getDiffLevel(empty, rest, pixel)).toBeGreaterThan(PAINT_THRESHOLD);
+    }
+    const outside = getPixelsAround(
+      epicentre,
+      (pixel, distance) => distance >= minPx + 2 && distance <= minPx + 4 && isOffNeedle(pixel),
+    );
+    expect(outside.filter((pixel) => getDiffLevel(empty, rest, pixel) > PAINT_THRESHOLD)).toEqual(
+      [],
+    );
+  });
+
+  it('keeps the rings still when no waves are played', async () => {
+    const { snapshot } = await renderRings([WAVE_M7, HOLLOW_M4]);
+    const clock = freezeClock();
+
+    await waitFrames(2);
+    const first = snapshot();
+    clock.advance(1000);
+    await waitFrames(2);
+    const second = snapshot();
+    clock.restore();
+    expect(getChangedPixelCount(first, second)).toBe(0);
+  });
+
+  it('grows the S front to the Felt reach with the P front ahead, then rests', async () => {
+    const { empty, rest, snapshot } = await renderRings([WAVE_M7]);
+    const clock = freezeClock();
+    const life = getWaveLifeSeconds(7);
+    const fronts = getWaveFronts({
+      progress: 0.5,
+      reachKm: getFeltReachKm({ magnitude: 7, depthKm: 10 }),
+      depthKm: 10,
+    });
+
+    await waitFrames(2);
+    stubReducedMotion(false);
+    playWaves();
+    await waitFrames(2);
+    clock.advance(life * 500);
+    await waitFrames(2);
+    const mid = snapshot();
+    clock.advance(life * 1000);
+    await waitFrames(2);
+    const after = snapshot();
+    clock.restore();
+
+    expect(life).toBe(4);
+    const sFront = RADIUS * Math.sin(fronts.sAngle);
+    expect(sFront).toBeCloseTo(37, 0);
+    const s = getPeakDistance(rest, mid, CENTRE, [28, 50]);
+    expect(Math.abs(s - sFront)).toBeLessThanOrEqual(sFront * 0.05);
+    expect(getDiffLevel(rest, mid, { x: CX + s, y: CY })).toBeGreaterThan(PAINT_THRESHOLD);
+    expect(fronts.pAngle).not.toBeNull();
+    const pFront = RADIUS * Math.sin(fronts.pAngle ?? 0);
+    const p = getPeakDistance(rest, mid, CENTRE, [50, 62]);
+    expect(Math.abs(p - pFront)).toBeLessThanOrEqual(pFront * 0.05);
+    expect(getDiffLevel(rest, mid, { x: CX + p, y: CY })).toBeGreaterThan(PAINT_THRESHOLD);
+    const ringEdge = getPeakDistance(empty, rest, CENTRE, [60, 90]);
+    expect(ringEdge).toBeCloseTo(RADIUS * Math.sin(getFeltRingAngle(7, 10)), -0.5);
+    expect(getDiffLevel(empty, mid, { x: CX + ringEdge, y: CY })).toBeLessThanOrEqual(
+      PAINT_THRESHOLD,
+    );
+    expect(getChangedPixelCount(rest, after)).toBe(0);
+  });
+
+  it('keeps the rings static when waves are played under reduced motion', async () => {
+    const { rest, snapshot } = await renderRings([WAVE_M7]);
+    const clock = freezeClock();
+
+    await waitFrames(2);
+    playWaves();
+    await waitFrames(2);
+    const played = snapshot();
+    clock.advance(getWaveLifeSeconds(7) * 500);
+    await waitFrames(2);
+    const later = snapshot();
+    clock.restore();
+    expect(getChangedPixelCount(rest, played)).toBe(0);
+    expect(getChangedPixelCount(rest, later)).toBe(0);
+  });
+
+  it('hides far-side rings and clips ring parts past the limb', async () => {
+    const { empty, rest } = await renderRings([ANTIPODE_M8, LIMB_M7]);
+
+    expect(getRotatedZ(ANTIPODE_M8)).toBeCloseTo(-1, 6);
+    expect(getFeltRingAngle(8, 10)).toBeGreaterThan(0.5);
+    expect(getPaintedDiffCount(empty, rest, CENTRE, 40)).toBe(0);
+
+    const limb = getQuakePoints(LIMB_M7).epicentre;
+    expect(getRotatedZ(LIMB_M7)).toBeCloseTo(0.18, 1);
+    const box = getPixelGrid(
+      { x: limb.x - 30, y: limb.y - 90 },
+      { x: CX + RADIUS + 30, y: limb.y + 90 },
+    );
+    const isPainted = (pixel: Point) => getDiffLevel(empty, rest, pixel) > PAINT_THRESHOLD;
+    const inside = box.filter((pixel) => getDistance(pixel, CENTRE) < RADIUS - 1);
+    const outside = box.filter((pixel) => getDistance(pixel, CENTRE) > RADIUS + 1);
+    expect(outside.length).toBeGreaterThan(100);
+    expect(inside.filter(isPainted).length).toBeGreaterThan(100);
+    expect(outside.filter(isPainted)).toEqual([]);
   });
 
   it('keeps the shell and says so inline when WebGL is missing', async () => {

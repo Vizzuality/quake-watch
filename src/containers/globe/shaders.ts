@@ -1,3 +1,11 @@
+import { P_WAVE_KM_S, S_WAVE_KM_S } from '@/lib/earthquakes/waves';
+import { FELT_RING_LOOK } from '@/lib/globe/felt-rings';
+import { EARTH_RADIUS_KM } from '@/lib/globe/quakes';
+
+function getGlslFloat(value: number): string {
+  return Number.isInteger(value) ? `${value}.0` : String(value);
+}
+
 const VIEW_CHUNK = `
 uniform float uLon;
 uniform float uLat;
@@ -126,5 +134,118 @@ varying vec4 vColor;
 
 void main() {
   gl_FragColor = vColor;
+}
+`;
+
+export const RING_VERTEX_SHADER = `
+${VIEW_CHUNK}
+attribute vec3 aDirection;
+attribute float aReachAngle;
+attribute float aMinPx;
+attribute vec3 aColor;
+attribute float aDepthKm;
+attribute float aLife;
+attribute float aGlowPx;
+attribute float aWaveStart;
+uniform float uTime;
+varying vec2 vOffset;
+varying vec3 vEpicentre;
+varying vec3 vColor;
+varying float vReachAngle;
+varying float vMinPx;
+varying float vGlowPx;
+varying float vProgress;
+varying float vSAngle;
+varying float vPAngle;
+
+float getProgress() {
+  if (aWaveStart < 0.0 || aReachAngle <= 0.0) return -1.0;
+  float progress = (uTime - aWaveStart) / aLife;
+  if (progress < 0.0 || progress > 1.0) return -1.0;
+  return progress;
+}
+
+float getFrontKm(float seconds, float speedKmS) {
+  float slantKm = max(seconds, 0.0) * speedKmS;
+  return sqrt(max(slantKm * slantKm - aDepthKm * aDepthKm, 0.0));
+}
+
+float getQuadHalfPx() {
+  float ringPx = aReachAngle >= ${getGlslFloat(Math.PI / 2)} ? 2.0 * uRadius : aReachAngle * uRadius;
+  return max(max(ringPx, aMinPx), aGlowPx) + 2.0;
+}
+
+void main() {
+  vec3 e = getRotated(aDirection);
+  if (e.z < 0.0) {
+    gl_Position = vec4(2.0, 2.0, 2.0, 1.0);
+    return;
+  }
+  float progress = getProgress();
+  float reachKm = aReachAngle * ${getGlslFloat(EARTH_RADIUS_KM)};
+  float seconds = clamp(progress, 0.0, 1.0) * length(vec2(reachKm, aDepthKm)) / ${getGlslFloat(S_WAVE_KM_S)};
+  float pKm = getFrontKm(seconds, ${getGlslFloat(P_WAVE_KM_S)});
+  vSAngle = getFrontKm(seconds, ${getGlslFloat(S_WAVE_KM_S)}) / ${getGlslFloat(EARTH_RADIUS_KM)};
+  vPAngle = pKm > reachKm ? -1.0 : pKm / ${getGlslFloat(EARTH_RADIUS_KM)};
+  vProgress = progress;
+  vEpicentre = e;
+  vColor = aColor;
+  vReachAngle = aReachAngle;
+  vMinPx = aMinPx;
+  vGlowPx = aGlowPx;
+  vOffset = e.xy * uRadius + position.xy * getQuadHalfPx();
+  gl_Position = getClipPosition(vOffset);
+}
+`;
+
+export const RING_FRAGMENT_SHADER = `
+uniform float uRadius;
+uniform float uDpr;
+varying vec2 vOffset;
+varying vec3 vEpicentre;
+varying vec3 vColor;
+varying float vReachAngle;
+varying float vMinPx;
+varying float vGlowPx;
+varying float vProgress;
+varying float vSAngle;
+varying float vPAngle;
+
+float getPixelDistance(float signedPx) {
+  return signedPx / max(length(vec2(dFdx(signedPx), dFdy(signedPx))), 1e-4);
+}
+
+float getStroke(float pixelDistance, float widthPx) {
+  return clamp(widthPx * uDpr * 0.5 + 0.5 - abs(pixelDistance), 0.0, 1.0);
+}
+
+float getStaticAlpha(float pixelDistance) {
+  float stroke = getStroke(pixelDistance, ${getGlslFloat(FELT_RING_LOOK.strokePx)});
+  if (vReachAngle <= 0.0) return ${getGlslFloat(FELT_RING_LOOK.hollowA)} * stroke;
+  float fill = clamp(0.5 - pixelDistance, 0.0, 1.0);
+  return ${getGlslFloat(FELT_RING_LOOK.fillA)} * fill * (1.0 - stroke) + ${getGlslFloat(FELT_RING_LOOK.strokeA)} * stroke;
+}
+
+float getWaveAlpha(float sDistance, float pDistance, float screenPx) {
+  float s = getStroke(sDistance, ${getGlslFloat(FELT_RING_LOOK.frontPx)});
+  float p = step(0.0, vPAngle) * ${getGlslFloat(FELT_RING_LOOK.pFrontK)} * getStroke(pDistance, ${getGlslFloat(FELT_RING_LOOK.frontPx)});
+  float glow = pow(max(1.0 - screenPx / vGlowPx, 0.0), 2.0);
+  return (1.0 - vProgress) * (${getGlslFloat(FELT_RING_LOOK.frontA)} * (s + p) + ${getGlslFloat(FELT_RING_LOOK.glowA)} * glow);
+}
+
+void main() {
+  vec2 q = vOffset / uRadius;
+  float q2 = dot(q, q);
+  vec3 surface = vec3(q, sqrt(max(1.0 - q2, 0.0)));
+  float groundPx = 2.0 * asin(min(0.5 * length(surface - vEpicentre), 1.0)) * uRadius;
+  float screenPx = length(vOffset - vEpicentre.xy * uRadius);
+  float minSigned = screenPx - vMinPx;
+  float staticSigned = vReachAngle > 0.0 ? min(groundPx - vReachAngle * uRadius, minSigned) : minSigned;
+  float staticDistance = getPixelDistance(staticSigned);
+  float sDistance = getPixelDistance(groundPx - vSAngle * uRadius);
+  float pDistance = getPixelDistance(groundPx - vPAngle * uRadius);
+  float alpha = vProgress < 0.0 ? getStaticAlpha(staticDistance) : getWaveAlpha(sDistance, pDistance, screenPx);
+  if (q2 > 1.0 || alpha <= 0.0) discard;
+  gl_FragColor = vec4(vColor, min(alpha, 1.0));
 }
 `;
