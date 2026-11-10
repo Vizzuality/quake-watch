@@ -5,9 +5,12 @@ import {
   getCenteredView,
   getDraggedView,
   getFlyView,
+  getFramedView,
   getIdleDriftLon,
   getInertiaView,
   getPinchFactor,
+  getSearchView,
+  getViewCamera,
   getWheelFactor,
   getZoomedView,
   INITIAL_VIEW,
@@ -122,5 +125,47 @@ describe('getFlyView', () => {
   it('clamps progress outside 0..1', () => {
     expect(getFlyView(from, to, -1)).toEqual(from);
     expect(getFlyView(from, to, 2)).toEqual(to);
+  });
+});
+
+describe('getSearchView', () => {
+  it('converts degrees to radians', () => {
+    const view = getSearchView(37.17, -122.5, 2.4);
+    expect(view.lat).toBeCloseTo((37.17 * Math.PI) / 180, 12);
+    expect(view.lon).toBeCloseTo((-122.5 * Math.PI) / 180, 12);
+    expect(view.zoom).toBe(2.4);
+  });
+
+  it('clamps zoom to 1–5 and latitude to ±LAT_LIMIT', () => {
+    expect(getSearchView(0, 0, 0.5).zoom).toBe(1);
+    expect(getSearchView(0, 0, 12).zoom).toBe(5);
+    expect(getSearchView(89, 0, 1).lat).toBe(LAT_LIMIT);
+    expect(getSearchView(-89, 0, 1).lat).toBe(-LAT_LIMIT);
+    expect(getViewCamera(getSearchView(89, 0, 1)).lat).toBeCloseTo(83.08, 2);
+  });
+});
+
+describe('getViewCamera', () => {
+  it('round-trips a search camera', () => {
+    const camera = getViewCamera(getSearchView(37.17, -122.5, 2.4));
+    expect(camera.lat).toBeCloseTo(37.17, 10);
+    expect(camera.lon).toBeCloseTo(-122.5, 10);
+    expect(camera.zoom).toBe(2.4);
+  });
+
+  it('leaves longitude unwrapped', () => {
+    expect(getViewCamera({ lon: 2 * Math.PI + Math.PI / 2, lat: 0, zoom: 1 }).lon).toBeCloseTo(
+      450,
+      10,
+    );
+  });
+});
+
+describe('getFramedView', () => {
+  it('unwraps to the turn nearest the current longitude at lat 0.12, zoom 1', () => {
+    const view = getFramedView(150, { lon: 2 * Math.PI + 1, lat: -0.8, zoom: 3 });
+    expect(view.lon).toBeCloseTo(2 * Math.PI + (150 * Math.PI) / 180, 12);
+    expect(view.lat).toBe(INITIAL_VIEW.lat);
+    expect(view.zoom).toBe(1);
   });
 });

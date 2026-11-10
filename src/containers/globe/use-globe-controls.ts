@@ -28,14 +28,16 @@ type Point = { x: number; y: number };
 type Sample = { time: number; lon: number; lat: number };
 type Gesture =
   | { kind: 'drag'; origin: Point; start: GlobeView; radius: number; moved: boolean }
-  | { kind: 'pinch'; distance: number };
-type Fly = { from: GlobeView; to: GlobeView; elapsedSeconds: number };
+  | { kind: 'pinch'; distance: number; changed: boolean };
+type Fly = { from: GlobeView; to: GlobeView; elapsedSeconds: number; isFraming: boolean };
 
 export type HoverOptions = { immediate?: boolean };
 
 export type GlobeControlsOptions = {
+  initialView?: GlobeView;
   onTap?: (point: Point) => void;
   onHover?: (point: Point | null, options?: HoverOptions) => void;
+  onSettle?: (view: GlobeView) => void;
 };
 
 const IMMEDIATE: HoverOptions = { immediate: true };
@@ -44,6 +46,7 @@ export type GlobeControls = {
   viewRef: RefObject<GlobeView>;
   advance: (dtSeconds: number, elapsedMs: number) => GlobeView;
   flyTo: (target: GlobeView) => void;
+  frameTo: (target: GlobeView) => void;
   setHeld: (held: boolean) => void;
 };
 
@@ -84,9 +87,9 @@ export function useGlobeControls(
   targetRef: RefObject<HTMLElement | null>,
   options: GlobeControlsOptions = {},
 ): GlobeControls {
-  const viewRef = useRef<GlobeView>({ ...INITIAL_VIEW });
+  const viewRef = useRef<GlobeView>({ ...(options.initialView ?? INITIAL_VIEW) });
   const velocityRef = useRef<GlobeVelocity>(STOPPED);
-  const isTouchedRef = useRef(false);
+  const isTouchedRef = useRef(options.initialView !== undefined);
   const isHeldRef = useRef(false);
   const isReducedMotionRef = useRef(false);
   const gestureRef = useRef<Gesture | null>(null);
@@ -103,9 +106,20 @@ export function useGlobeControls(
         if (isReducedMotionRef.current) {
           flyRef.current = null;
           viewRef.current = target;
+          optionsRef.current.onSettle?.(target);
           return;
         }
-        flyRef.current = { from: viewRef.current, to: target, elapsedSeconds: 0 };
+        flyRef.current = { from: viewRef.current, to: target, elapsedSeconds: 0, isFraming: false };
+      },
+      frameTo: (target) => {
+        if (isTouchedRef.current || gestureRef.current || flyRef.current) return;
+        if (hasVelocity(velocityRef.current)) return;
+        optionsRef.current.onHover?.(null, IMMEDIATE);
+        if (isReducedMotionRef.current) {
+          viewRef.current = target;
+          return;
+        }
+        flyRef.current = { from: viewRef.current, to: target, elapsedSeconds: 0, isFraming: true };
       },
       setHeld: (held) => {
         isHeldRef.current = held;
@@ -116,18 +130,22 @@ export function useGlobeControls(
           const next = advanceFly(fly, dtSeconds);
           viewRef.current = next.view;
           if (next.done) flyRef.current = null;
+          if (next.done && !fly.isFraming) optionsRef.current.onSettle?.(next.view);
           return next.view;
         }
         const dt = Math.min(dtSeconds, MAX_FRAME_SECONDS);
         const view = viewRef.current;
+        const isCoasting = hasVelocity(velocityRef.current);
         if (gestureRef.current || isReducedMotionRef.current) {
           velocityRef.current = STOPPED;
+          if (isCoasting) optionsRef.current.onSettle?.(view);
           return view;
         }
-        if (hasVelocity(velocityRef.current)) {
+        if (isCoasting) {
           const next = getInertiaView(view, velocityRef.current, dt);
           viewRef.current = next.view;
           velocityRef.current = next.velocity;
+          if (!hasVelocity(next.velocity)) optionsRef.current.onSettle?.(next.view);
         } else if (!isTouchedRef.current && !isHeldRef.current) {
           viewRef.current = { ...view, lon: getIdleDriftLon(view.lon, dt, elapsedMs) };
         }
@@ -163,16 +181,25 @@ export function useGlobeControls(
     }
 
     function startPinch() {
+      const previous = gestureRef.current;
       isTapCandidate = false;
-      gestureRef.current = { kind: 'pinch', distance: getDistance([...pointers.values()]) };
+      gestureRef.current = {
+        kind: 'pinch',
+        distance: getDistance([...pointers.values()]),
+        changed: previous?.kind === 'drag' && previous.moved,
+      };
     }
 
     function handlePointerDown(event: PointerEvent) {
       if (pointers.size >= 2) return;
       optionsRef.current.onHover?.(null, IMMEDIATE);
       pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+      const fly = flyRef.current;
+      const isCoasting = hasVelocity(velocityRef.current);
       velocityRef.current = STOPPED;
       flyRef.current = null;
+      if (fly?.isFraming) isTouchedRef.current = true;
+      else if (fly || isCoasting) optionsRef.current.onSettle?.(viewRef.current);
       isTapCandidate = pointers.size === 1 && event.button === 0;
       element.setPointerCapture(event.pointerId);
       if (pointers.size === 2) startPinch();
@@ -194,11 +221,13 @@ export function useGlobeControls(
       if (gesture.kind === 'pinch') {
         const distance = getDistance([...pointers.values()]);
         if (gesture.distance > 0) {
+          const { zoom } = viewRef.current;
           viewRef.current = getZoomedView(
             viewRef.current,
             getPinchFactor(distance, gesture.distance),
           );
           isTouchedRef.current = true;
+          gesture.changed ||= viewRef.current.zoom !== zoom;
         }
         gesture.distance = distance;
         return;
@@ -224,16 +253,23 @@ export function useGlobeControls(
       if (gesture?.kind === 'pinch') {
         const [remaining] = pointers.values();
         gestureRef.current = null;
+        if (gesture.changed) optionsRef.current.onSettle?.(viewRef.current);
         if (remaining) startDrag(remaining);
         return;
       }
       gestureRef.current = null;
-      if (event.type !== 'pointerup') return;
+      if (event.type !== 'pointerup') {
+        if (gesture?.moved) optionsRef.current.onSettle?.(viewRef.current);
+        return;
+      }
       if (isTapCandidate && !gesture?.moved) {
         optionsRef.current.onTap?.(getRelativePoint(element, event));
       }
       if (gesture?.moved && !isReducedMotionRef.current) {
         velocityRef.current = getReleaseVelocity(samples, event.timeStamp);
+      }
+      if (gesture?.moved && !hasVelocity(velocityRef.current)) {
+        optionsRef.current.onSettle?.(viewRef.current);
       }
     }
 
@@ -247,6 +283,7 @@ export function useGlobeControls(
       flyRef.current = null;
       viewRef.current = getZoomedView(viewRef.current, getWheelFactor(event.deltaY));
       isTouchedRef.current = true;
+      optionsRef.current.onSettle?.(viewRef.current);
       const [point] = pointers.values();
       if (gestureRef.current?.kind === 'drag' && point) startDrag(point, gestureRef.current.moved);
     }
