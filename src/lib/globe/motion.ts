@@ -68,13 +68,41 @@ export const FLY_DURATION_MS = 900;
 export const SELECT_MIN_ZOOM = 1.6;
 const FULL_TURN = 2 * Math.PI;
 
+function getRadians(degrees: number): number {
+  return (degrees * Math.PI) / 180;
+}
+
+function getDegrees(radians: number): number {
+  return (radians * 180) / Math.PI;
+}
+
+function getUnwrappedLon(longitude: number, referenceLon: number): number {
+  const lon = getRadians(longitude);
+  return lon + FULL_TURN * Math.round((referenceLon - lon) / FULL_TURN);
+}
+
 export function getCenteredView(latitude: number, longitude: number, view: GlobeView): GlobeView {
-  const lon = (longitude * Math.PI) / 180;
   return {
-    lon: lon + FULL_TURN * Math.round((view.lon - lon) / FULL_TURN),
-    lat: getClampedLat((latitude * Math.PI) / 180),
+    lon: getUnwrappedLon(longitude, view.lon),
+    lat: getClampedLat(getRadians(latitude)),
     zoom: getClamped(Math.max(view.zoom, SELECT_MIN_ZOOM), ZOOM_RANGE[0], ZOOM_RANGE[1]),
   };
+}
+
+export function getFramedView(longitude: number, view: GlobeView): GlobeView {
+  return { lon: getUnwrappedLon(longitude, view.lon), lat: INITIAL_VIEW.lat, zoom: ZOOM_RANGE[0] };
+}
+
+export function getSearchView(lat: number, lon: number, zoom: number): GlobeView {
+  return {
+    lon: getRadians(lon),
+    lat: getClampedLat(getRadians(lat)),
+    zoom: getClamped(zoom, ZOOM_RANGE[0], ZOOM_RANGE[1]),
+  };
+}
+
+export function getViewCamera(view: GlobeView): { lat: number; lon: number; zoom: number } {
+  return { lat: getDegrees(view.lat), lon: getDegrees(view.lon), zoom: view.zoom };
 }
 
 function getEasedProgress(progress: number): number {

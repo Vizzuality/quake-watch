@@ -3,7 +3,7 @@ import { useCallback, useEffect, useRef } from 'react';
 
 import { getRoundedCoordinate } from '@/lib/earthquakes/search-schema';
 
-export const CAMERA_DEBOUNCE_MS = 300;
+export const CAMERA_DEBOUNCE_MS = 250;
 
 export type Camera = { lat: number; lon: number; zoom: number };
 

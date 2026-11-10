@@ -18,6 +18,7 @@ import {
   MAX_RELEASE_SPEED,
   useGlobeControls,
 } from '@/containers/globe/use-globe-controls';
+import { CAMERA_DEBOUNCE_MS, type Camera } from '@/hooks/use-camera-search';
 import { getFeltReachKm } from '@/lib/earthquakes/intensity';
 import { EARTHQUAKE_SEARCH_ROUTE, type MinMagnitude } from '@/lib/earthquakes/search-schema';
 import {
@@ -28,6 +29,7 @@ import {
   getWaveLifeSeconds,
 } from '@/lib/globe/felt-rings';
 import { getGlobeFrame } from '@/lib/globe/frame';
+import { getDensestLongitude } from '@/lib/globe/framing';
 import {
   FLY_DURATION_MS,
   type GlobeView,
@@ -331,13 +333,19 @@ function isListRequest(url: URL): boolean {
 
 async function renderGlobe(
   quakesByMinMagnitude: Partial<Record<MinMagnitude, TestQuake[]>> = {},
-  { initialEntries = ['/'] }: { initialEntries?: string[] } = {},
+  {
+    initialEntries = ['/'],
+    responseGate,
+  }: { initialEntries?: string[]; responseGate?: Promise<void> } = {},
 ) {
   vi.spyOn(Element.prototype, 'setPointerCapture').mockImplementation(() => {});
   const fetchMock = stubFetch([
     ...Object.entries(quakesByMinMagnitude).map(([minmag, quakes]) => ({
       match: (url: URL) => isListRequest(url) && url.searchParams.get('minmagnitude') === minmag,
-      respond: () => getQuakeResponse(quakes),
+      respond: async () => {
+        await responseGate;
+        return getQuakeResponse(quakes);
+      },
     })),
     { match: isListRequest, respond: () => getQuakeResponse([]) },
   ]);
@@ -830,6 +838,20 @@ const BEHIND_ALONE: TestQuake = {
   region: 'BEHIND',
 };
 const PICK_OFFSET_PX = 11.9;
+const BOARD_VIEW_PATH = '/?lat=6.88&lon=150&zoom=1';
+const FRAME_QUAKES: TestQuake[] = [-41, -33, -30, -26, -19, 150].map((lon) => ({
+  lat: 10,
+  lon,
+  depth: 10,
+  mag: 4,
+}));
+const FRAME_LON = getDensestLongitude(FRAME_QUAKES.map(({ lon }) => lon)) ?? Number.NaN;
+const OTHER_FRAME_QUAKES: TestQuake[] = [80, 85, 90].map((lon) => ({
+  lat: 10,
+  lon,
+  depth: 10,
+  mag: 4,
+}));
 const DIRECTIONS = [
   [1, 0],
   [0, 1],
@@ -854,9 +876,45 @@ function getQuakeSearch(router: { state: { location: { search: unknown } } }): s
   return (router.state.location.search as { quake?: string }).quake;
 }
 
+function getCameraSearch(router: { state: { location: { search: unknown } } }): Partial<Camera> {
+  const { lat, lon, zoom } = router.state.location.search as Partial<Camera>;
+  return { lat, lon, zoom };
+}
+
+function getHistoryIndex(router: {
+  history: { location: { state: unknown } };
+}): number | undefined {
+  return (router.history.location.state as { __TSR_index?: number }).__TSR_index;
+}
+
+function getGlobeView(): Camera {
+  const view = window.__globeView?.();
+  if (!view) throw new Error('globe view is not exposed');
+  return view;
+}
+
+function getLonDistance(a: number, b: number): number {
+  return Math.abs(((((a - b) % 360) + 540) % 360) - 180);
+}
+
+function getCameraUrlError(router: { state: { location: { search: unknown } } }): number {
+  const { lat, lon, zoom } = getCameraSearch(router);
+  if (lat === undefined || lon === undefined || zoom === undefined) return Infinity;
+  const view = getGlobeView();
+  return Math.max(
+    Math.abs(lat - view.lat),
+    getLonDistance(lon, view.lon),
+    Math.abs(zoom - view.zoom),
+  );
+}
+
+function waitMs(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 async function renderTooltipGlobe(
   quakes: TestQuake[],
-  { initialEntries = ['/'], reducedMotion = true } = {},
+  { initialEntries = [BOARD_VIEW_PATH], reducedMotion = true } = {},
 ) {
   stubReducedMotion(reducedMotion);
   const globe = await renderGlobe({ 0: quakes }, { initialEntries });
@@ -894,6 +952,18 @@ async function renderTooltipGlobe(
     pointer('pointerup', point);
   }
 
+  function drag(from: Point, by: Point) {
+    pointer('pointerdown', from);
+    for (let i = 1; i <= 4; i++) {
+      pointer('pointermove', { x: from.x + (by.x * i) / 4, y: from.y + (by.y * i) / 4 });
+    }
+    pointer('pointerup', { x: from.x + by.x, y: from.y + by.y });
+  }
+
+  function wheel(deltaY: number) {
+    container.dispatchEvent(new WheelEvent('wheel', { deltaY, bubbles: true, cancelable: true }));
+  }
+
   function getLivePoint(key: string): Point {
     const point = window.__globeQuakePoints?.().find(({ id }) => id === key);
     if (!point) throw new Error(`${key} is not on the front side`);
@@ -923,6 +993,8 @@ async function renderTooltipGlobe(
     getTooltip,
     hover,
     tap,
+    drag,
+    wheel,
     getLivePoint,
     moveOntoTooltip,
     leaveTooltip,
@@ -1165,7 +1237,11 @@ describe('globe quake tooltip', () => {
   });
 
   it('stops the drift while hovering or selecting and leaves the camera on Back', async () => {
-    const globe = await renderTooltipGlobe([TOOLTIP_M5, COMPACT_M4], { reducedMotion: false });
+    const globe = await renderTooltipGlobe([TOOLTIP_M5, COMPACT_M4], {
+      initialEntries: ['/'],
+      reducedMotion: false,
+    });
+    await waitMs(FLY_DURATION_MS + 100);
 
     const drifting = globe.getLivePoint('emsc:test_0');
     await waitFrames(20);
@@ -1256,6 +1332,184 @@ describe('globe quake tooltip', () => {
     globe.pointer('pointermove', { x: CX - 150, y: CY + 100 });
     await expect.element(img).toHaveClass('cursor-grab');
     await expect.element(img).not.toHaveClass('cursor-pointer');
+  });
+});
+
+describe('globe camera URL', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('restores the camera from the URL and holds it without drifting', async () => {
+    const globe = await renderTooltipGlobe([TOOLTIP_M5], {
+      initialEntries: ['/?lat=35&lon=-120&zoom=2.5'],
+      reducedMotion: false,
+    });
+
+    const restored = getGlobeView();
+    expect(Math.abs(restored.lat - 35)).toBeLessThanOrEqual(0.1);
+    expect(getLonDistance(restored.lon, -120)).toBeLessThanOrEqual(0.1);
+    expect(Math.abs(restored.zoom - 2.5)).toBeLessThanOrEqual(0.05);
+    await waitFrames(30);
+    expect(getGlobeView()).toEqual(restored);
+    expect(getCameraSearch(globe.router)).toEqual({ lat: 35, lon: -120, zoom: 2.5 });
+  });
+
+  it('writes the camera in place once a drag and its inertia stop', async () => {
+    const globe = await renderTooltipGlobe([TOOLTIP_M5], { reducedMotion: false });
+    const { length } = globe.router.history;
+    const index = getHistoryIndex(globe.router);
+
+    globe.drag(CENTRE, { x: -120, y: 40 });
+    await expect
+      .poll(() => getCameraUrlError(globe.router), { timeout: 3000 })
+      .toBeLessThanOrEqual(0.01);
+    await waitFrames(10);
+    expect(getCameraUrlError(globe.router)).toBeLessThanOrEqual(0.01);
+    expect(getCameraSearch(globe.router).lon).not.toBe(150);
+    expect(globe.router.history.length).toBe(length);
+    expect(getHistoryIndex(globe.router)).toBe(index);
+  });
+
+  it('adds no history entry over five drags and five wheel zooms', async () => {
+    const globe = await renderTooltipGlobe([TOOLTIP_M5]);
+    const { length } = globe.router.history;
+    const index = getHistoryIndex(globe.router);
+
+    for (let i = 0; i < 5; i++) {
+      globe.drag(CENTRE, { x: 30, y: -10 });
+      await waitMs(CAMERA_DEBOUNCE_MS + 50);
+      expect(getCameraUrlError(globe.router)).toBeLessThanOrEqual(0.01);
+      globe.wheel(-100);
+      await waitMs(CAMERA_DEBOUNCE_MS + 50);
+      expect(getCameraUrlError(globe.router)).toBeLessThanOrEqual(0.01);
+    }
+    expect(getCameraSearch(globe.router).zoom).toBeGreaterThan(1);
+    expect(globe.router.history.length).toBe(length);
+    expect(getHistoryIndex(globe.router)).toBe(index);
+  });
+
+  it('adds one entry for a tapped quake and writes its centre once the fly lands', async () => {
+    const globe = await renderTooltipGlobe([TOOLTIP_M5, COMPACT_M4], { reducedMotion: false });
+
+    globe.tap(globe.getLivePoint('emsc:test_1'));
+    await expect.poll(() => getQuakeSearch(globe.router)).toBe('emsc:test_1');
+    expect(globe.router.history.length).toBe(2);
+    expect(getHistoryIndex(globe.router)).toBe(1);
+    await expect
+      .poll(() => getLonDistance(getCameraSearch(globe.router).lon ?? Infinity, COMPACT_M4.lon), {
+        timeout: 3000,
+      })
+      .toBeLessThanOrEqual(0.1);
+    const camera = getCameraSearch(globe.router);
+    expect(Math.abs((camera.lat ?? Infinity) - COMPACT_M4.lat)).toBeLessThanOrEqual(0.1);
+    expect(camera.zoom).toBeGreaterThanOrEqual(SELECT_MIN_ZOOM);
+    expect(getCameraUrlError(globe.router)).toBeLessThanOrEqual(0.01);
+    expect(globe.router.history.length).toBe(2);
+    expect(getHistoryIndex(globe.router)).toBe(1);
+  });
+
+  it('frames the densest window on a clean load, keeps the URL clean and drifts after', async () => {
+    const globe = await renderTooltipGlobe(FRAME_QUAKES, {
+      initialEntries: ['/'],
+      reducedMotion: false,
+    });
+
+    expect(getLonDistance(FRAME_LON, VIEW_LON)).toBeGreaterThan(90);
+    await expect
+      .poll(() => getLonDistance(getGlobeView().lon, FRAME_LON), { timeout: 3000 })
+      .toBeLessThanOrEqual(2.5);
+    await waitMs(FLY_DURATION_MS);
+    const landed = getGlobeView();
+    expect(getLonDistance(landed.lon, FRAME_LON)).toBeLessThanOrEqual(2.5);
+    expect(landed.lat).toBeCloseTo(VIEW_LAT, 6);
+    expect(landed.zoom).toBe(1);
+    await waitFrames(30);
+    expect(getGlobeView().lon).not.toBe(landed.lon);
+    await waitMs(2 * CAMERA_DEBOUNCE_MS);
+    expect(getCameraSearch(globe.router)).toEqual({
+      lat: undefined,
+      lon: undefined,
+      zoom: undefined,
+    });
+  });
+
+  it('does not reframe when a filter change brings other quakes', async () => {
+    stubReducedMotion(true);
+    const globe = await renderGlobe({ 0: FRAME_QUAKES, 3: OTHER_FRAME_QUAKES });
+    await globe.settle();
+
+    const framed = getGlobeView();
+    expect(getLonDistance(framed.lon, FRAME_LON)).toBeLessThan(1e-6);
+    await globe.showMinMagnitude(3);
+    await waitFrames(10);
+    expect(getGlobeView()).toEqual(framed);
+  });
+
+  it('does not frame once the globe was dragged before the data arrived', async () => {
+    stubReducedMotion(true);
+    let respond = () => {};
+    const responseGate = new Promise<void>((resolve) => {
+      respond = resolve;
+    });
+    const globe = await renderGlobe({ 0: FRAME_QUAKES }, { responseGate });
+    await vi.waitFor(globe.getCanvas);
+    await waitFrames(5);
+    const container = globe.screen.getByRole('img').element() as HTMLElement;
+    const rect = container.getBoundingClientRect();
+    for (const [type, dx] of [
+      ['pointerdown', 0],
+      ['pointermove', 20],
+      ['pointermove', 40],
+      ['pointerup', 40],
+    ] as const) {
+      container.dispatchEvent(
+        new PointerEvent(type, {
+          pointerId: 1,
+          button: 0,
+          bubbles: true,
+          clientX: rect.left + CX + dx,
+          clientY: rect.top + CY,
+        }),
+      );
+    }
+    const dragged = getGlobeView();
+    expect(getLonDistance(dragged.lon, VIEW_LON)).toBeGreaterThan(1);
+
+    respond();
+    await globe.settle();
+    expect(getGlobeView()).toEqual(dragged);
+  });
+
+  it('flies from the URL camera to the URL quake without framing', async () => {
+    const globe = await renderTooltipGlobe([COMPACT_M4, ...FRAME_QUAKES], {
+      initialEntries: ['/?quake=emsc:test_0&lat=-20&lon=40&zoom=2.5'],
+      reducedMotion: false,
+    });
+
+    await expect
+      .poll(() => getDistance(globe.getLivePoint('emsc:test_0'), CENTRE), { timeout: 3000 })
+      .toBeLessThanOrEqual(1);
+    await waitMs(FLY_DURATION_MS);
+    expect(getDistance(globe.getLivePoint('emsc:test_0'), CENTRE)).toBeLessThanOrEqual(1);
+    expect(getGlobeView().zoom).toBe(2.5);
+  });
+
+  it('leaves the camera in place on Back and Forward', async () => {
+    const globe = await renderTooltipGlobe([TOOLTIP_M5, COMPACT_M4]);
+
+    globe.tap(globe.getLivePoint('emsc:test_1'));
+    await expect.poll(() => getQuakeSearch(globe.router)).toBe('emsc:test_1');
+    await waitFrames(2);
+    const selected = getGlobeView();
+    globe.router.history.back();
+    await expect.poll(() => getQuakeSearch(globe.router)).toBeUndefined();
+    await waitFrames(10);
+    expect(getGlobeView()).toEqual(selected);
+    globe.router.history.forward();
+    await expect.poll(() => getQuakeSearch(globe.router)).toBe('emsc:test_1');
+    await waitFrames(10);
+    expect(getGlobeView()).toEqual(selected);
   });
 });
 
@@ -1516,5 +1770,241 @@ describe('globe controls', () => {
     step(120);
     pointer('pointermove', 300, { y: 200 });
     expect(onHover.mock.lastCall?.[0]).not.toBeNull();
+  });
+
+  it('settles once after a drag released without inertia', async () => {
+    const onSettle = vi.fn<NonNullable<GlobeControlsOptions['onSettle']>>();
+    const { controls, pointer, step } = await renderControls({ onSettle });
+
+    pointer('pointerdown', 100);
+    pointer('pointermove', 200, { time: 0 });
+    expect(onSettle).not.toHaveBeenCalled();
+    pointer('pointerup', 200, { time: 80 });
+    expect(onSettle).toHaveBeenCalledTimes(1);
+    expect(onSettle).toHaveBeenCalledWith(controls.viewRef.current);
+    step(60);
+    expect(onSettle).toHaveBeenCalledTimes(1);
+  });
+
+  it('settles once when the inertia stops and not while it coasts', async () => {
+    const onSettle = vi.fn<NonNullable<GlobeControlsOptions['onSettle']>>();
+    const { controls, flick, step } = await renderControls({ onSettle });
+
+    flick();
+    step(10);
+    expect(onSettle).not.toHaveBeenCalled();
+    step(50);
+    expect(onSettle).toHaveBeenCalledTimes(1);
+    expect(onSettle).toHaveBeenCalledWith(controls.viewRef.current);
+    step(60);
+    expect(onSettle).toHaveBeenCalledTimes(1);
+  });
+
+  it('settles once at the end of a fly', async () => {
+    const onSettle = vi.fn<NonNullable<GlobeControlsOptions['onSettle']>>();
+    const { controls, step } = await renderControls({ onSettle });
+
+    controls.flyTo(FLY_TARGET);
+    controls.advance(0.45, 0);
+    expect(onSettle).not.toHaveBeenCalled();
+    controls.advance(0.5, 0);
+    expect(onSettle).toHaveBeenCalledTimes(1);
+    expect(onSettle).toHaveBeenCalledWith(FLY_TARGET);
+    step(60);
+    expect(onSettle).toHaveBeenCalledTimes(1);
+  });
+
+  it('settles at once when a fly jumps under reduced motion', async () => {
+    stubReducedMotion(true);
+    const onSettle = vi.fn<NonNullable<GlobeControlsOptions['onSettle']>>();
+    const { controls } = await renderControls({ onSettle });
+
+    controls.flyTo(FLY_TARGET);
+    expect(onSettle).toHaveBeenCalledTimes(1);
+    expect(onSettle).toHaveBeenCalledWith(FLY_TARGET);
+  });
+
+  it('settles after a drag released under reduced motion', async () => {
+    stubReducedMotion(true);
+    const onSettle = vi.fn<NonNullable<GlobeControlsOptions['onSettle']>>();
+    const { controls, flick } = await renderControls({ onSettle });
+
+    flick();
+    expect(onSettle).toHaveBeenCalledTimes(1);
+    expect(onSettle).toHaveBeenCalledWith(controls.viewRef.current);
+  });
+
+  it('settles on every wheel event', async () => {
+    const onSettle = vi.fn<NonNullable<GlobeControlsOptions['onSettle']>>();
+    const { controls, wheel } = await renderControls({ onSettle });
+
+    wheel(-200);
+    expect(onSettle).toHaveBeenLastCalledWith(controls.viewRef.current);
+    wheel(-200);
+    expect(onSettle).toHaveBeenCalledTimes(2);
+    expect(onSettle).toHaveBeenLastCalledWith(controls.viewRef.current);
+  });
+
+  it('settles when a moved drag is cancelled', async () => {
+    const onSettle = vi.fn<NonNullable<GlobeControlsOptions['onSettle']>>();
+    const { controls, pointer } = await renderControls({ onSettle });
+
+    pointer('pointerdown', 100);
+    pointer('pointercancel', 100);
+    expect(onSettle).not.toHaveBeenCalled();
+    pointer('pointerdown', 100);
+    pointer('pointermove', 200);
+    pointer('pointercancel', 200);
+    expect(onSettle).toHaveBeenCalledTimes(1);
+    expect(onSettle).toHaveBeenCalledWith(controls.viewRef.current);
+  });
+
+  it('settles when a pinch ends', async () => {
+    const onSettle = vi.fn<NonNullable<GlobeControlsOptions['onSettle']>>();
+    const { controls, pointer } = await renderControls({ onSettle });
+
+    pointer('pointerdown', 100, { id: 1 });
+    pointer('pointerdown', 200, { id: 2 });
+    pointer('pointermove', 300, { id: 2 });
+    expect(onSettle).not.toHaveBeenCalled();
+    pointer('pointerup', 300, { id: 2 });
+    expect(onSettle).toHaveBeenCalledTimes(1);
+    expect(onSettle.mock.lastCall?.[0].zoom).toBeCloseTo(2, 6);
+    pointer('pointerup', 100, { id: 1 });
+    expect(onSettle).toHaveBeenCalledTimes(1);
+    expect(controls.viewRef.current.zoom).toBeCloseTo(2, 6);
+  });
+
+  it('does not settle when a pinch ends without changing the zoom', async () => {
+    const onSettle = vi.fn<NonNullable<GlobeControlsOptions['onSettle']>>();
+    const { controls, pointer } = await renderControls({ onSettle });
+
+    pointer('pointerdown', 100, { id: 1 });
+    pointer('pointerdown', 200, { id: 2 });
+    pointer('pointermove', 200, { id: 2 });
+    pointer('pointerup', 200, { id: 2 });
+    pointer('pointerup', 100, { id: 1 });
+    expect(onSettle).not.toHaveBeenCalled();
+    expect(controls.viewRef.current.zoom).toBe(INITIAL_VIEW.zoom);
+  });
+
+  it('does not settle when a pinch-in is clamped at the minimum zoom', async () => {
+    const onSettle = vi.fn<NonNullable<GlobeControlsOptions['onSettle']>>();
+    const { controls, pointer } = await renderControls({ onSettle });
+
+    pointer('pointerdown', 100, { id: 1 });
+    pointer('pointerdown', 300, { id: 2 });
+    pointer('pointermove', 150, { id: 2 });
+    pointer('pointerup', 150, { id: 2 });
+    pointer('pointerup', 100, { id: 1 });
+    expect(controls.viewRef.current.zoom).toBe(ZOOM_RANGE[0]);
+    expect(onSettle).not.toHaveBeenCalled();
+  });
+
+  it('settles when a moved drag turns into a pinch that ends', async () => {
+    const onSettle = vi.fn<NonNullable<GlobeControlsOptions['onSettle']>>();
+    const { controls, pointer } = await renderControls({ onSettle });
+
+    pointer('pointerdown', 100, { id: 1 });
+    pointer('pointermove', 200, { id: 1 });
+    pointer('pointerdown', 300, { id: 2 });
+    pointer('pointerup', 300, { id: 2 });
+    expect(onSettle).toHaveBeenCalledTimes(1);
+    expect(onSettle).toHaveBeenCalledWith(controls.viewRef.current);
+    pointer('pointerup', 200, { id: 1 });
+    expect(onSettle).toHaveBeenCalledTimes(1);
+  });
+
+  it('settles with the current view when a press interrupts inertia or a fly', async () => {
+    const onSettle = vi.fn<NonNullable<GlobeControlsOptions['onSettle']>>();
+    const { controls, pointer, flick, step } = await renderControls({ onSettle });
+
+    flick();
+    step(5);
+    const coasting = controls.viewRef.current;
+    pointer('pointerdown', 100);
+    expect(onSettle).toHaveBeenCalledTimes(1);
+    expect(onSettle).toHaveBeenLastCalledWith(coasting);
+    pointer('pointerup', 100);
+    controls.flyTo(FLY_TARGET);
+    controls.advance(0.3, 0);
+    const flying = controls.viewRef.current;
+    pointer('pointerdown', 100);
+    expect(onSettle).toHaveBeenCalledTimes(2);
+    expect(onSettle).toHaveBeenLastCalledWith(flying);
+    pointer('pointerup', 100);
+    step(60);
+    expect(onSettle).toHaveBeenCalledTimes(2);
+  });
+
+  it('never settles while drifting', async () => {
+    const onSettle = vi.fn<NonNullable<GlobeControlsOptions['onSettle']>>();
+    const { step } = await renderControls({ onSettle });
+
+    expect(step(600).lon).not.toBe(INITIAL_VIEW.lon);
+    expect(onSettle).not.toHaveBeenCalled();
+  });
+
+  it('frames a target with a fly that never settles and drifts after it lands', async () => {
+    const onSettle = vi.fn<NonNullable<GlobeControlsOptions['onSettle']>>();
+    const { controls, step } = await renderControls({ onSettle });
+    const from = controls.viewRef.current;
+
+    controls.frameTo(FLY_TARGET);
+    expect(controls.advance(0.45, 0)).toEqual(getFlyView(from, FLY_TARGET, 0.5));
+    expect(controls.advance(0.5, 0)).toEqual(FLY_TARGET);
+    expect(step(1).lon).not.toBe(FLY_TARGET.lon);
+    step(60);
+    expect(onSettle).not.toHaveBeenCalled();
+  });
+
+  it('jumps to the frame target under reduced motion without settling', async () => {
+    stubReducedMotion(true);
+    const onSettle = vi.fn<NonNullable<GlobeControlsOptions['onSettle']>>();
+    const { controls, step } = await renderControls({ onSettle });
+
+    controls.frameTo(FLY_TARGET);
+    expect(step(1)).toEqual(FLY_TARGET);
+    expect(onSettle).not.toHaveBeenCalled();
+  });
+
+  it('ignores a frame request after a drag or while a pointer is down', async () => {
+    const { controls, pointer } = await renderControls();
+
+    pointer('pointerdown', 100);
+    controls.frameTo(FLY_TARGET);
+    pointer('pointerup', 100);
+    expect(controls.advance(1, 0)).not.toEqual(FLY_TARGET);
+    pointer('pointerdown', 100);
+    pointer('pointermove', 200, { time: 0 });
+    pointer('pointerup', 200, { time: 80 });
+    const dragged = controls.viewRef.current;
+    controls.frameTo(FLY_TARGET);
+    expect(controls.advance(1, 0)).toEqual(dragged);
+  });
+
+  it('stops for good when a press interrupts the framing fly', async () => {
+    const onSettle = vi.fn<NonNullable<GlobeControlsOptions['onSettle']>>();
+    const { controls, pointer, step } = await renderControls({ onSettle });
+
+    controls.frameTo(FLY_TARGET);
+    controls.advance(0.3, 0);
+    const interrupted = controls.viewRef.current;
+    pointer('pointerdown', 100);
+    pointer('pointerup', 100);
+    expect(step(60)).toEqual(interrupted);
+    controls.frameTo(FLY_TARGET);
+    expect(controls.advance(1, 0)).toEqual(interrupted);
+    expect(onSettle).not.toHaveBeenCalled();
+  });
+
+  it('starts at the initial view, holds it and ignores a frame request', async () => {
+    const initialView: GlobeView = { lon: -1.1, lat: 0.3, zoom: 2.5 };
+    const { controls, step } = await renderControls({ initialView });
+
+    expect(controls.viewRef.current).toEqual(initialView);
+    expect(step(60)).toEqual(initialView);
+    controls.frameTo(FLY_TARGET);
+    expect(controls.advance(1, 0)).toEqual(initialView);
   });
 });

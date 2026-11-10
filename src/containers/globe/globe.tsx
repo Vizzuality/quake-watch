@@ -3,11 +3,19 @@ import { useQuery } from '@tanstack/react-query';
 import { getRouteApi } from '@tanstack/react-router';
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
 
+import { type Camera, getWrappedLongitude, useCameraSearch } from '@/hooks/use-camera-search';
 import { earthquakesQueryOptions } from '@/lib/earthquakes/query-options';
-import { getEarthquakeFilters } from '@/lib/earthquakes/search-schema';
+import { type EarthquakeSearch, getEarthquakeFilters } from '@/lib/earthquakes/search-schema';
 import type { Earthquake } from '@/lib/earthquakes/types';
 import { getGlobeFrame } from '@/lib/globe/frame';
-import { type GlobeView, getCenteredView } from '@/lib/globe/motion';
+import { getDensestLongitude } from '@/lib/globe/framing';
+import {
+  type GlobeView,
+  getCenteredView,
+  getFramedView,
+  getSearchView,
+  getViewCamera,
+} from '@/lib/globe/motion';
 import { getPickedQuakeIndex, getQuakeScreenPoints } from '@/lib/globe/picking';
 import { m } from '@/paraglide/messages';
 
@@ -29,6 +37,7 @@ declare global {
   interface Window {
     __playGlobeWaves?: GlobeWaves['play'];
     __globeQuakePoints?: () => { id: string; x: number; y: number }[];
+    __globeView?: () => Camera;
   }
 }
 
@@ -53,6 +62,11 @@ function getSelectedEarthquake(
 ): Earthquake | undefined {
   if (quake === undefined) return undefined;
   return earthquakes.find((earthquake) => getQuakeKey(earthquake) === quake);
+}
+
+function getInitialView({ lat, lon, zoom }: EarthquakeSearch): GlobeView | undefined {
+  if (lat === undefined || lon === undefined || zoom === undefined) return undefined;
+  return getSearchView(lat, lon, zoom);
 }
 
 function getCursorClassName(isOverQuake: boolean): string {
@@ -146,8 +160,15 @@ function GlobeCanvas() {
   const search = homeRoute.useSearch();
   const navigate = homeRoute.useNavigate();
   const { data } = useQuery(earthquakesQueryOptions(getEarthquakeFilters(search)));
+  const setCamera = useCameraSearch();
   const containerRef = useRef<HTMLDivElement>(null);
-  const controls = useGlobeControls(containerRef, { onHover: handleHover, onTap: handleTap });
+  const [initialView] = useState(() => getInitialView(search));
+  const controls = useGlobeControls(containerRef, {
+    initialView,
+    onHover: handleHover,
+    onTap: handleTap,
+    onSettle: handleSettle,
+  });
   const {
     hovered,
     isOverQuake,
@@ -167,6 +188,7 @@ function GlobeCanvas() {
   const variant = selectedEarthquake === undefined ? 'full' : 'compact';
   const [waves] = useState(createGlobeWaves);
   const lastFlownRef = useRef<string | undefined>(undefined);
+  const isFramingDecidedRef = useRef(false);
 
   function getPointedQuake(point: Point): HoveredQuake | null {
     const container = containerRef.current;
@@ -197,6 +219,10 @@ function GlobeCanvas() {
     if (pointed) selectQuake(pointed.earthquake);
   }
 
+  function handleSettle(view: GlobeView) {
+    setCamera(getViewCamera(view));
+  }
+
   useEffect(() => {
     if (!import.meta.env.DEV) return;
     window.__playGlobeWaves = waves.play;
@@ -224,6 +250,28 @@ function GlobeCanvas() {
       delete window.__globeQuakePoints;
     };
   }, [earthquakes, controls]);
+
+  useEffect(() => {
+    if (!import.meta.env.DEV) return;
+    window.__globeView = () => {
+      const { lat, lon, zoom } = getViewCamera(controls.viewRef.current);
+      return { lat, lon: getWrappedLongitude(lon), zoom };
+    };
+    return () => {
+      delete window.__globeView;
+    };
+  }, [controls]);
+
+  useEffect(() => {
+    if (data === undefined || isFramingDecidedRef.current) return;
+    isFramingDecidedRef.current = true;
+    if (initialView !== undefined || quake !== undefined) return;
+    const longitude = getDensestLongitude(
+      data.earthquakes.map((earthquake) => earthquake.longitude),
+    );
+    if (longitude === undefined) return;
+    controls.frameTo(getFramedView(longitude, controls.viewRef.current));
+  }, [data, initialView, quake, controls]);
 
   useEffect(() => {
     if (quake === undefined) {
