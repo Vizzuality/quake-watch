@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  FLY_DURATION_MS,
+  getCenteredView,
   getDraggedView,
+  getFlyView,
   getIdleDriftLon,
   getInertiaView,
   getPinchFactor,
@@ -9,6 +12,7 @@ import {
   getZoomedView,
   INITIAL_VIEW,
   LAT_LIMIT,
+  SELECT_MIN_ZOOM,
   ZOOM_RANGE,
 } from './motion';
 
@@ -61,5 +65,62 @@ describe('motion', () => {
   it('drifts longitude with the board Live formula', () => {
     expect(getIdleDriftLon(1, 0.5, 0)).toBeCloseTo(1 + 0.5 * 0.0133);
     expect(getIdleDriftLon(1, 0.5, 9000 * Math.PI)).toBeCloseTo(1 - 0.5 * 0.0133);
+  });
+});
+
+describe('getCenteredView', () => {
+  it('centres on the quake in radians and zooms in to at least 1.6', () => {
+    expect(FLY_DURATION_MS).toBe(900);
+    expect(SELECT_MIN_ZOOM).toBe(1.6);
+    const view = getCenteredView(35, 139, { lon: 2, lat: 0, zoom: 1 });
+    expect(view.lon).toBeCloseTo((139 * Math.PI) / 180, 12);
+    expect(view.lat).toBeCloseTo((35 * Math.PI) / 180, 12);
+    expect(view.zoom).toBe(1.6);
+  });
+
+  it('keeps a closer zoom and clamps it at 5', () => {
+    expect(getCenteredView(0, 0, { lon: 0, lat: 0, zoom: 3 }).zoom).toBe(3);
+    expect(getCenteredView(0, 0, { lon: 0, lat: 0, zoom: 7 }).zoom).toBe(5);
+  });
+
+  it('takes the short way across ±180°', () => {
+    const view = getCenteredView(0, -179, { lon: 3.1, lat: 0, zoom: 1 });
+    expect(view.lon).toBeCloseTo(2 * Math.PI - (179 * Math.PI) / 180, 12);
+    expect(view.lon).toBeCloseTo(3.159, 3);
+    expect(Math.abs(view.lon - 3.1)).toBeLessThan(0.1);
+  });
+
+  it('unwraps to the turn nearest the current longitude', () => {
+    const view = getCenteredView(0, 10, { lon: 4 * Math.PI, lat: 0, zoom: 1 });
+    expect(view.lon).toBeCloseTo(4 * Math.PI + (10 * Math.PI) / 180, 12);
+  });
+
+  it('clamps latitude to ±1.45', () => {
+    expect(getCenteredView(89, 0, INITIAL_VIEW).lat).toBe(LAT_LIMIT);
+    expect(getCenteredView(-89, 0, INITIAL_VIEW).lat).toBe(-LAT_LIMIT);
+  });
+});
+
+describe('getFlyView', () => {
+  const from = { lon: 0, lat: 0.2, zoom: 1 };
+  const to = { lon: 2, lat: -0.6, zoom: 3 };
+
+  it('starts at the origin and ends at the target', () => {
+    expect(getFlyView(from, to, 0)).toEqual(from);
+    expect(getFlyView(from, to, 1)).toEqual(to);
+  });
+
+  it('is halfway at the midpoint and eases in and out', () => {
+    const middle = getFlyView(from, to, 0.5);
+    expect(middle.lon).toBeCloseTo(1);
+    expect(middle.lat).toBeCloseTo(-0.2);
+    expect(middle.zoom).toBeCloseTo(2);
+    expect(getFlyView(from, to, 0.25).lon).toBeCloseTo(0.25);
+    expect(getFlyView(from, to, 0.75).lon).toBeCloseTo(1.75);
+  });
+
+  it('clamps progress outside 0..1', () => {
+    expect(getFlyView(from, to, -1)).toEqual(from);
+    expect(getFlyView(from, to, 2)).toEqual(to);
   });
 });

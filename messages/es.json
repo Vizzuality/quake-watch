@@ -37,5 +37,11 @@
   "error_line": "Algo ha ido mal.",
   "back_to_globe": "Volver al globo",
   "globe_label": "Globo de terremotos. Arrastra para girar y desplázate para hacer zoom.",
-  "globe_unavailable": "Tu navegador no puede dibujar el globo."
+  "globe_unavailable": "Tu navegador no puede dibujar el globo.",
+  "tooltip_age_minutes": "hace {count} min",
+  "tooltip_age_hours": "hace {count} h",
+  "tooltip_age_days": "hace {count} d",
+  "tooltip_depth_deep": "{depth} de profundidad",
+  "tooltip_likely_felt": "Probablemente sentido",
+  "tooltip_click_to_open": "Abrir detalles"
 }
