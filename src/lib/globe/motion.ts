@@ -63,3 +63,34 @@ export function getInertiaView(
 export function getIdleDriftLon(lon: number, dtSeconds: number, elapsedMs: number): number {
   return lon + dtSeconds * IDLE_DRIFT_SPEED * Math.cos(elapsedMs / IDLE_DRIFT_PERIOD_MS);
 }
+
+export const FLY_DURATION_MS = 900;
+export const SELECT_MIN_ZOOM = 1.6;
+const FULL_TURN = 2 * Math.PI;
+
+export function getCenteredView(latitude: number, longitude: number, view: GlobeView): GlobeView {
+  const lon = (longitude * Math.PI) / 180;
+  return {
+    lon: lon + FULL_TURN * Math.round((view.lon - lon) / FULL_TURN),
+    lat: getClampedLat((latitude * Math.PI) / 180),
+    zoom: getClamped(Math.max(view.zoom, SELECT_MIN_ZOOM), ZOOM_RANGE[0], ZOOM_RANGE[1]),
+  };
+}
+
+function getEasedProgress(progress: number): number {
+  const p = getClamped(progress, 0, 1);
+  return p < 0.5 ? 2 * p * p : 1 - (-2 * p + 2) ** 2 / 2;
+}
+
+function getInterpolated(from: number, to: number, t: number): number {
+  return from * (1 - t) + to * t;
+}
+
+export function getFlyView(from: GlobeView, to: GlobeView, progress: number): GlobeView {
+  const t = getEasedProgress(progress);
+  return {
+    lon: getInterpolated(from.lon, to.lon, t),
+    lat: getInterpolated(from.lat, to.lat, t),
+    zoom: getInterpolated(from.zoom, to.zoom, t),
+  };
+}

@@ -171,7 +171,7 @@
 
 @utility glass-tooltip {
   background-color: var(--color-glass-tooltip);
-  backdrop-filter: blur(100px);
+  backdrop-filter: blur(50px);
 }
 
 @utility glass-toast {

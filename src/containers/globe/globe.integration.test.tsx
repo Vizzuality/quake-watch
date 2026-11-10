@@ -14,6 +14,7 @@ import { render } from 'vitest-browser-react';
 import Globe from '@/containers/globe/globe';
 import {
   type GlobeControls,
+  type GlobeControlsOptions,
   MAX_RELEASE_SPEED,
   useGlobeControls,
 } from '@/containers/globe/use-globe-controls';
@@ -27,7 +28,14 @@ import {
   getWaveLifeSeconds,
 } from '@/lib/globe/felt-rings';
 import { getGlobeFrame } from '@/lib/globe/frame';
-import { INITIAL_VIEW, ZOOM_RANGE } from '@/lib/globe/motion';
+import {
+  FLY_DURATION_MS,
+  type GlobeView,
+  INITIAL_VIEW,
+  SELECT_MIN_ZOOM,
+  ZOOM_RANGE,
+  getFlyView,
+} from '@/lib/globe/motion';
 import { QUAKE_MARKER_LOOK, getEpicentreRadiusPx, getHypocentreRadius } from '@/lib/globe/quakes';
 import { getLatLonVector, getRotatedVector } from '@/lib/globe/sphere';
 import { overwriteGetLocale } from '@/paraglide/runtime';
@@ -36,7 +44,14 @@ import { stubFetch } from '@/test/stub-fetch';
 
 type Point = { x: number; y: number };
 type Snapshot = { data: Uint8Array; width: number; height: number; dpr: number };
-type TestQuake = { lat: number; lon: number; depth: number; mag: number };
+type TestQuake = {
+  lat: number;
+  lon: number;
+  depth: number;
+  mag: number;
+  region?: string | null;
+  time?: string;
+};
 
 const WIDTH = 1280;
 const HEIGHT = 800;
@@ -304,8 +319,8 @@ function getOffNeedlePixel(epicentre: Point, hypocentre: Point): Point {
 }
 
 function getQuakeResponse(quakes: readonly TestQuake[]): Response {
-  const features = quakes.map(({ lat, lon, depth, mag }, index) =>
-    getEmscFeature({ id: `test_${index}`, lat, lon, depth, mag }),
+  const features = quakes.map(({ lat, lon, depth, mag, region, time }, index) =>
+    getEmscFeature({ id: `test_${index}`, lat, lon, depth, mag, region, time }),
   );
   return Response.json(getFeatureCollection(features));
 }
@@ -314,7 +329,11 @@ function isListRequest(url: URL): boolean {
   return url.pathname === LIST_PATH;
 }
 
-async function renderGlobe(quakesByMinMagnitude: Partial<Record<MinMagnitude, TestQuake[]>> = {}) {
+async function renderGlobe(
+  quakesByMinMagnitude: Partial<Record<MinMagnitude, TestQuake[]>> = {},
+  { initialEntries = ['/'] }: { initialEntries?: string[] } = {},
+) {
+  vi.spyOn(Element.prototype, 'setPointerCapture').mockImplementation(() => {});
   const fetchMock = stubFetch([
     ...Object.entries(quakesByMinMagnitude).map(([minmag, quakes]) => ({
       match: (url: URL) => isListRequest(url) && url.searchParams.get('minmagnitude') === minmag,
@@ -336,7 +355,7 @@ async function renderGlobe(quakesByMinMagnitude: Partial<Record<MinMagnitude, Te
   });
   const router = createRouter({
     routeTree: rootRoute.addChildren([indexRoute]),
-    history: createMemoryHistory({ initialEntries: ['/'] }),
+    history: createMemoryHistory({ initialEntries }),
   });
   await router.load();
   const screen = await render(
@@ -351,11 +370,15 @@ async function renderGlobe(quakesByMinMagnitude: Partial<Record<MinMagnitude, Te
     return canvas;
   }
 
-  async function getSettledSnapshot(): Promise<Snapshot> {
+  async function settle(): Promise<void> {
     await expect.poll(() => fetchMock.mock.calls.length).toBeGreaterThan(0);
     await expect.poll(() => queryClient.isFetching()).toBe(0);
     await vi.waitFor(getCanvas);
     await waitFrames(10);
+  }
+
+  async function getSettledSnapshot(): Promise<Snapshot> {
+    await settle();
     return getSnapshot(getCanvas());
   }
 
@@ -366,7 +389,7 @@ async function renderGlobe(quakesByMinMagnitude: Partial<Record<MinMagnitude, Te
     return getSettledSnapshot();
   }
 
-  return { screen, getCanvas, getSettledSnapshot, showMinMagnitude };
+  return { screen, router, getCanvas, settle, getSettledSnapshot, showMinMagnitude };
 }
 
 async function renderQuakes(quakes: TestQuake[]) {
@@ -407,12 +430,12 @@ function playWaves() {
   play?.();
 }
 
-async function renderControls() {
+async function renderControls(options?: GlobeControlsOptions) {
   const controlsRef = createRef<GlobeControls>();
 
   function Probe() {
     const targetRef = useRef<HTMLDivElement>(null);
-    const controls = useGlobeControls(targetRef);
+    const controls = useGlobeControls(targetRef, options);
     useImperativeHandle(controlsRef, () => controls, [controls]);
     return <div ref={targetRef} data-testid="target" style={{ width: WIDTH, height: HEIGHT }} />;
   }
@@ -423,8 +446,14 @@ async function renderControls() {
   if (!controlsRef.current) throw new Error('controls probe did not mount');
   const controls = controlsRef.current;
 
-  function pointer(type: string, x: number, { y = 100, id = 1, time = 0 } = {}) {
-    const event = new PointerEvent(type, { pointerId: id, clientX: x, clientY: y, bubbles: true });
+  function pointer(type: string, x: number, { y = 100, id = 1, time = 0, button = 0 } = {}) {
+    const event = new PointerEvent(type, {
+      pointerId: id,
+      clientX: x,
+      clientY: y,
+      button,
+      bubbles: true,
+    });
     Object.defineProperty(event, 'timeStamp', { value: time });
     target.dispatchEvent(event);
   }
@@ -446,7 +475,7 @@ async function renderControls() {
     pointer('pointerup', 200, { time: 5 * sampleMs + pauseMs });
   }
 
-  return { controls, pointer, wheel, step, flick };
+  return { controls, target, pointer, wheel, step, flick };
 }
 
 describe('globe', () => {
@@ -763,6 +792,476 @@ describe('globe', () => {
   });
 });
 
+const TOOLTIP_M5: TestQuake = {
+  lat: VIEW_LAT,
+  lon: VIEW_LON,
+  depth: 10,
+  mag: 5.1,
+  time: '2026-10-31T04:12:00Z',
+};
+const QUIET_M3: TestQuake = {
+  lat: VIEW_LAT + 20,
+  lon: VIEW_LON - 30,
+  depth: 500,
+  mag: 3,
+  region: null,
+};
+const COMPACT_M4: TestQuake = { lat: VIEW_LAT + 10, lon: VIEW_LON + 15, depth: 35, mag: 4.3 };
+const TOOLTIP_NOW = new Date('2026-10-31T07:30:00Z');
+const EDGE_M4: TestQuake = { lat: VIEW_LAT - 70, lon: VIEW_LON + 20, depth: 10, mag: 4 };
+const PICK_QUAKES: TestQuake[] = [
+  { lat: VIEW_LAT, lon: VIEW_LON, depth: 10, mag: 4, region: 'QUAKE A' },
+  { lat: VIEW_LAT + 25, lon: VIEW_LON - 30, depth: 10, mag: 4, region: 'QUAKE B' },
+  { lat: VIEW_LAT - 25, lon: VIEW_LON + 35 - 360, depth: 10, mag: 4, region: 'QUAKE C' },
+  { lat: VIEW_LAT + 5, lon: VIEW_LON + 60 - 360, depth: 10, mag: 4, region: 'QUAKE D' },
+];
+const BEHIND_A: TestQuake = {
+  lat: -VIEW_LAT,
+  lon: VIEW_LON - 180,
+  depth: 10,
+  mag: 4,
+  region: 'BEHIND',
+};
+const BEHIND_ALONE: TestQuake = {
+  lat: -VIEW_LAT - 30,
+  lon: VIEW_LON - 180,
+  depth: 10,
+  mag: 4,
+  region: 'BEHIND',
+};
+const PICK_OFFSET_PX = 11.9;
+const DIRECTIONS = [
+  [1, 0],
+  [0, 1],
+  [-1, 0],
+  [0, -1],
+] as const;
+
+function getDegreesInRadians(degrees: number): number {
+  return (degrees * Math.PI) / 180;
+}
+
+function getCentredViewPoint(quake: TestQuake, centre: TestQuake, zoom: number): Point {
+  const [x, y] = getRotatedVector(
+    getLatLonVector(quake.lat, quake.lon),
+    getDegreesInRadians(centre.lon),
+    getDegreesInRadians(centre.lat),
+  );
+  return { x: CX + x * RADIUS * zoom, y: CY - y * RADIUS * zoom };
+}
+
+function getQuakeSearch(router: { state: { location: { search: unknown } } }): string | undefined {
+  return (router.state.location.search as { quake?: string }).quake;
+}
+
+async function renderTooltipGlobe(
+  quakes: TestQuake[],
+  { initialEntries = ['/'], reducedMotion = true } = {},
+) {
+  stubReducedMotion(reducedMotion);
+  const globe = await renderGlobe({ 0: quakes }, { initialEntries });
+  await globe.settle();
+  const container = globe.screen.getByRole('img').element() as HTMLElement;
+  const rect = container.getBoundingClientRect();
+
+  function pointer(type: string, { x, y }: Point) {
+    container.dispatchEvent(
+      new PointerEvent(type, {
+        pointerId: 1,
+        button: 0,
+        bubbles: true,
+        clientX: rect.left + x,
+        clientY: rect.top + y,
+      }),
+    );
+  }
+
+  function getTooltip(): HTMLElement | null {
+    return document.querySelector('[role="tooltip"]');
+  }
+
+  async function hover(point: Point): Promise<HTMLElement> {
+    pointer('pointermove', point);
+    return vi.waitFor(() => {
+      const tooltip = getTooltip();
+      if (!tooltip) throw new Error('tooltip is not shown');
+      return tooltip;
+    });
+  }
+
+  function tap(point: Point) {
+    pointer('pointerdown', point);
+    pointer('pointerup', point);
+  }
+
+  function getLivePoint(key: string): Point {
+    const point = window.__globeQuakePoints?.().find(({ id }) => id === key);
+    if (!point) throw new Error(`${key} is not on the front side`);
+    return { x: point.x - rect.left, y: point.y - rect.top };
+  }
+
+  function moveOntoTooltip(tooltip: HTMLElement) {
+    container.dispatchEvent(
+      new PointerEvent('pointerout', { bubbles: true, relatedTarget: tooltip }),
+    );
+    container.dispatchEvent(new PointerEvent('pointerleave', { relatedTarget: tooltip }));
+    tooltip.dispatchEvent(
+      new PointerEvent('pointerover', { bubbles: true, relatedTarget: container }),
+    );
+  }
+
+  function leaveTooltip(tooltip: HTMLElement) {
+    tooltip.dispatchEvent(
+      new PointerEvent('pointerout', { bubbles: true, relatedTarget: document.body }),
+    );
+  }
+
+  return {
+    ...globe,
+    container,
+    pointer,
+    getTooltip,
+    hover,
+    tap,
+    getLivePoint,
+    moveOntoTooltip,
+    leaveTooltip,
+  };
+}
+
+describe('globe quake tooltip', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+    overwriteGetLocale(() => 'en');
+  });
+
+  it('shows the Full tooltip within 100 ms with the Figma measurements', async () => {
+    const globe = await renderTooltipGlobe([TOOLTIP_M5]);
+
+    const start = performance.now();
+    globe.pointer('pointermove', getScreenPoint(TOOLTIP_M5.lat, TOOLTIP_M5.lon, 1));
+    await waitFrames(1);
+    const tooltip = globe.getTooltip();
+    expect(performance.now() - start).toBeLessThan(100);
+    if (!tooltip) throw new Error('tooltip is not shown');
+
+    const style = getComputedStyle(tooltip);
+    expect(style.width).toBe('248px');
+    expect(style.padding).toBe('16px');
+    expect(style.rowGap).toBe('8px');
+    expect(style.borderTopWidth).toBe('1px');
+    expect(style.borderRadius).toBe('0px');
+    expect(style.backdropFilter).toContain('blur(50px)');
+    const magnitude = globe.screen.getByText('M5.1').element();
+    expect(getComputedStyle(magnitude).fontSize).toBe('28px');
+    expect(getComputedStyle(magnitude).fontWeight).toBe('300');
+    const dot = tooltip.querySelector('span[aria-hidden="true"]') as HTMLElement;
+    expect(getComputedStyle(dot).width).toBe('8px');
+    await expect.element(globe.screen.getByRole('button', { name: 'Click to open' })).toBeVisible();
+    expect(globe.container.getAttribute('aria-describedby')).toBe(tooltip.id);
+  });
+
+  it('labels magnitude, age, place, date, Depth and Likely felt', async () => {
+    vi.useFakeTimers({ toFake: ['Date'], now: TOOLTIP_NOW });
+    const globe = await renderTooltipGlobe([TOOLTIP_M5, QUIET_M3]);
+
+    const tooltip = globe.screen.getByRole('tooltip');
+    await globe.hover(getScreenPoint(TOOLTIP_M5.lat, TOOLTIP_M5.lon, 1));
+    for (const text of [
+      'M5.1',
+      '3 h ago',
+      'Southern Spain',
+      'Sat 31.10 · 04:12 UTC',
+      'Depth',
+      '10 km',
+      'Likely felt',
+      '~210 km',
+    ]) {
+      await expect.element(tooltip.getByText(text, { exact: true })).toBeVisible();
+    }
+
+    await globe.hover(getScreenPoint(QUIET_M3.lat, QUIET_M3.lon, 1));
+    await expect.element(tooltip.getByText('Unknown location', { exact: true })).toBeVisible();
+    await expect.element(tooltip.getByText('Not felt', { exact: true })).toBeVisible();
+    await expect.element(tooltip.getByText('500 km', { exact: true })).toBeVisible();
+  });
+
+  it('speaks Spanish', async () => {
+    overwriteGetLocale(() => 'es');
+    vi.useFakeTimers({ toFake: ['Date'], now: TOOLTIP_NOW });
+    const globe = await renderTooltipGlobe([TOOLTIP_M5]);
+
+    const tooltip = globe.screen.getByRole('tooltip');
+    await globe.hover(getScreenPoint(TOOLTIP_M5.lat, TOOLTIP_M5.lon, 1));
+    for (const text of [
+      'M5,1',
+      'hace 3 h',
+      'sáb 31.10 · 04:12 UTC',
+      'Profundidad',
+      'Probablemente sentido',
+      'Abrir detalles',
+    ]) {
+      await expect.element(tooltip.getByText(text, { exact: true })).toBeVisible();
+    }
+  });
+
+  it('picks every front-side quake within 12 px of its epicentre and never a far-side one', async () => {
+    const globe = await renderTooltipGlobe([...PICK_QUAKES, BEHIND_A, BEHIND_ALONE]);
+    const tooltip = globe.screen.getByRole('tooltip');
+
+    for (const [dx, dy] of DIRECTIONS) {
+      for (const [index, quake] of PICK_QUAKES.entries()) {
+        const epicentre = getScreenPoint(quake.lat, quake.lon, 1);
+        globe.pointer('pointermove', {
+          x: epicentre.x + dx * PICK_OFFSET_PX,
+          y: epicentre.y + dy * PICK_OFFSET_PX,
+        });
+        await expect.element(tooltip).toMatchTextContent(`Quake ${'ABCD'.charAt(index)}`);
+      }
+    }
+    globe.pointer('pointermove', getScreenPoint(BEHIND_A.lat, BEHIND_A.lon, 1));
+    await expect.element(tooltip).toMatchTextContent('Quake A');
+
+    globe.pointer('pointerleave', CENTRE);
+    await expect.poll(globe.getTooltip).toBeNull();
+    const behind = getScreenPoint(BEHIND_ALONE.lat, BEHIND_ALONE.lon, 1);
+    for (const quake of PICK_QUAKES) {
+      expect(getDistance(behind, getScreenPoint(quake.lat, quake.lon, 1))).toBeGreaterThan(30);
+    }
+    globe.pointer('pointermove', behind);
+    await waitFrames(5);
+    expect(globe.getTooltip()).toBeNull();
+  });
+
+  it('stays open while the pointer moves onto it and hides 150 ms after leaving both', async () => {
+    const globe = await renderTooltipGlobe([TOOLTIP_M5]);
+
+    const tooltip = await globe.hover(getScreenPoint(TOOLTIP_M5.lat, TOOLTIP_M5.lon, 1));
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    globe.moveOntoTooltip(tooltip);
+    vi.advanceTimersByTime(500);
+    await waitFrames(2);
+    expect(globe.getTooltip()).toBe(tooltip);
+
+    globe.leaveTooltip(tooltip);
+    vi.advanceTimersByTime(100);
+    await waitFrames(2);
+    expect(globe.getTooltip()).toBe(tooltip);
+    vi.advanceTimersByTime(50);
+    await waitFrames(3);
+    expect(globe.getTooltip()).toBeNull();
+  });
+
+  it('hides on Escape without moving the pointer', async () => {
+    const globe = await renderTooltipGlobe([TOOLTIP_M5]);
+
+    await globe.hover(getScreenPoint(TOOLTIP_M5.lat, TOOLTIP_M5.lon, 1));
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    await waitFrames(3);
+    expect(globe.getTooltip()).toBeNull();
+  });
+
+  it('shows the Compact tooltip while a quake is selected', async () => {
+    const globe = await renderTooltipGlobe([TOOLTIP_M5, COMPACT_M4], {
+      initialEntries: ['/?quake=emsc:test_0'],
+    });
+
+    const tooltip = await globe.hover(globe.getLivePoint('emsc:test_1'));
+    const style = getComputedStyle(tooltip);
+    expect(style.padding).toBe('12px');
+    expect(style.rowGap).toBe('4px');
+    expect(tooltip.querySelector('button')).toBeNull();
+    const magnitude = globe.screen.getByText('M4.3').element();
+    expect(getComputedStyle(magnitude).fontSize).toBe('12px');
+    expect(getComputedStyle(magnitude).fontWeight).toBe('500');
+    const dot = tooltip.querySelector('span[aria-hidden="true"]') as HTMLElement;
+    expect(getComputedStyle(dot).width).toBe('6px');
+    const place = globe.screen.getByText('Southern Spain').element();
+    expect(getComputedStyle(place).fontSize).toBe('11px');
+    expect(getComputedStyle(place).lineHeight).toBe('13.2px');
+  });
+
+  it('pushes a tapped quake to the URL and flies 900 ms to centre it at zoom 1.6', async () => {
+    const globe = await renderTooltipGlobe([TOOLTIP_M5, COMPACT_M4], { reducedMotion: false });
+    const clock = freezeClock();
+    await waitFrames(2);
+
+    const start = globe.getLivePoint('emsc:test_1');
+    globe.tap(start);
+    await expect.poll(() => getQuakeSearch(globe.router)).toBe('emsc:test_1');
+    expect(globe.router.history.length).toBe(2);
+    clock.advance(FLY_DURATION_MS / 2);
+    await waitFrames(2);
+    const mid = getDistance(globe.getLivePoint('emsc:test_1'), CENTRE);
+    expect(mid).toBeGreaterThan(1);
+    expect(mid).toBeLessThan(getDistance(start, CENTRE));
+    clock.advance(FLY_DURATION_MS);
+    await waitFrames(2);
+    clock.restore();
+
+    expect(getDistance(globe.getLivePoint('emsc:test_1'), CENTRE)).toBeLessThanOrEqual(1);
+    const other = getCentredViewPoint(TOOLTIP_M5, COMPACT_M4, SELECT_MIN_ZOOM);
+    expect(getDistance(globe.getLivePoint('emsc:test_0'), other)).toBeLessThanOrEqual(1);
+    globe.router.history.back();
+    await expect.poll(() => getQuakeSearch(globe.router)).toBeUndefined();
+  });
+
+  it('selects the hovered quake from Click to open', async () => {
+    const globe = await renderTooltipGlobe([TOOLTIP_M5, COMPACT_M4]);
+
+    await globe.hover(getScreenPoint(COMPACT_M4.lat, COMPACT_M4.lon, 1));
+    (globe.screen.getByRole('button', { name: 'Click to open' }).element() as HTMLElement).click();
+    await expect.poll(() => getQuakeSearch(globe.router)).toBe('emsc:test_1');
+    expect(getDistance(globe.getLivePoint('emsc:test_1'), CENTRE)).toBeLessThanOrEqual(1);
+    await expect.poll(globe.getTooltip).toBeNull();
+  });
+
+  it('does not select a quake after a drag of 4 px or more', async () => {
+    const globe = await renderTooltipGlobe([TOOLTIP_M5]);
+    const point = getScreenPoint(TOOLTIP_M5.lat, TOOLTIP_M5.lon, 1);
+
+    globe.pointer('pointerdown', point);
+    globe.pointer('pointermove', { x: point.x + 4, y: point.y });
+    globe.pointer('pointerup', { x: point.x + 4, y: point.y });
+    globe.tap({ x: CX - 150, y: CY + 100 });
+    await waitFrames(5);
+    expect(getQuakeSearch(globe.router)).toBeUndefined();
+  });
+
+  it('flies to the quake in the URL once the data arrives', async () => {
+    const globe = await renderTooltipGlobe([TOOLTIP_M5, COMPACT_M4], {
+      initialEntries: ['/?quake=emsc:test_1'],
+      reducedMotion: false,
+    });
+
+    await expect
+      .poll(() => getDistance(globe.getLivePoint('emsc:test_1'), CENTRE), { timeout: 3000 })
+      .toBeLessThanOrEqual(1);
+  });
+
+  it('keeps drifting without an error for an unknown quake in the URL', async () => {
+    const consoleError = vi.spyOn(console, 'error');
+    const globe = await renderTooltipGlobe([TOOLTIP_M5], {
+      initialEntries: ['/?quake=emsc:missing'],
+      reducedMotion: false,
+    });
+
+    const before = globe.getLivePoint('emsc:test_0');
+    await waitFrames(30);
+    expect(Math.abs(globe.getLivePoint('emsc:test_0').x - before.x)).toBeGreaterThan(0.5);
+    expect(getQuakeSearch(globe.router)).toBe('emsc:missing');
+    expect(globe.screen.container.querySelector('output')).toBeNull();
+    expect(consoleError).not.toHaveBeenCalled();
+  });
+
+  it('jumps to the tapped quake in one frame under reduced motion', async () => {
+    const globe = await renderTooltipGlobe([TOOLTIP_M5, COMPACT_M4]);
+
+    globe.tap(getScreenPoint(COMPACT_M4.lat, COMPACT_M4.lon, 1));
+    await waitFrames(1);
+    expect(getDistance(globe.getLivePoint('emsc:test_1'), CENTRE)).toBeLessThanOrEqual(1);
+  });
+
+  it('stops the drift while hovering or selecting and leaves the camera on Back', async () => {
+    const globe = await renderTooltipGlobe([TOOLTIP_M5, COMPACT_M4], { reducedMotion: false });
+
+    const drifting = globe.getLivePoint('emsc:test_0');
+    await waitFrames(20);
+    expect(globe.getLivePoint('emsc:test_0')).not.toEqual(drifting);
+
+    await globe.hover(globe.getLivePoint('emsc:test_0'));
+    await waitFrames(2);
+    const hovered = globe.getLivePoint('emsc:test_0');
+    await waitFrames(30);
+    expect(globe.getLivePoint('emsc:test_0')).toEqual(hovered);
+
+    globe.tap(globe.getLivePoint('emsc:test_1'));
+    await expect
+      .poll(() => getDistance(globe.getLivePoint('emsc:test_1'), CENTRE), { timeout: 3000 })
+      .toBeLessThanOrEqual(1);
+    await new Promise((resolve) => setTimeout(resolve, FLY_DURATION_MS));
+    globe.pointer('pointerleave', CENTRE);
+    const selected = globe.getLivePoint('emsc:test_0');
+    await waitFrames(30);
+    expect(globe.getLivePoint('emsc:test_0')).toEqual(selected);
+
+    globe.router.history.back();
+    await expect.poll(() => getQuakeSearch(globe.router)).toBeUndefined();
+    await waitFrames(30);
+    expect(globe.getLivePoint('emsc:test_0')).toEqual(selected);
+  });
+
+  it('hides the tooltip during a fly and keeps it hidden while the globe moves under the pointer', async () => {
+    const globe = await renderTooltipGlobe([TOOLTIP_M5, COMPACT_M4], { reducedMotion: false });
+    const clock = freezeClock();
+    await waitFrames(2);
+
+    await globe.hover(globe.getLivePoint('emsc:test_0'));
+    const target = globe.getLivePoint('emsc:test_1');
+    globe.tap(target);
+    await expect.poll(globe.getTooltip).toBeNull();
+    clock.advance(FLY_DURATION_MS / 3);
+    await waitFrames(2);
+    globe.pointer('pointermove', globe.getLivePoint('emsc:test_0'));
+    await waitFrames(2);
+    expect(globe.getTooltip()).toBeNull();
+    globe.pointer('pointermove', target);
+    await waitFrames(2);
+    clock.restore();
+    expect(globe.getTooltip()).toBeNull();
+  });
+
+  it('hides the tooltip at once on a wheel zoom', async () => {
+    const globe = await renderTooltipGlobe([TOOLTIP_M5]);
+
+    await globe.hover(getScreenPoint(TOOLTIP_M5.lat, TOOLTIP_M5.lon, 1));
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    globe.container.dispatchEvent(
+      new WheelEvent('wheel', { deltaY: -200, bubbles: true, cancelable: true }),
+    );
+    await waitFrames(3);
+    expect(globe.getTooltip()).toBeNull();
+  });
+
+  it('keeps the Click to open button out of the tab order', async () => {
+    const globe = await renderTooltipGlobe([TOOLTIP_M5]);
+
+    await globe.hover(getScreenPoint(TOOLTIP_M5.lat, TOOLTIP_M5.lon, 1));
+    await expect
+      .element(globe.screen.getByRole('button', { name: 'Click to open' }))
+      .toHaveAttribute('tabindex', '-1');
+  });
+
+  it('keeps the measured tooltip 16 px above the bottom edge', async () => {
+    const globe = await renderTooltipGlobe([TOOLTIP_M5, EDGE_M4]);
+
+    const edge = getScreenPoint(EDGE_M4.lat, EDGE_M4.lon, 1);
+    const tooltip = await globe.hover(edge);
+    const rect = tooltip.getBoundingClientRect();
+    const container = globe.container.getBoundingClientRect();
+    expect(edge.y - 54 + rect.height).toBeGreaterThan(HEIGHT - 16);
+    expect(container.bottom - rect.bottom).toBeCloseTo(16, 1);
+  });
+
+  it('shows a pointer cursor over a quake and grab elsewhere', async () => {
+    const globe = await renderTooltipGlobe([TOOLTIP_M5]);
+    const img = globe.screen.getByRole('img');
+
+    await expect.element(img).toHaveClass('cursor-grab');
+    await globe.hover(getScreenPoint(TOOLTIP_M5.lat, TOOLTIP_M5.lon, 1));
+    await expect.element(img).toHaveClass('cursor-pointer');
+    await expect.element(img).not.toHaveClass('cursor-grab');
+    globe.pointer('pointermove', { x: CX - 150, y: CY + 100 });
+    await expect.element(img).toHaveClass('cursor-grab');
+    await expect.element(img).not.toHaveClass('cursor-pointer');
+  });
+});
+
+const FLY_TARGET: GlobeView = { lon: 1.2, lat: -0.4, zoom: 1.6 };
+const IMMEDIATE_HOVER = { immediate: true };
+
 describe('globe controls', () => {
   afterEach(() => {
     vi.restoreAllMocks();
@@ -870,5 +1369,152 @@ describe('globe controls', () => {
     flick();
     const released = controls.viewRef.current;
     expect(step(60)).toEqual(released);
+  });
+
+  it('flies to a target with ease-in-out over 900 ms and holds it', async () => {
+    const { controls, step } = await renderControls();
+    const from = controls.viewRef.current;
+
+    controls.flyTo(FLY_TARGET);
+    expect(controls.advance(0.45, 0)).toEqual(getFlyView(from, FLY_TARGET, 0.5));
+    expect(controls.advance(0.5, 0)).toEqual(FLY_TARGET);
+    controls.setHeld(true);
+    expect(step(60)).toEqual(FLY_TARGET);
+  });
+
+  it('reaches the fly target in one long frame', async () => {
+    const { controls } = await renderControls();
+
+    controls.flyTo(FLY_TARGET);
+    expect(controls.advance(0.9, 0)).toEqual(FLY_TARGET);
+  });
+
+  it('jumps to the fly target under reduced motion', async () => {
+    stubReducedMotion(true);
+    const { controls, step } = await renderControls();
+
+    controls.flyTo(FLY_TARGET);
+    expect(step(1)).toEqual(FLY_TARGET);
+  });
+
+  it('cancels the fly on pointerdown', async () => {
+    const { controls, pointer, step } = await renderControls();
+
+    controls.flyTo(FLY_TARGET);
+    controls.advance(0.3, 0);
+    const interrupted = controls.viewRef.current;
+    pointer('pointerdown', 100);
+    pointer('pointerup', 100);
+    expect(step(60)).toEqual(interrupted);
+  });
+
+  it('cancels the fly on wheel', async () => {
+    const { controls, wheel, step } = await renderControls();
+
+    controls.flyTo(FLY_TARGET);
+    controls.advance(0.3, 0);
+    wheel(-200);
+    const zoomed = controls.viewRef.current;
+    expect(step(60)).toEqual(zoomed);
+    expect(zoomed).not.toEqual(FLY_TARGET);
+  });
+
+  it('does not resume the idle drift after a fly once released', async () => {
+    const { controls, step } = await renderControls();
+
+    controls.flyTo(FLY_TARGET);
+    controls.setHeld(true);
+    controls.advance(1, 0);
+    controls.setHeld(false);
+    expect(step(60)).toEqual(FLY_TARGET);
+  });
+
+  it('pauses the idle drift while held and resumes it after', async () => {
+    const { controls, step } = await renderControls();
+
+    controls.setHeld(true);
+    expect(step(60)).toEqual(INITIAL_VIEW);
+    controls.setHeld(false);
+    expect(step(1).lon).not.toBe(INITIAL_VIEW.lon);
+  });
+
+  it('reports a tap under the drag threshold relative to the element', async () => {
+    const onTap = vi.fn<NonNullable<GlobeControlsOptions['onTap']>>();
+    const { target, pointer } = await renderControls({ onTap });
+    const rect = target.getBoundingClientRect();
+
+    pointer('pointerdown', 100, { y: 120 });
+    pointer('pointermove', 102, { y: 121 });
+    pointer('pointerup', 102, { y: 121 });
+    expect(onTap).toHaveBeenCalledTimes(1);
+    expect(onTap).toHaveBeenCalledWith({ x: 102 - rect.left, y: 121 - rect.top });
+  });
+
+  it('does not report a tap after a drag, a secondary button or a pinch', async () => {
+    const onTap = vi.fn<NonNullable<GlobeControlsOptions['onTap']>>();
+    const { pointer } = await renderControls({ onTap });
+
+    pointer('pointerdown', 100);
+    pointer('pointermove', 104);
+    pointer('pointerup', 104);
+    pointer('pointerdown', 100, { button: 2 });
+    pointer('pointerup', 100);
+    pointer('pointerdown', 100, { id: 1 });
+    pointer('pointerdown', 200, { id: 2 });
+    pointer('pointerup', 200, { id: 2 });
+    pointer('pointerup', 100, { id: 1 });
+    expect(onTap).not.toHaveBeenCalled();
+  });
+
+  it('reports hover points while idle and clears them on leave and press', async () => {
+    const onHover = vi.fn<NonNullable<GlobeControlsOptions['onHover']>>();
+    const { target, pointer } = await renderControls({ onHover });
+    const rect = target.getBoundingClientRect();
+
+    pointer('pointermove', 300, { y: 200 });
+    expect(onHover).toHaveBeenLastCalledWith({ x: 300 - rect.left, y: 200 - rect.top });
+    pointer('pointerleave', 300, { y: 200 });
+    expect(onHover).toHaveBeenLastCalledWith(null);
+    pointer('pointermove', 310, { y: 200 });
+    pointer('pointerdown', 310, { y: 200 });
+    expect(onHover).toHaveBeenLastCalledWith(null, IMMEDIATE_HOVER);
+    const calls = onHover.mock.calls.length;
+    pointer('pointermove', 340, { y: 200 });
+    expect(onHover).toHaveBeenCalledTimes(calls);
+  });
+
+  it('cancels the hover at once when a fly starts and while it runs', async () => {
+    const onHover = vi.fn<NonNullable<GlobeControlsOptions['onHover']>>();
+    const { controls, pointer } = await renderControls({ onHover });
+
+    controls.flyTo(FLY_TARGET);
+    expect(onHover).toHaveBeenLastCalledWith(null, IMMEDIATE_HOVER);
+    controls.advance(0.3, 0);
+    pointer('pointermove', 300, { y: 200 });
+    expect(onHover).toHaveBeenLastCalledWith(null, IMMEDIATE_HOVER);
+    controls.advance(1, 0);
+    pointer('pointermove', 300, { y: 200 });
+    expect(onHover.mock.lastCall?.[0]).not.toBeNull();
+  });
+
+  it('cancels the hover at once on wheel', async () => {
+    const onHover = vi.fn<NonNullable<GlobeControlsOptions['onHover']>>();
+    const { pointer, wheel } = await renderControls({ onHover });
+
+    pointer('pointermove', 300, { y: 200 });
+    wheel(-200);
+    expect(onHover).toHaveBeenLastCalledWith(null, IMMEDIATE_HOVER);
+  });
+
+  it('cancels the hover at once while the globe coasts after a flick', async () => {
+    const onHover = vi.fn<NonNullable<GlobeControlsOptions['onHover']>>();
+    const { pointer, flick, step } = await renderControls({ onHover });
+
+    flick();
+    pointer('pointermove', 300, { y: 200 });
+    expect(onHover).toHaveBeenLastCalledWith(null, IMMEDIATE_HOVER);
+    step(120);
+    pointer('pointermove', 300, { y: 200 });
+    expect(onHover.mock.lastCall?.[0]).not.toBeNull();
   });
 });

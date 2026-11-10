@@ -1,12 +1,14 @@
-import { type RefObject, useEffect, useMemo, useRef } from 'react';
+import { type RefObject, useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 
 import { getGlobeFrame } from '@/lib/globe/frame';
 import {
+  FLY_DURATION_MS,
   type GlobeVelocity,
   type GlobeView,
   INITIAL_VIEW,
   STOPPED,
   getDraggedView,
+  getFlyView,
   getIdleDriftLon,
   getInertiaView,
   getPinchFactor,
@@ -27,10 +29,22 @@ type Sample = { time: number; lon: number; lat: number };
 type Gesture =
   | { kind: 'drag'; origin: Point; start: GlobeView; radius: number; moved: boolean }
   | { kind: 'pinch'; distance: number };
+type Fly = { from: GlobeView; to: GlobeView; elapsedSeconds: number };
+
+export type HoverOptions = { immediate?: boolean };
+
+export type GlobeControlsOptions = {
+  onTap?: (point: Point) => void;
+  onHover?: (point: Point | null, options?: HoverOptions) => void;
+};
+
+const IMMEDIATE: HoverOptions = { immediate: true };
 
 export type GlobeControls = {
   viewRef: RefObject<GlobeView>;
   advance: (dtSeconds: number, elapsedMs: number) => GlobeView;
+  flyTo: (target: GlobeView) => void;
+  setHeld: (held: boolean) => void;
 };
 
 function hasVelocity(velocity: GlobeVelocity): boolean {
@@ -54,17 +68,56 @@ function getReleaseVelocity(samples: Sample[], releaseTime: number): GlobeVeloci
   return { lon: lon * scale, lat: lat * scale };
 }
 
-export function useGlobeControls(targetRef: RefObject<HTMLElement | null>): GlobeControls {
+function getRelativePoint(element: HTMLElement, event: PointerEvent): Point {
+  const rect = element.getBoundingClientRect();
+  return { x: event.clientX - rect.left, y: event.clientY - rect.top };
+}
+
+function advanceFly(fly: Fly, dtSeconds: number): { view: GlobeView; done: boolean } {
+  fly.elapsedSeconds += dtSeconds;
+  const progress = (fly.elapsedSeconds * 1000) / FLY_DURATION_MS;
+  if (progress >= 1) return { view: fly.to, done: true };
+  return { view: getFlyView(fly.from, fly.to, progress), done: false };
+}
+
+export function useGlobeControls(
+  targetRef: RefObject<HTMLElement | null>,
+  options: GlobeControlsOptions = {},
+): GlobeControls {
   const viewRef = useRef<GlobeView>({ ...INITIAL_VIEW });
   const velocityRef = useRef<GlobeVelocity>(STOPPED);
   const isTouchedRef = useRef(false);
+  const isHeldRef = useRef(false);
   const isReducedMotionRef = useRef(false);
   const gestureRef = useRef<Gesture | null>(null);
+  const flyRef = useRef<Fly | null>(null);
+  const optionsRef = useRef(options);
 
   const controls = useMemo<GlobeControls>(
     () => ({
       viewRef,
+      flyTo: (target) => {
+        optionsRef.current.onHover?.(null, IMMEDIATE);
+        isTouchedRef.current = true;
+        velocityRef.current = STOPPED;
+        if (isReducedMotionRef.current) {
+          flyRef.current = null;
+          viewRef.current = target;
+          return;
+        }
+        flyRef.current = { from: viewRef.current, to: target, elapsedSeconds: 0 };
+      },
+      setHeld: (held) => {
+        isHeldRef.current = held;
+      },
       advance: (dtSeconds, elapsedMs) => {
+        const fly = flyRef.current;
+        if (fly) {
+          const next = advanceFly(fly, dtSeconds);
+          viewRef.current = next.view;
+          if (next.done) flyRef.current = null;
+          return next.view;
+        }
         const dt = Math.min(dtSeconds, MAX_FRAME_SECONDS);
         const view = viewRef.current;
         if (gestureRef.current || isReducedMotionRef.current) {
@@ -75,7 +128,7 @@ export function useGlobeControls(targetRef: RefObject<HTMLElement | null>): Glob
           const next = getInertiaView(view, velocityRef.current, dt);
           viewRef.current = next.view;
           velocityRef.current = next.velocity;
-        } else if (!isTouchedRef.current) {
+        } else if (!isTouchedRef.current && !isHeldRef.current) {
           viewRef.current = { ...view, lon: getIdleDriftLon(view.lon, dt, elapsedMs) };
         }
         return viewRef.current;
@@ -84,12 +137,17 @@ export function useGlobeControls(targetRef: RefObject<HTMLElement | null>): Glob
     [],
   );
 
+  useLayoutEffect(() => {
+    optionsRef.current = options;
+  });
+
   useEffect(() => {
     const target = targetRef.current;
     if (!target) return;
     const element: HTMLElement = target;
     const pointers = new Map<number, Point>();
     let samples: Sample[] = [];
+    let isTapCandidate = false;
     const reducedMotion = window.matchMedia(REDUCED_MOTION_QUERY);
     isReducedMotionRef.current = reducedMotion.matches;
 
@@ -105,13 +163,17 @@ export function useGlobeControls(targetRef: RefObject<HTMLElement | null>): Glob
     }
 
     function startPinch() {
+      isTapCandidate = false;
       gestureRef.current = { kind: 'pinch', distance: getDistance([...pointers.values()]) };
     }
 
     function handlePointerDown(event: PointerEvent) {
       if (pointers.size >= 2) return;
+      optionsRef.current.onHover?.(null, IMMEDIATE);
       pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
       velocityRef.current = STOPPED;
+      flyRef.current = null;
+      isTapCandidate = pointers.size === 1 && event.button === 0;
       element.setPointerCapture(event.pointerId);
       if (pointers.size === 2) startPinch();
       else startDrag({ x: event.clientX, y: event.clientY });
@@ -119,7 +181,15 @@ export function useGlobeControls(targetRef: RefObject<HTMLElement | null>): Glob
 
     function handlePointerMove(event: PointerEvent) {
       const gesture = gestureRef.current;
-      if (!gesture || !pointers.has(event.pointerId)) return;
+      if (!gesture && (flyRef.current || hasVelocity(velocityRef.current))) {
+        optionsRef.current.onHover?.(null, IMMEDIATE);
+        return;
+      }
+      if (!gesture) {
+        optionsRef.current.onHover?.(getRelativePoint(element, event));
+        return;
+      }
+      if (!pointers.has(event.pointerId)) return;
       pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
       if (gesture.kind === 'pinch') {
         const distance = getDistance([...pointers.values()]);
@@ -138,6 +208,7 @@ export function useGlobeControls(targetRef: RefObject<HTMLElement | null>): Glob
       if (!gesture.moved && Math.abs(dx) + Math.abs(dy) < DRAG_THRESHOLD_PX) return;
       if (!gesture.moved) {
         gesture.moved = true;
+        isTapCandidate = false;
         isTouchedRef.current = true;
         element.style.cursor = 'grabbing';
       }
@@ -157,13 +228,23 @@ export function useGlobeControls(targetRef: RefObject<HTMLElement | null>): Glob
         return;
       }
       gestureRef.current = null;
-      if (gesture?.moved && !isReducedMotionRef.current && event.type === 'pointerup') {
+      if (event.type !== 'pointerup') return;
+      if (isTapCandidate && !gesture?.moved) {
+        optionsRef.current.onTap?.(getRelativePoint(element, event));
+      }
+      if (gesture?.moved && !isReducedMotionRef.current) {
         velocityRef.current = getReleaseVelocity(samples, event.timeStamp);
       }
     }
 
+    function handlePointerLeave() {
+      optionsRef.current.onHover?.(null);
+    }
+
     function handleWheel(event: WheelEvent) {
       event.preventDefault();
+      optionsRef.current.onHover?.(null, IMMEDIATE);
+      flyRef.current = null;
       viewRef.current = getZoomedView(viewRef.current, getWheelFactor(event.deltaY));
       isTouchedRef.current = true;
       const [point] = pointers.values();
@@ -178,6 +259,7 @@ export function useGlobeControls(targetRef: RefObject<HTMLElement | null>): Glob
     element.addEventListener('pointermove', handlePointerMove);
     element.addEventListener('pointerup', handlePointerEnd);
     element.addEventListener('pointercancel', handlePointerEnd);
+    element.addEventListener('pointerleave', handlePointerLeave);
     element.addEventListener('wheel', handleWheel, { passive: false });
     reducedMotion.addEventListener('change', handleReducedMotionChange);
     return () => {
@@ -185,6 +267,7 @@ export function useGlobeControls(targetRef: RefObject<HTMLElement | null>): Glob
       element.removeEventListener('pointermove', handlePointerMove);
       element.removeEventListener('pointerup', handlePointerEnd);
       element.removeEventListener('pointercancel', handlePointerEnd);
+      element.removeEventListener('pointerleave', handlePointerLeave);
       element.removeEventListener('wheel', handleWheel);
       reducedMotion.removeEventListener('change', handleReducedMotionChange);
     };
