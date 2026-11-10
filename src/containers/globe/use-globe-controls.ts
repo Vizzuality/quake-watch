@@ -20,7 +20,7 @@ const RELEASE_WINDOW_MS = 100;
 const RELEASE_PAUSE_MS = 50;
 const RELEASE_MIN_SPAN_MS = 16;
 export const MAX_RELEASE_SPEED = 3;
-const REDUCED_MOTION_QUERY = '(prefers-reduced-motion: reduce)';
+export const REDUCED_MOTION_QUERY = '(prefers-reduced-motion: reduce)';
 
 type Point = { x: number; y: number };
 type Sample = { time: number; lon: number; lat: number };
