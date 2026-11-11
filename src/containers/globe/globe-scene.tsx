@@ -1,4 +1,4 @@
-import { useFrame } from '@react-three/fiber';
+import { useFrame, useThree } from '@react-three/fiber';
 import { useEffect, useMemo, useRef } from 'react';
 import {
   BufferAttribute,
@@ -15,7 +15,7 @@ import {
 } from 'three';
 
 import type { Earthquake } from '@/lib/earthquakes/types';
-import { getFeltRingAttributes } from '@/lib/globe/felt-rings';
+import { getFeltRingAttributes, getWavesEndTime } from '@/lib/globe/felt-rings';
 import { getGlobeFrame } from '@/lib/globe/frame';
 import { getLandMask } from '@/lib/globe/land-mask';
 import { GLOBE_DOT_COUNT, GLOBE_LOOK } from '@/lib/globe/look';
@@ -45,6 +45,7 @@ type ViewUniforms = {
   uDpr: { value: number };
 };
 
+const FRAME_SECONDS = 1 / 60;
 const RING_QUAD_CORNERS = [-1, -1, 0, 1, -1, 0, 1, 1, 0, -1, 1, 0];
 const RING_QUAD_INDEX = [0, 1, 2, 0, 2, 3];
 
@@ -199,20 +200,29 @@ export function GlobeScene({
   earthquakes: readonly Earthquake[];
   waves: GlobeWaves;
 }) {
+  const gl = useThree((state) => state.gl);
+  const invalidate = useThree((state) => state.invalidate);
   const assets = useMemo(() => getGlobeAssets(), []);
   const quakes = useMemo(() => getQuakeGeometries(earthquakes), [earthquakes]);
   const waveStartsRef = useRef<ReadonlyMap<string, number>>(new Map());
+  const wavesEndRef = useRef(-Infinity);
   const stampedRef = useRef<InstancedBufferAttribute | null>(null);
+  const isContinuingRef = useRef(false);
 
   useFrame((state, delta) => {
     const time = state.clock.elapsedTime;
-    const view = controls.advance(delta, time * 1000);
+    const dt = isContinuingRef.current ? delta : Math.min(delta, FRAME_SECONDS);
+    const view = controls.advance(dt, time * 1000);
     setFrameUniforms(assets, view, state.size, state.viewport.dpr, time);
     const requests = waves.takeRequests();
-    if (requests.length === 0 && stampedRef.current === quakes.waveStart) return;
-    waveStartsRef.current = getWaveStarts(waveStartsRef.current, requests, earthquakes, time);
-    setWaveStarts(quakes.waveStart, getWaveStartValues(earthquakes, waveStartsRef.current));
-    stampedRef.current = quakes.waveStart;
+    if (requests.length > 0 || stampedRef.current !== quakes.waveStart) {
+      waveStartsRef.current = getWaveStarts(waveStartsRef.current, requests, earthquakes, time);
+      setWaveStarts(quakes.waveStart, getWaveStartValues(earthquakes, waveStartsRef.current));
+      wavesEndRef.current = getWavesEndTime(earthquakes, waveStartsRef.current);
+      stampedRef.current = quakes.waveStart;
+    }
+    isContinuingRef.current = controls.isAnimating() || time <= wavesEndRef.current + FRAME_SECONDS;
+    if (isContinuingRef.current) state.invalidate();
   });
 
   useEffect(
@@ -223,6 +233,15 @@ export function GlobeScene({
     },
     [assets],
   );
+
+  useEffect(() => {
+    const canvas = gl.domElement;
+    function handleContextRestored() {
+      invalidate();
+    }
+    canvas.addEventListener('webglcontextrestored', handleContextRestored);
+    return () => canvas.removeEventListener('webglcontextrestored', handleContextRestored);
+  }, [gl, invalidate]);
 
   useEffect(
     () => () => {

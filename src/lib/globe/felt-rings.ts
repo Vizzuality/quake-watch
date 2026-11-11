@@ -50,6 +50,19 @@ export function getWaveLifeSeconds(magnitude: number): number {
   return WAVE_BASE_SECONDS + WAVE_AMP_SECONDS * getQuakeAmplitude(magnitude);
 }
 
+export function getWavesEndTime(
+  earthquakes: readonly Earthquake[],
+  waveStarts: ReadonlyMap<string, number>,
+): number {
+  let end = -Infinity;
+  for (const { id, magnitude, depthKm } of earthquakes) {
+    const start = waveStarts.get(id);
+    if (start === undefined || getFeltRingAngle(magnitude, depthKm) <= 0) continue;
+    end = Math.max(end, start + getWaveLifeSeconds(magnitude));
+  }
+  return end;
+}
+
 export function getGlowRadiusPx(magnitude: number): number {
   return FELT_RING_LOOK.glowBasePx + FELT_RING_LOOK.glowAmpPx * getQuakeAmplitude(magnitude);
 }

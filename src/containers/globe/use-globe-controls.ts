@@ -1,3 +1,4 @@
+import { invalidate } from '@react-three/fiber';
 import { type RefObject, useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 
 import { getGlobeFrame } from '@/lib/globe/frame';
@@ -48,6 +49,7 @@ export type GlobeControls = {
   flyTo: (target: GlobeView) => void;
   frameTo: (target: GlobeView) => void;
   setHeld: (held: boolean) => void;
+  isAnimating: () => boolean;
 };
 
 function hasVelocity(velocity: GlobeVelocity): boolean {
@@ -106,10 +108,12 @@ export function useGlobeControls(
         if (isReducedMotionRef.current) {
           flyRef.current = null;
           viewRef.current = target;
+          invalidate();
           optionsRef.current.onSettle?.(target);
           return;
         }
         flyRef.current = { from: viewRef.current, to: target, elapsedSeconds: 0, isFraming: false };
+        invalidate();
       },
       frameTo: (target) => {
         if (isTouchedRef.current || gestureRef.current || flyRef.current) return;
@@ -117,12 +121,21 @@ export function useGlobeControls(
         optionsRef.current.onHover?.(null, IMMEDIATE);
         if (isReducedMotionRef.current) {
           viewRef.current = target;
+          invalidate();
           return;
         }
         flyRef.current = { from: viewRef.current, to: target, elapsedSeconds: 0, isFraming: true };
+        invalidate();
       },
       setHeld: (held) => {
+        const wasHeld = isHeldRef.current;
         isHeldRef.current = held;
+        if (wasHeld && !held) invalidate();
+      },
+      isAnimating: () => {
+        if (flyRef.current || hasVelocity(velocityRef.current)) return true;
+        if (gestureRef.current || isTouchedRef.current || isHeldRef.current) return false;
+        return !isReducedMotionRef.current;
       },
       advance: (dtSeconds, elapsedMs) => {
         const fly = flyRef.current;
@@ -227,7 +240,10 @@ export function useGlobeControls(
             getPinchFactor(distance, gesture.distance),
           );
           isTouchedRef.current = true;
-          gesture.changed ||= viewRef.current.zoom !== zoom;
+          if (viewRef.current.zoom !== zoom) {
+            gesture.changed = true;
+            invalidate();
+          }
         }
         gesture.distance = distance;
         return;
@@ -244,12 +260,14 @@ export function useGlobeControls(
       viewRef.current = getDraggedView(gesture.start, dx, dy, gesture.radius);
       const { lon, lat } = viewRef.current;
       samples.push({ time: event.timeStamp, lon, lat });
+      invalidate();
     }
 
     function handlePointerEnd(event: PointerEvent) {
       if (!pointers.delete(event.pointerId)) return;
       const gesture = gestureRef.current;
       element.style.cursor = '';
+      invalidate();
       if (gesture?.kind === 'pinch') {
         const [remaining] = pointers.values();
         gestureRef.current = null;
@@ -283,6 +301,7 @@ export function useGlobeControls(
       flyRef.current = null;
       viewRef.current = getZoomedView(viewRef.current, getWheelFactor(event.deltaY));
       isTouchedRef.current = true;
+      invalidate();
       optionsRef.current.onSettle?.(viewRef.current);
       const [point] = pointers.values();
       if (gestureRef.current?.kind === 'drag' && point) startDrag(point, gestureRef.current.moved);
@@ -290,6 +309,7 @@ export function useGlobeControls(
 
     function handleReducedMotionChange(event: MediaQueryListEvent) {
       isReducedMotionRef.current = event.matches;
+      invalidate();
     }
 
     element.addEventListener('pointerdown', handlePointerDown);
