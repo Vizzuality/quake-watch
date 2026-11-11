@@ -8,7 +8,7 @@ import { earthquakesQueryOptions } from '@/lib/earthquakes/query-options';
 import { type EarthquakeSearch, getEarthquakeFilters } from '@/lib/earthquakes/search-schema';
 import type { Earthquake } from '@/lib/earthquakes/types';
 import { getGlobeFrame } from '@/lib/globe/frame';
-import { getDensestLongitude } from '@/lib/globe/framing';
+import { getFramedLongitude } from '@/lib/globe/framing';
 import {
   type GlobeView,
   getCenteredView,
@@ -266,9 +266,7 @@ function GlobeCanvas() {
     if (data === undefined || isFramingDecidedRef.current) return;
     isFramingDecidedRef.current = true;
     if (initialView !== undefined || quake !== undefined) return;
-    const longitude = getDensestLongitude(
-      data.earthquakes.map((earthquake) => earthquake.longitude),
-    );
+    const longitude = getFramedLongitude(data.earthquakes);
     if (longitude === undefined) return;
     controls.frameTo(getFramedView(longitude, controls.viewRef.current));
   }, [data, initialView, quake, controls]);
