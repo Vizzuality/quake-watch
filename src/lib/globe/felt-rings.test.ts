@@ -10,6 +10,7 @@ import {
   getMinRingRadiusPx,
   getWaveFronts,
   getWaveLifeSeconds,
+  getWavesEndTime,
 } from './felt-rings';
 import { EARTH_RADIUS_KM } from './quakes';
 import { getLatLonVector } from './sphere';
@@ -77,6 +78,40 @@ describe('getWaveLifeSeconds', () => {
     [9, 4],
   ])('lasts M%f %f s', (magnitude, seconds) => {
     expect(getWaveLifeSeconds(magnitude)).toBeCloseTo(seconds, 6);
+  });
+});
+
+describe('getWavesEndTime', () => {
+  const m5 = getEarthquake({ id: 'm5', magnitude: 5, depthKm: 10 });
+  const m7 = getEarthquake({ id: 'm7', magnitude: 7, depthKm: 10 });
+  const unfelt = getEarthquake({ id: 'unfelt', magnitude: 4, depthKm: 500 });
+
+  it('ends when the last started felt wave ends', () => {
+    const starts = new Map([
+      ['m5', 10],
+      ['m7', 9],
+    ]);
+    const end = Math.max(10 + getWaveLifeSeconds(5), 9 + getWaveLifeSeconds(7));
+
+    expect(getWavesEndTime([m5, m7], starts)).toBeCloseTo(end, 9);
+  });
+
+  it('skips a quake nobody feels, as the ring shader does', () => {
+    const starts = new Map([
+      ['m5', 1],
+      ['unfelt', 100],
+    ]);
+
+    expect(getWavesEndTime([m5, unfelt], starts)).toBeCloseTo(1 + getWaveLifeSeconds(5), 9);
+  });
+
+  it('ignores starts of quakes no longer shown', () => {
+    expect(getWavesEndTime([m5], new Map([['gone', 100]]))).toBe(-Infinity);
+  });
+
+  it('has no end before any wave starts', () => {
+    expect(getWavesEndTime([m5, m7], new Map())).toBe(-Infinity);
+    expect(getWavesEndTime([], new Map())).toBe(-Infinity);
   });
 });
 

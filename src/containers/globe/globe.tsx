@@ -308,7 +308,14 @@ function GlobeCanvas() {
         aria-describedby={hovered ? tooltipId : undefined}
         className={`absolute inset-0 touch-none select-none ${getCursorClassName(isOverQuake)}`}
       >
-        <Canvas orthographic flat dpr={[1, 2]} gl={{ antialias: true }} camera={CAMERA}>
+        <Canvas
+          orthographic
+          flat
+          frameloop="demand"
+          dpr={[1, 2]}
+          gl={{ antialias: true }}
+          camera={CAMERA}
+        >
           <GlobeScene controls={controls} earthquakes={earthquakes} waves={waves} />
         </Canvas>
       </div>

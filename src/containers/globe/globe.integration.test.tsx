@@ -1,3 +1,4 @@
+import { invalidate } from '@react-three/fiber';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import {
   Outlet,
@@ -60,6 +61,7 @@ const HEIGHT = 800;
 const { cx: CX, cy: CY, radius: RADIUS } = getGlobeFrame(WIDTH, HEIGHT);
 const CENTRE: Point = { x: CX, y: CY };
 const FRAME = 1 / 60;
+const IDLE_FRAMES = 180;
 const LIST_PATH = '/fdsnws/event/1/query';
 const PAINT_THRESHOLD = 8;
 const DEEPEST_RGB = [0x4f, 0x7b, 0xff];
@@ -139,6 +141,29 @@ function stubPreservedDrawingBuffer() {
   ) {
     return original.call(this, type, { ...attributes, preserveDrawingBuffer: true });
   } as HTMLCanvasElement['getContext']);
+}
+
+function spyOnRenders() {
+  const clear = vi.spyOn(WebGL2RenderingContext.prototype, 'clear');
+  async function getRendersDuring(wait: Promise<unknown>): Promise<number> {
+    const before = clear.mock.calls.length;
+    await wait;
+    return clear.mock.calls.length - before;
+  }
+  return {
+    getRendersDuring,
+    getRendersOver: (frames: number) => getRendersDuring(waitFrames(frames)),
+  };
+}
+
+function waitForQueryData(queryClient: QueryClient): Promise<void> {
+  return new Promise((resolve) => {
+    const unsubscribe = queryClient.getQueryCache().subscribe((event) => {
+      if (event.type !== 'updated' || event.action.type !== 'success') return;
+      unsubscribe();
+      resolve();
+    });
+  });
 }
 
 function getPixelAlpha(canvas: HTMLCanvasElement, x: number, y: number): number {
@@ -397,7 +422,7 @@ async function renderGlobe(
     return getSettledSnapshot();
   }
 
-  return { screen, router, getCanvas, settle, getSettledSnapshot, showMinMagnitude };
+  return { screen, router, queryClient, getCanvas, settle, getSettledSnapshot, showMinMagnitude };
 }
 
 async function renderQuakes(quakes: TestQuake[]) {
@@ -680,12 +705,14 @@ describe('globe', () => {
 
   it('keeps the rings still when no waves are played', async () => {
     const { snapshot } = await renderRings([WAVE_M7, HOLLOW_M4]);
+    const { getRendersOver } = spyOnRenders();
     const clock = freezeClock();
 
     await waitFrames(2);
     const first = snapshot();
     clock.advance(1000);
-    await waitFrames(2);
+    invalidate();
+    expect(await getRendersOver(2)).toBeGreaterThanOrEqual(1);
     const second = snapshot();
     clock.restore();
     expect(getChangedPixelCount(first, second)).toBe(0);
@@ -734,14 +761,17 @@ describe('globe', () => {
 
   it('keeps the rings static when waves are played under reduced motion', async () => {
     const { rest, snapshot } = await renderRings([WAVE_M7]);
+    const { getRendersOver } = spyOnRenders();
     const clock = freezeClock();
 
     await waitFrames(2);
     playWaves();
-    await waitFrames(2);
+    invalidate();
+    expect(await getRendersOver(2)).toBeGreaterThanOrEqual(1);
     const played = snapshot();
     clock.advance(getWaveLifeSeconds(7) * 500);
-    await waitFrames(2);
+    invalidate();
+    expect(await getRendersOver(2)).toBeGreaterThanOrEqual(1);
     const later = snapshot();
     clock.restore();
     expect(getChangedPixelCount(rest, played)).toBe(0);
@@ -1230,9 +1260,11 @@ describe('globe quake tooltip', () => {
 
   it('jumps to the tapped quake in one frame under reduced motion', async () => {
     const globe = await renderTooltipGlobe([TOOLTIP_M5, COMPACT_M4]);
+    const { getRendersOver } = spyOnRenders();
 
+    expect(await getRendersOver(5)).toBe(0);
     globe.tap(getScreenPoint(COMPACT_M4.lat, COMPACT_M4.lon, 1));
-    await waitFrames(1);
+    expect(await getRendersOver(1)).toBeGreaterThanOrEqual(1);
     expect(getDistance(globe.getLivePoint('emsc:test_1'), CENTRE)).toBeLessThanOrEqual(1);
   });
 
@@ -1346,11 +1378,15 @@ describe('globe camera URL', () => {
       reducedMotion: false,
     });
 
+    const { getRendersOver } = spyOnRenders();
     const restored = getGlobeView();
     expect(Math.abs(restored.lat - 35)).toBeLessThanOrEqual(0.1);
     expect(getLonDistance(restored.lon, -120)).toBeLessThanOrEqual(0.1);
     expect(Math.abs(restored.zoom - 2.5)).toBeLessThanOrEqual(0.05);
-    await waitFrames(30);
+    expect(await getRendersOver(30)).toBe(0);
+    expect(getGlobeView()).toEqual(restored);
+    invalidate();
+    expect(await getRendersOver(2)).toBeGreaterThanOrEqual(1);
     expect(getGlobeView()).toEqual(restored);
     expect(getCameraSearch(globe.router)).toEqual({ lat: 35, lon: -120, zoom: 2.5 });
   });
@@ -1510,6 +1546,206 @@ describe('globe camera URL', () => {
     await expect.poll(() => getQuakeSearch(globe.router)).toBe('emsc:test_1');
     await waitFrames(10);
     expect(getGlobeView()).toEqual(selected);
+  });
+});
+
+describe('globe render on demand', { timeout: 30_000 }, () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('draws nothing while a touched globe holds still and draws a wheel zoom', async () => {
+    const globe = await renderTooltipGlobe([TOOLTIP_M5], { reducedMotion: false });
+    const { getRendersOver } = spyOnRenders();
+
+    expect(await getRendersOver(IDLE_FRAMES)).toBe(0);
+    globe.wheel(-100);
+    expect(await getRendersOver(1)).toBeGreaterThanOrEqual(1);
+  });
+
+  it('draws every frame while drifting and nothing while a hover holds the drift', async () => {
+    const globe = await renderTooltipGlobe([TOOLTIP_M5], {
+      initialEntries: ['/'],
+      reducedMotion: false,
+    });
+    await waitMs(FLY_DURATION_MS + 100);
+    const { getRendersOver } = spyOnRenders();
+
+    expect(await getRendersOver(60)).toBeGreaterThanOrEqual(59);
+    await globe.hover(globe.getLivePoint('emsc:test_0'));
+    await waitFrames(2);
+    expect(await getRendersOver(IDLE_FRAMES)).toBe(0);
+  });
+
+  it.each(['pointerup', 'pointercancel'])(
+    'resumes drawing the drift when a press ends without moving on %s',
+    async (type) => {
+      const globe = await renderTooltipGlobe([TOOLTIP_M5], {
+        initialEntries: ['/'],
+        reducedMotion: false,
+      });
+      await waitMs(FLY_DURATION_MS + 100);
+      const { getRendersOver } = spyOnRenders();
+      const point = { x: CX, y: CY + RADIUS * 0.95 };
+
+      globe.pointer('pointerdown', point);
+      await waitFrames(6);
+      globe.pointer(type, point);
+      await waitFrames(2);
+      const pressed = getGlobeView();
+      expect(await getRendersOver(60)).toBeGreaterThanOrEqual(59);
+      expect(getGlobeView().lon).not.toBe(pressed.lon);
+    },
+  );
+
+  it('draws the fly to a selected quake and nothing once it lands', async () => {
+    const globe = await renderTooltipGlobe([TOOLTIP_M5, COMPACT_M4], { reducedMotion: false });
+    const { getRendersOver } = spyOnRenders();
+    const clock = freezeClock();
+
+    expect(await getRendersOver(10)).toBe(0);
+    globe.tap(globe.getLivePoint('emsc:test_1'));
+    expect(await getRendersOver(10)).toBeGreaterThanOrEqual(9);
+    clock.restore();
+    await expect
+      .poll(() => getCameraUrlError(globe.router), { timeout: 3000 })
+      .toBeLessThanOrEqual(0.01);
+    expect(getDistance(globe.getLivePoint('emsc:test_1'), CENTRE)).toBeLessThanOrEqual(1);
+    await waitFrames(2);
+    expect(await getRendersOver(IDLE_FRAMES)).toBe(0);
+  });
+
+  it('draws each drag move on a still globe, the inertia after it, then nothing', async () => {
+    const globe = await renderTooltipGlobe([TOOLTIP_M5], { reducedMotion: false });
+    const { getRendersOver } = spyOnRenders();
+
+    expect(await getRendersOver(10)).toBe(0);
+    globe.pointer('pointerdown', CENTRE);
+    for (let i = 1; i <= 4; i++) {
+      globe.pointer('pointermove', { x: CX - i * 20, y: CY });
+      expect(await getRendersOver(1)).toBeGreaterThanOrEqual(1);
+    }
+    globe.pointer('pointerup', { x: CX - 80, y: CY });
+    const clock = freezeClock();
+    globe.drag(CENTRE, { x: -80, y: 0 });
+    expect(await getRendersOver(10)).toBeGreaterThanOrEqual(9);
+    clock.restore();
+    await expect
+      .poll(() => getCameraUrlError(globe.router), { timeout: 3000 })
+      .toBeLessThanOrEqual(0.01);
+    await waitFrames(2);
+    expect(await getRendersOver(IDLE_FRAMES)).toBe(0);
+  });
+
+  it('draws nothing still under reduced motion and draws every wheel and drag event', async () => {
+    const globe = await renderTooltipGlobe([TOOLTIP_M5], { initialEntries: ['/'] });
+    const { getRendersOver } = spyOnRenders();
+
+    expect(await getRendersOver(IDLE_FRAMES)).toBe(0);
+    for (let i = 0; i < 3; i++) {
+      globe.wheel(-100);
+      expect(await getRendersOver(1)).toBeGreaterThanOrEqual(1);
+    }
+    globe.pointer('pointerdown', CENTRE);
+    for (let i = 1; i <= 3; i++) {
+      globe.pointer('pointermove', { x: CX + i * 20, y: CY });
+      expect(await getRendersOver(1)).toBeGreaterThanOrEqual(1);
+    }
+    globe.pointer('pointerup', { x: CX + 60, y: CY });
+    await waitFrames(2);
+    expect(await getRendersOver(60)).toBe(0);
+  });
+
+  it('draws played waves on a still globe until the last one ends, then nothing', async () => {
+    await renderTooltipGlobe([WAVE_M7], { reducedMotion: false });
+    const { getRendersOver } = spyOnRenders();
+    const clock = freezeClock();
+
+    expect(await getRendersOver(10)).toBe(0);
+    playWaves();
+    expect(await getRendersOver(30)).toBeGreaterThanOrEqual(29);
+    clock.advance(getWaveLifeSeconds(7) * 1000 - 50);
+    expect(await getRendersOver(30)).toBeGreaterThanOrEqual(29);
+    clock.advance(100);
+    await waitFrames(2);
+    const after = await getRendersOver(IDLE_FRAMES);
+    clock.restore();
+    expect(after).toBe(0);
+  });
+
+  it('redraws a still globe within two frames of a filter change', async () => {
+    stubReducedMotion(false);
+    stubPreservedDrawingBuffer();
+    const globe = await renderGlobe({ 3: [NORTH_QUAKE] }, { initialEntries: [BOARD_VIEW_PATH] });
+    const empty = await globe.getSettledSnapshot();
+    const { getRendersOver, getRendersDuring } = spyOnRenders();
+
+    expect(await getRendersOver(30)).toBe(0);
+    const loaded = waitForQueryData(globe.queryClient);
+    const filtered = getRendersDuring(
+      (async () => {
+        await globe.router.navigate({ to: '/', search: { minmag: 3 } });
+        await loaded;
+        await waitFrames(2);
+      })(),
+    );
+    expect(await filtered).toBeGreaterThanOrEqual(1);
+    const north = getSnapshot(globe.getCanvas());
+    expect(
+      getPaintedDiffCount(empty, north, getQuakePoints(NORTH_QUAKE).hypocentre, 6),
+    ).toBeGreaterThan(0);
+  });
+
+  it('starts a fly after a long idle from where the globe stands', async () => {
+    const globe = await renderTooltipGlobe([TOOLTIP_M5, COMPACT_M4], { reducedMotion: false });
+    const { getRendersOver } = spyOnRenders();
+
+    expect(await getRendersOver(60)).toBe(0);
+    const start = globe.getLivePoint('emsc:test_1');
+    globe.tap(start);
+    expect(await getRendersOver(1)).toBe(1);
+    expect(getDistance(globe.getLivePoint('emsc:test_1'), CENTRE)).toBeGreaterThan(
+      getDistance(start, CENTRE) * 0.9,
+    );
+    await expect
+      .poll(() => getDistance(globe.getLivePoint('emsc:test_1'), CENTRE), { timeout: 3000 })
+      .toBeLessThanOrEqual(1);
+  });
+
+  it('redraws a still globe at its new size after a resize', async () => {
+    stubPreservedDrawingBuffer();
+    const globe = await renderTooltipGlobe([TOOLTIP_M5], { reducedMotion: false });
+    const canvas = globe.getCanvas();
+    const wrapper = globe.container.parentElement?.parentElement;
+    if (!wrapper) throw new Error('globe wrapper is not mounted');
+    const resized = getGlobeFrame(700, HEIGHT);
+    const { getRendersOver, getRendersDuring } = spyOnRenders();
+
+    expect(await getRendersOver(30)).toBe(0);
+    const renders = getRendersDuring(
+      (async () => {
+        wrapper.style.width = '700px';
+        await expect.poll(() => canvas.clientWidth).toBe(700);
+        await waitFrames(2);
+      })(),
+    );
+    expect(await renders).toBeGreaterThanOrEqual(1);
+    expect(getPaintedPixelCount(canvas, resized.cx - 8, resized.cy - 8, 16)).toBeGreaterThan(0);
+    expect(getPaintedPixelCount(canvas, resized.cx + resized.radius * 1.05, resized.cy, 16)).toBe(
+      0,
+    );
+  });
+
+  it('redraws a still globe once its WebGL context is restored', async () => {
+    stubPreservedDrawingBuffer();
+    const globe = await renderTooltipGlobe([TOOLTIP_M5], { reducedMotion: false });
+    const canvas = globe.getCanvas();
+    const { getRendersOver } = spyOnRenders();
+
+    expect(await getRendersOver(30)).toBe(0);
+    canvas.dispatchEvent(new Event('webglcontextrestored'));
+    expect(await getRendersOver(2)).toBeGreaterThanOrEqual(1);
+    expect(getPaintedPixelCount(canvas, CX - 8, CY - 8, 16)).toBeGreaterThan(0);
   });
 });
 

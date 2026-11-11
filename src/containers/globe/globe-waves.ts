@@ -1,3 +1,5 @@
+import { invalidate } from '@react-three/fiber';
+
 import type { Earthquake } from '@/lib/earthquakes/types';
 
 import { REDUCED_MOTION_QUERY } from './use-globe-controls';
@@ -18,6 +20,7 @@ export function createGlobeWaves(): GlobeWaves {
     play: (ids) => {
       if (window.matchMedia(REDUCED_MOTION_QUERY).matches) return;
       requests.push(ids ?? ALL_QUAKES);
+      invalidate();
     },
     takeRequests: () => {
       const taken = requests;
