@@ -30,7 +30,7 @@ import {
   getWaveLifeSeconds,
 } from '@/lib/globe/felt-rings';
 import { getGlobeFrame } from '@/lib/globe/frame';
-import { getDensestLongitude } from '@/lib/globe/framing';
+import { getFramedLongitude } from '@/lib/globe/framing';
 import {
   FLY_DURATION_MS,
   type GlobeView,
@@ -875,7 +875,9 @@ const FRAME_QUAKES: TestQuake[] = [-41, -33, -30, -26, -19, 150].map((lon) => ({
   depth: 10,
   mag: 4,
 }));
-const FRAME_LON = getDensestLongitude(FRAME_QUAKES.map(({ lon }) => lon)) ?? Number.NaN;
+const FRAME_LON =
+  getFramedLongitude(FRAME_QUAKES.map(({ lon, mag }) => ({ longitude: lon, magnitude: mag }))) ??
+  Number.NaN;
 const OTHER_FRAME_QUAKES: TestQuake[] = [80, 85, 90].map((lon) => ({
   lat: 10,
   lon,
@@ -1445,7 +1447,7 @@ describe('globe camera URL', () => {
     expect(getHistoryIndex(globe.router)).toBe(1);
   });
 
-  it('frames the densest window on a clean load, keeps the URL clean and drifts after', async () => {
+  it('frames the most active window on a clean load, keeps the URL clean and drifts after', async () => {
     const globe = await renderTooltipGlobe(FRAME_QUAKES, {
       initialEntries: ['/'],
       reducedMotion: false,

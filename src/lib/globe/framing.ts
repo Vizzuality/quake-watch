@@ -1,7 +1,12 @@
+import type { Earthquake } from '../earthquakes/types';
+
 export const FRAME_WINDOW_DEG = 60;
 export const FRAME_STEP_DEG = 5;
 const PREFERRED_CENTRE_DEG = 150;
 const CENTRE_COUNT = 360 / FRAME_STEP_DEG;
+const TIE_TOLERANCE = 1e-9;
+
+type FramedEarthquake = Pick<Earthquake, 'longitude' | 'magnitude'>;
 
 function getWrappedDistance(a: number, b: number): number {
   return Math.abs(((((a - b) % 360) + 540) % 360) - 180);
@@ -15,17 +20,19 @@ function getCentre(index: number): number {
   return -180 + index * FRAME_STEP_DEG;
 }
 
-function getWindowCount(longitudes: readonly number[], centre: number): number {
+function getWindowWeight(earthquakes: readonly FramedEarthquake[], centre: number): number {
   const halfWindow = FRAME_WINDOW_DEG / 2;
-  return longitudes.filter((lon) => getWrappedDistance(lon, centre) <= halfWindow).length;
+  return earthquakes
+    .filter(({ longitude }) => getWrappedDistance(longitude, centre) <= halfWindow)
+    .reduce((sum, { magnitude }) => sum + 10 ** magnitude, 0);
 }
 
-function getRunMiddles(isDensest: readonly boolean[]): number[] {
+function getRunMiddles(isTop: readonly boolean[]): number[] {
   const middles: number[] = [];
-  isDensest.forEach((densest, start) => {
-    if (!densest || isDensest[(start + CENTRE_COUNT - 1) % CENTRE_COUNT]) return;
+  isTop.forEach((top, start) => {
+    if (!top || isTop[(start + CENTRE_COUNT - 1) % CENTRE_COUNT]) return;
     let length = 1;
-    while (isDensest[(start + length) % CENTRE_COUNT]) length++;
+    while (isTop[(start + length) % CENTRE_COUNT]) length++;
     middles.push(getNormalisedLongitude(getCentre(start + (length - 1) / 2)));
   });
   return middles;
@@ -38,15 +45,15 @@ function isCloserToPreferred(candidate: number, best: number): boolean {
   return candidateDistance < bestDistance;
 }
 
-export function getDensestLongitude(longitudes: readonly number[]): number | undefined {
-  if (longitudes.length === 0) return undefined;
-  const counts = Array.from({ length: CENTRE_COUNT }, (_, index) =>
-    getWindowCount(longitudes, getCentre(index)),
+export function getFramedLongitude(earthquakes: readonly FramedEarthquake[]): number | undefined {
+  if (earthquakes.length === 0) return undefined;
+  const weights = Array.from({ length: CENTRE_COUNT }, (_, index) =>
+    getWindowWeight(earthquakes, getCentre(index)),
   );
-  const maxCount = Math.max(...counts);
-  const isDensest = counts.map((count) => count === maxCount);
-  if (isDensest.every(Boolean)) return PREFERRED_CENTRE_DEG;
-  return getRunMiddles(isDensest).reduce((best, middle) =>
+  const maxWeight = Math.max(...weights);
+  const isTop = weights.map((weight) => maxWeight - weight <= maxWeight * TIE_TOLERANCE);
+  if (isTop.every(Boolean)) return PREFERRED_CENTRE_DEG;
+  return getRunMiddles(isTop).reduce((best, middle) =>
     isCloserToPreferred(middle, best) ? middle : best,
   );
 }
