@@ -1,4 +1,3 @@
-import { Canvas } from '@react-three/fiber';
 import { useQuery } from '@tanstack/react-query';
 import { getRouteApi } from '@tanstack/react-router';
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
@@ -23,6 +22,7 @@ import { GlobeScene } from './globe-scene';
 import { GlobeErrorBoundary, GlobeUnavailable } from './globe-unavailable';
 import { type GlobeWaves, createGlobeWaves } from './globe-waves';
 import { QuakeTooltip } from './quake-tooltip';
+import { SceneCanvas } from './scene-canvas';
 import { type HoverOptions, useGlobeControls } from './use-globe-controls';
 
 type Point = { x: number; y: number };
@@ -41,7 +41,6 @@ declare global {
   }
 }
 
-const CAMERA = { zoom: 1, position: [0, 0, 1000], near: 0.1, far: 5000 } as const;
 const EMPTY_EARTHQUAKES: readonly Earthquake[] = [];
 const HOVER_HIDE_DELAY_MS = 150;
 const homeRoute = getRouteApi('/');
@@ -306,16 +305,9 @@ function GlobeCanvas() {
         aria-describedby={hovered ? tooltipId : undefined}
         className={`absolute inset-0 touch-none select-none ${getCursorClassName(isOverQuake)}`}
       >
-        <Canvas
-          orthographic
-          flat
-          frameloop="demand"
-          dpr={[1, 2]}
-          gl={{ antialias: true }}
-          camera={CAMERA}
-        >
+        <SceneCanvas>
           <GlobeScene controls={controls} earthquakes={earthquakes} waves={waves} />
-        </Canvas>
+        </SceneCanvas>
       </div>
       {hovered && (
         <QuakeTooltip
