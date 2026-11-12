@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { getRouteApi } from '@tanstack/react-router';
-import { useEffect, useId, useMemo, useRef, useState } from 'react';
+import { Suspense, lazy, useEffect, useId, useMemo, useRef, useState } from 'react';
 
 import { type Camera, getWrappedLongitude, useCameraSearch } from '@/hooks/use-camera-search';
 import { earthquakesQueryOptions } from '@/lib/earthquakes/query-options';
@@ -8,19 +8,23 @@ import { type EarthquakeSearch, getEarthquakeFilters } from '@/lib/earthquakes/s
 import type { Earthquake } from '@/lib/earthquakes/types';
 import { getGlobeFrame } from '@/lib/globe/frame';
 import { getFramedLongitude } from '@/lib/globe/framing';
+import { MAP_PRELOAD_ZOOM } from '@/lib/globe/map-handover';
 import {
   type GlobeView,
   getCenteredView,
   getFramedView,
   getSearchView,
+  ZOOM_RANGE,
   getViewCamera,
 } from '@/lib/globe/motion';
 import { getPickedQuakeIndex, getQuakeScreenPoints } from '@/lib/globe/picking';
+import { getLatLonVector, getRotatedVector } from '@/lib/globe/sphere';
 import { m } from '@/paraglide/messages';
 
 import { GlobeScene } from './globe-scene';
 import { GlobeErrorBoundary, GlobeUnavailable } from './globe-unavailable';
 import { type GlobeWaves, createGlobeWaves } from './globe-waves';
+import type { MapCentre } from './maplibre-map';
 import { QuakeTooltip } from './quake-tooltip';
 import { SceneCanvas } from './scene-canvas';
 import { type HoverOptions, useGlobeControls } from './use-globe-controls';
@@ -38,12 +42,20 @@ declare global {
     __playGlobeWaves?: GlobeWaves['play'];
     __globeQuakePoints?: () => { id: string; x: number; y: number }[];
     __globeView?: () => Camera;
+    __globeProject?: (lat: number, lon: number) => Point | null;
   }
 }
 
 const EMPTY_EARTHQUAKES: readonly Earthquake[] = [];
 const HOVER_HIDE_DELAY_MS = 150;
+const MAP_FADE_MS = 250;
+const FADE_CLASS_NAME = 'transition-opacity duration-250 motion-reduce:duration-0';
 const homeRoute = getRouteApi('/');
+const GlobeMap = lazy(() => import('./maplibre-map'));
+
+function preloadMap() {
+  void import('./maplibre-map');
+}
 
 function isWebGLAvailable(): boolean {
   const context = document.createElement('canvas').getContext('webgl2');
@@ -70,6 +82,23 @@ function getInitialView({ lat, lon, zoom }: EarthquakeSearch): GlobeView | undef
 
 function getCursorClassName(isOverQuake: boolean): string {
   return isOverQuake ? 'cursor-pointer' : 'cursor-grab';
+}
+
+function getFadeClassName(isVisible: boolean): string {
+  return isVisible ? 'opacity-100' : 'pointer-events-none opacity-0';
+}
+
+function getInputClassName(isMapOpen: boolean): string {
+  return isMapOpen ? 'pointer-events-none' : '';
+}
+
+function getProjectedPoint(container: HTMLElement, view: GlobeView, lat: number, lon: number) {
+  const frame = getGlobeFrame(container.clientWidth, container.clientHeight);
+  const [x, y, z] = getRotatedVector(getLatLonVector(lat, lon), view.lon, view.lat);
+  if (z < 0) return null;
+  const rect = container.getBoundingClientRect();
+  const scale = frame.radius * view.zoom;
+  return { x: rect.left + frame.cx + x * scale, y: rect.top + frame.cy - y * scale };
 }
 
 function getHoveredQuake(
@@ -167,7 +196,11 @@ function GlobeCanvas() {
     onHover: handleHover,
     onTap: handleTap,
     onSettle: handleSettle,
+    onZoomPastMax: handleZoomPastMax,
   });
+  const [mapCentre, setMapCentre] = useState<MapCentre | null>(null);
+  const [isMapShown, setIsMapShown] = useState(false);
+  const mapTimerRef = useRef<number | undefined>(undefined);
   const {
     hovered,
     isOverQuake,
@@ -219,8 +252,39 @@ function GlobeCanvas() {
   }
 
   function handleSettle(view: GlobeView) {
+    if (view.zoom >= MAP_PRELOAD_ZOOM) preloadMap();
     setCamera(getViewCamera(view));
   }
+
+  function handleZoomPastMax(view: GlobeView) {
+    if (mapCentre !== null) return;
+    hideHover();
+    const { lat, lon } = getViewCamera(view);
+    setMapCentre({ lat, lon: getWrappedLongitude(lon) });
+  }
+
+  function handleMapExit(centre: MapCentre) {
+    controls.jumpTo(getSearchView(centre.lat, centre.lon, ZOOM_RANGE[1]));
+    setIsMapShown(false);
+    mapTimerRef.current = window.setTimeout(() => setMapCentre(null), MAP_FADE_MS);
+  }
+
+  useEffect(() => {
+    if ((initialView?.zoom ?? 0) >= MAP_PRELOAD_ZOOM) preloadMap();
+    return () => window.clearTimeout(mapTimerRef.current);
+  }, [initialView]);
+
+  useEffect(() => {
+    if (!import.meta.env.DEV) return;
+    window.__globeProject = (lat, lon) => {
+      const container = containerRef.current;
+      if (!container) return null;
+      return getProjectedPoint(container, controls.viewRef.current, lat, lon);
+    };
+    return () => {
+      delete window.__globeProject;
+    };
+  }, [controls]);
 
   useEffect(() => {
     if (!import.meta.env.DEV) return;
@@ -303,12 +367,23 @@ function GlobeCanvas() {
         role="img"
         aria-label={m.globe_label()}
         aria-describedby={hovered ? tooltipId : undefined}
-        className={`absolute inset-0 touch-none select-none ${getCursorClassName(isOverQuake)}`}
+        className={`absolute inset-0 touch-none select-none ${FADE_CLASS_NAME} ${getFadeClassName(!isMapShown)} ${getInputClassName(mapCentre !== null)} ${getCursorClassName(isOverQuake)}`}
       >
         <SceneCanvas>
           <GlobeScene controls={controls} earthquakes={earthquakes} waves={waves} />
         </SceneCanvas>
       </div>
+      {mapCentre && (
+        <div className={`absolute inset-0 ${FADE_CLASS_NAME} ${getFadeClassName(isMapShown)}`}>
+          <Suspense fallback={null}>
+            <GlobeMap
+              centre={mapCentre}
+              onReady={() => setIsMapShown(true)}
+              onExit={handleMapExit}
+            />
+          </Suspense>
+        </div>
+      )}
       {hovered && (
         <QuakeTooltip
           id={tooltipId}

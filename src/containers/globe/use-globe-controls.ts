@@ -14,6 +14,7 @@ import {
   getInertiaView,
   getPinchFactor,
   getWheelFactor,
+  ZOOM_RANGE,
   getZoomedView,
 } from '@/lib/globe/motion';
 
@@ -39,6 +40,7 @@ export type GlobeControlsOptions = {
   onTap?: (point: Point) => void;
   onHover?: (point: Point | null, options?: HoverOptions) => void;
   onSettle?: (view: GlobeView) => void;
+  onZoomPastMax?: (view: GlobeView) => void;
 };
 
 const IMMEDIATE: HoverOptions = { immediate: true };
@@ -48,6 +50,7 @@ export type GlobeControls = {
   advance: (dtSeconds: number, elapsedMs: number) => GlobeView;
   flyTo: (target: GlobeView) => void;
   frameTo: (target: GlobeView) => void;
+  jumpTo: (target: GlobeView) => void;
   setHeld: (held: boolean) => void;
   isAnimating: () => boolean;
 };
@@ -126,6 +129,14 @@ export function useGlobeControls(
         }
         flyRef.current = { from: viewRef.current, to: target, elapsedSeconds: 0, isFraming: true };
         invalidate();
+      },
+      jumpTo: (target) => {
+        isTouchedRef.current = true;
+        velocityRef.current = STOPPED;
+        flyRef.current = null;
+        viewRef.current = target;
+        invalidate();
+        optionsRef.current.onSettle?.(target);
       },
       setHeld: (held) => {
         const wasHeld = isHeldRef.current;
@@ -235,10 +246,11 @@ export function useGlobeControls(
         const distance = getDistance([...pointers.values()]);
         if (gesture.distance > 0) {
           const { zoom } = viewRef.current;
-          viewRef.current = getZoomedView(
-            viewRef.current,
-            getPinchFactor(distance, gesture.distance),
-          );
+          const factor = getPinchFactor(distance, gesture.distance);
+          if (factor > 1 && zoom >= ZOOM_RANGE[1]) {
+            optionsRef.current.onZoomPastMax?.(viewRef.current);
+          }
+          viewRef.current = getZoomedView(viewRef.current, factor);
           isTouchedRef.current = true;
           if (viewRef.current.zoom !== zoom) {
             gesture.changed = true;
@@ -299,6 +311,9 @@ export function useGlobeControls(
       event.preventDefault();
       optionsRef.current.onHover?.(null, IMMEDIATE);
       flyRef.current = null;
+      if (event.deltaY < 0 && viewRef.current.zoom >= ZOOM_RANGE[1]) {
+        optionsRef.current.onZoomPastMax?.(viewRef.current);
+      }
       viewRef.current = getZoomedView(viewRef.current, getWheelFactor(event.deltaY));
       isTouchedRef.current = true;
       invalidate();
