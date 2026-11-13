@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { getRouteApi } from '@tanstack/react-router';
-import { useEffect, useId, useMemo, useRef, useState } from 'react';
+import { Suspense, lazy, useEffect, useId, useMemo, useRef, useState } from 'react';
 
 import { type Camera, getWrappedLongitude, useCameraSearch } from '@/hooks/use-camera-search';
 import { earthquakesQueryOptions } from '@/lib/earthquakes/query-options';
@@ -13,46 +13,42 @@ import {
   getCenteredView,
   getFramedView,
   getSearchView,
+  MAP_MOUNT_ZOOM,
+  MAP_UNMOUNT_ZOOM,
+  ZOOM_RANGE,
   getViewCamera,
 } from '@/lib/globe/motion';
 import { getPickedQuakeIndex, getQuakeScreenPoints } from '@/lib/globe/picking';
+import { getLatLonVector, getRotatedVector } from '@/lib/globe/sphere';
 import { m } from '@/paraglide/messages';
 
 import { GlobeScene } from './globe-scene';
 import { GlobeErrorBoundary, GlobeUnavailable } from './globe-unavailable';
 import { type GlobeWaves, createGlobeWaves } from './globe-waves';
+import type { MapCentre, MapHandover } from './maplibre-map';
 import { QuakeTooltip } from './quake-tooltip';
 import { SceneCanvas } from './scene-canvas';
 import { type HoverOptions, useGlobeControls } from './use-globe-controls';
-
-type Point = { x: number; y: number };
-type HoveredQuake = {
-  earthquake: Earthquake;
-  now: number;
-  anchor: Point;
-  containerSize: { width: number; height: number };
-};
+import { type HoveredQuake, type Point, getQuakeKey, useHoveredQuake } from './use-hovered-quake';
 
 declare global {
   interface Window {
     __playGlobeWaves?: GlobeWaves['play'];
     __globeQuakePoints?: () => { id: string; x: number; y: number }[];
     __globeView?: () => Camera;
+    __globeProject?: (lat: number, lon: number) => Point | null;
   }
 }
 
 const EMPTY_EARTHQUAKES: readonly Earthquake[] = [];
-const HOVER_HIDE_DELAY_MS = 150;
 const homeRoute = getRouteApi('/');
+const GlobeMap = lazy(() => import('./maplibre-map'));
+const CENTRE_TOLERANCE = 1e-4;
 
 function isWebGLAvailable(): boolean {
   const context = document.createElement('canvas').getContext('webgl2');
   context?.getExtension('WEBGL_lose_context')?.loseContext();
   return context !== null;
-}
-
-function getQuakeKey({ source, id }: Earthquake): string {
-  return `${source}:${id}`;
 }
 
 function getSelectedEarthquake(
@@ -63,13 +59,36 @@ function getSelectedEarthquake(
   return earthquakes.find((earthquake) => getQuakeKey(earthquake) === quake);
 }
 
+function getInitialMapZoom({ lat, lon, zoom }: EarthquakeSearch): number | undefined {
+  if (lat === undefined || lon === undefined || zoom === undefined) return undefined;
+  if (zoom <= ZOOM_RANGE[1]) return undefined;
+  return zoom;
+}
+
 function getInitialView({ lat, lon, zoom }: EarthquakeSearch): GlobeView | undefined {
   if (lat === undefined || lon === undefined || zoom === undefined) return undefined;
   return getSearchView(lat, lon, zoom);
 }
 
+function isViewCentredOn(view: GlobeView, { latitude, longitude }: Earthquake): boolean {
+  const target = getCenteredView(latitude, longitude, view);
+  return (
+    Math.abs(view.lat - target.lat) < CENTRE_TOLERANCE &&
+    Math.abs(view.lon - target.lon) < CENTRE_TOLERANCE
+  );
+}
+
 function getCursorClassName(isOverQuake: boolean): string {
   return isOverQuake ? 'cursor-pointer' : 'cursor-grab';
+}
+
+function getProjectedPoint(container: HTMLElement, view: GlobeView, lat: number, lon: number) {
+  const frame = getGlobeFrame(container.clientWidth, container.clientHeight);
+  const [x, y, z] = getRotatedVector(getLatLonVector(lat, lon), view.lon, view.lat);
+  if (z < 0) return null;
+  const rect = container.getBoundingClientRect();
+  const scale = frame.radius * view.zoom;
+  return { x: rect.left + frame.cx + x * scale, y: rect.top + frame.cy - y * scale };
 }
 
 function getHoveredQuake(
@@ -92,69 +111,6 @@ function getHoveredQuake(
   };
 }
 
-function useHoveredQuake() {
-  const [hovered, setHovered] = useState<HoveredQuake | null>(null);
-  const [isOverQuake, setIsOverQuake] = useState(false);
-  const keyRef = useRef<string | null>(null);
-  const isOverQuakeRef = useRef(false);
-  const isOverTooltipRef = useRef(false);
-  const hideTimerRef = useRef<number | undefined>(undefined);
-
-  const actions = useMemo(() => {
-    function updateOverQuake(next: boolean) {
-      if (isOverQuakeRef.current === next) return;
-      isOverQuakeRef.current = next;
-      setIsOverQuake(next);
-    }
-
-    function cancelHide() {
-      window.clearTimeout(hideTimerRef.current);
-      hideTimerRef.current = undefined;
-    }
-
-    function hide() {
-      cancelHide();
-      updateOverQuake(false);
-      isOverTooltipRef.current = false;
-      if (keyRef.current === null) return;
-      keyRef.current = null;
-      setHovered(null);
-    }
-
-    function show(next: HoveredQuake) {
-      cancelHide();
-      updateOverQuake(true);
-      const key = getQuakeKey(next.earthquake);
-      if (keyRef.current === key) return;
-      keyRef.current = key;
-      setHovered(next);
-    }
-
-    function scheduleHide() {
-      updateOverQuake(false);
-      if (keyRef.current === null || isOverTooltipRef.current) return;
-      if (hideTimerRef.current !== undefined) return;
-      hideTimerRef.current = window.setTimeout(hide, HOVER_HIDE_DELAY_MS);
-    }
-
-    function enterTooltip() {
-      isOverTooltipRef.current = true;
-      cancelHide();
-    }
-
-    function leaveTooltip() {
-      isOverTooltipRef.current = false;
-      scheduleHide();
-    }
-
-    return { show, scheduleHide, hide, enterTooltip, leaveTooltip };
-  }, []);
-
-  useEffect(() => () => window.clearTimeout(hideTimerRef.current), []);
-
-  return { hovered, isOverQuake, ...actions };
-}
-
 function GlobeCanvas() {
   const search = homeRoute.useSearch();
   const navigate = homeRoute.useNavigate();
@@ -167,7 +123,17 @@ function GlobeCanvas() {
     onHover: handleHover,
     onTap: handleTap,
     onSettle: handleSettle,
+    onZoomPastMax: () => activateMap(),
+    onZoom: handleZoom,
   });
+  const [isMapMounted, setIsMapMounted] = useState(
+    () => (initialView?.zoom ?? 0) >= MAP_MOUNT_ZOOM,
+  );
+  const [isMapActive, setIsMapActive] = useState(false);
+  const initialMapZoomRef = useRef(getInitialMapZoom(search));
+  const mapLayerRef = useRef<HTMLDivElement>(null);
+  const mapHandoverRef = useRef<MapHandover | null>(null);
+  const pendingMapQuakeRef = useRef<Earthquake | null>(null);
   const {
     hovered,
     isOverQuake,
@@ -198,9 +164,12 @@ function GlobeCanvas() {
   function selectQuake(earthquake: Earthquake) {
     const key = getQuakeKey(earthquake);
     hideHover();
-    controls.flyTo(
-      getCenteredView(earthquake.latitude, earthquake.longitude, controls.viewRef.current),
-    );
+    pendingMapQuakeRef.current = earthquake;
+    setIsMapMounted(true);
+    controls.flyTo({
+      ...getCenteredView(earthquake.latitude, earthquake.longitude, controls.viewRef.current),
+      zoom: ZOOM_RANGE[1],
+    });
     lastFlownRef.current = key;
     if (key === quake) return;
     void navigate({ search: (prev) => ({ ...prev, quake: key }) });
@@ -219,8 +188,68 @@ function GlobeCanvas() {
   }
 
   function handleSettle(view: GlobeView) {
+    if (isMapActive) return;
     setCamera(getViewCamera(view));
+    focusPendingQuake(view);
   }
+
+  function handleZoom(view: GlobeView) {
+    if (isMapActive) return;
+    initialMapZoomRef.current = undefined;
+    pendingMapQuakeRef.current = null;
+    if (view.zoom >= MAP_MOUNT_ZOOM) setIsMapMounted(true);
+    if (view.zoom < MAP_UNMOUNT_ZOOM) setIsMapMounted(false);
+  }
+
+  function activateMap(urlZoom?: number): boolean {
+    if (isMapActive || !mapHandoverRef.current?.activate(urlZoom)) return false;
+    hideHover();
+    setIsMapActive(true);
+    return true;
+  }
+
+  function dropPendingQuake(view: GlobeView) {
+    pendingMapQuakeRef.current = null;
+    if (view.zoom < MAP_UNMOUNT_ZOOM) setIsMapMounted(false);
+  }
+
+  function focusPendingQuake(view: GlobeView) {
+    const earthquake = pendingMapQuakeRef.current;
+    if (!earthquake) return;
+    if (!isViewCentredOn(view, earthquake)) {
+      dropPendingQuake(view);
+      return;
+    }
+    if (view.zoom < ZOOM_RANGE[1] || !activateMap()) return;
+    pendingMapQuakeRef.current = null;
+    mapHandoverRef.current?.focus(earthquake);
+  }
+
+  function handleMapReady() {
+    const urlZoom = initialMapZoomRef.current;
+    initialMapZoomRef.current = undefined;
+    if (urlZoom !== undefined) activateMap(urlZoom);
+    else if (!controls.isAnimating()) focusPendingQuake(controls.viewRef.current);
+  }
+
+  function handleMapExit(centre: MapCentre) {
+    const view = getSearchView(centre.lat, centre.lon, ZOOM_RANGE[1]);
+    controls.jumpTo(view);
+    setCamera(getViewCamera(view));
+    setIsMapActive(false);
+  }
+
+  useEffect(() => {
+    if (!import.meta.env.DEV) return;
+    window.__globeProject = (lat, lon) => {
+      const container = containerRef.current;
+      if (!container) return null;
+      return getProjectedPoint(container, controls.viewRef.current, lat, lon);
+    };
+    return () => {
+      delete window.__globeProject;
+    };
+  }, [controls]);
 
   useEffect(() => {
     if (!import.meta.env.DEV) return;
@@ -271,16 +300,19 @@ function GlobeCanvas() {
   }, [data, initialView, quake, controls]);
 
   useEffect(() => {
+    const pending = pendingMapQuakeRef.current;
+    if (pending && getQuakeKey(pending) !== quake) pendingMapQuakeRef.current = null;
     if (quake === undefined) {
       lastFlownRef.current = undefined;
       return;
     }
     if (!selectedEarthquake || quake === lastFlownRef.current) return;
     lastFlownRef.current = quake;
+    if (isMapActive) return;
     hideHover();
     const { latitude, longitude } = selectedEarthquake;
     controls.flyTo(getCenteredView(latitude, longitude, controls.viewRef.current));
-  }, [quake, selectedEarthquake, controls, hideHover]);
+  }, [quake, selectedEarthquake, controls, hideHover, isMapActive]);
 
   useEffect(() => {
     controls.setHeld(hovered !== null || selectedEarthquake !== undefined);
@@ -302,6 +334,7 @@ function GlobeCanvas() {
         // oxlint-disable-next-line jsx-a11y/prefer-tag-over-role -- an <img> element cannot host the WebGL canvas
         role="img"
         aria-label={m.globe_label()}
+        aria-hidden={isMapActive}
         aria-describedby={hovered ? tooltipId : undefined}
         className={`absolute inset-0 touch-none select-none ${getCursorClassName(isOverQuake)}`}
       >
@@ -309,6 +342,26 @@ function GlobeCanvas() {
           <GlobeScene controls={controls} earthquakes={earthquakes} waves={waves} />
         </SceneCanvas>
       </div>
+      {isMapMounted && (
+        <div
+          ref={mapLayerRef}
+          inert={!isMapActive}
+          className="pointer-events-none absolute inset-0 opacity-0"
+        >
+          <GlobeErrorBoundary fallback={null}>
+            <Suspense fallback={null}>
+              <GlobeMap
+                controls={controls}
+                globeRef={containerRef}
+                layerRef={mapLayerRef}
+                handoverRef={mapHandoverRef}
+                onReady={handleMapReady}
+                onExit={handleMapExit}
+              />
+            </Suspense>
+          </GlobeErrorBoundary>
+        </div>
+      )}
       {hovered && (
         <QuakeTooltip
           id={tooltipId}

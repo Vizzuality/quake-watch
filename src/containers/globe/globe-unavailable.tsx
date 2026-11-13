@@ -10,7 +10,9 @@ export function GlobeUnavailable() {
   );
 }
 
-export class GlobeErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean }> {
+type GlobeErrorBoundaryProps = { children: ReactNode; fallback?: ReactNode };
+
+export class GlobeErrorBoundary extends Component<GlobeErrorBoundaryProps, { hasError: boolean }> {
   state = { hasError: false };
 
   static getDerivedStateFromError() {
@@ -18,7 +20,8 @@ export class GlobeErrorBoundary extends Component<{ children: ReactNode }, { has
   }
 
   render() {
-    if (this.state.hasError) return <GlobeUnavailable />;
+    const { fallback } = this.props;
+    if (this.state.hasError) return fallback === undefined ? <GlobeUnavailable /> : fallback;
     return this.props.children;
   }
 }
