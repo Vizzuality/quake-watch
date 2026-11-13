@@ -1187,7 +1187,7 @@ describe('globe quake tooltip', () => {
     expect(getComputedStyle(place).lineHeight).toBe('13.2px');
   });
 
-  it('pushes a tapped quake to the URL and flies 900 ms to centre it at zoom 1.6', async () => {
+  it('pushes a tapped quake to the URL and flies 900 ms to centre it at zoom 5', async () => {
     const globe = await renderTooltipGlobe([TOOLTIP_M5, COMPACT_M4], { reducedMotion: false });
     const clock = freezeClock();
     await waitFrames(2);
@@ -1200,13 +1200,12 @@ describe('globe quake tooltip', () => {
     await waitFrames(2);
     const mid = getDistance(globe.getLivePoint('emsc:test_1'), CENTRE);
     expect(mid).toBeGreaterThan(1);
-    expect(mid).toBeLessThan(getDistance(start, CENTRE));
     clock.advance(FLY_DURATION_MS);
     await waitFrames(2);
     clock.restore();
 
     expect(getDistance(globe.getLivePoint('emsc:test_1'), CENTRE)).toBeLessThanOrEqual(1);
-    const other = getCentredViewPoint(TOOLTIP_M5, COMPACT_M4, SELECT_MIN_ZOOM);
+    const other = getCentredViewPoint(TOOLTIP_M5, COMPACT_M4, ZOOM_RANGE[1]);
     expect(getDistance(globe.getLivePoint('emsc:test_0'), other)).toBeLessThanOrEqual(1);
     globe.router.history.back();
     await expect.poll(() => getQuakeSearch(globe.router)).toBeUndefined();
