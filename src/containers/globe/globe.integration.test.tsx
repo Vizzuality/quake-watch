@@ -1368,6 +1368,60 @@ describe('globe quake tooltip', () => {
   });
 });
 
+const AUSTRALIA = { name: 'Australia', lat: -24.13, lon: 134.05 };
+
+async function renderLabelledGlobe(): Promise<HTMLElement> {
+  stubReducedMotion(true);
+  const { screen, settle } = await renderGlobe({}, { initialEntries: [BOARD_VIEW_PATH] });
+  await settle();
+  return vi.waitFor(() => {
+    const label = [...screen.container.querySelectorAll('span')].find(
+      (span) => span.textContent === AUSTRALIA.name,
+    );
+    if (!label?.parentElement || getComputedStyle(label.parentElement).visibility !== 'visible') {
+      throw new Error('country labels are not shown');
+    }
+    return label;
+  });
+}
+
+function getShownLabelRects(label: HTMLElement): DOMRect[] {
+  return [...(label.parentElement?.children ?? [])]
+    .filter((span) => getComputedStyle(span).display !== 'none')
+    .map((span) => span.getBoundingClientRect());
+}
+
+function isOverlapping(a: DOMRect, b: DOMRect): boolean {
+  return a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom;
+}
+
+describe('globe country labels', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('keeps the country labels out of the accessibility tree', async () => {
+    const label = await renderLabelledGlobe();
+
+    expect(label.closest('[aria-hidden="true"]')).toBe(label.parentElement);
+  });
+
+  it('centres a label on its projected point without overlapping another', async () => {
+    const label = await renderLabelledGlobe();
+    const point = window.__globeProject?.(AUSTRALIA.lat, AUSTRALIA.lon);
+    const rect = label.getBoundingClientRect();
+    const textWidth = rect.width - Number.parseFloat(getComputedStyle(label).letterSpacing);
+    const rects = getShownLabelRects(label);
+
+    expect(point).toBeDefined();
+    expect(Math.abs(rect.left + textWidth / 2 - (point?.x ?? Number.NaN))).toBeLessThanOrEqual(1);
+    expect(Math.abs(rect.top + rect.height / 2 - (point?.y ?? Number.NaN))).toBeLessThanOrEqual(1);
+    expect(rects.length).toBeGreaterThan(1);
+    const overlaps = rects.flatMap((a, i) => rects.slice(i + 1).filter((b) => isOverlapping(a, b)));
+    expect(overlaps).toEqual([]);
+  });
+});
+
 describe('globe camera URL', () => {
   afterEach(() => {
     vi.restoreAllMocks();
