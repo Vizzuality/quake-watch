@@ -19,6 +19,7 @@ import { getFeltReachKm } from '@/lib/earthquakes/intensity';
 import { earthquakesQueryOptions } from '@/lib/earthquakes/query-options';
 import { getEarthquakeFilters } from '@/lib/earthquakes/search-schema';
 import type { Earthquake } from '@/lib/earthquakes/types';
+import { getMinRingRadiusPx } from '@/lib/globe/felt-rings';
 import { getGlobeFrame } from '@/lib/globe/frame';
 import { getFeltRing, getFeltRingBounds } from '@/lib/globe/map-felt-rings';
 import {
@@ -29,7 +30,6 @@ import {
   getMapProjection,
   getMapZoom,
   getMapZoomFromUrl,
-  getQuakeMapRadiusPx,
   getUrlZoom,
 } from '@/lib/globe/map-handover';
 import {
@@ -42,6 +42,7 @@ import {
   getStreetMapStyle,
 } from '@/lib/globe/map-style';
 import { type GlobeView, ZOOM_RANGE, getViewCamera } from '@/lib/globe/motion';
+import { getEpicentreRadiusPx } from '@/lib/globe/quakes';
 
 import { QuakeTooltip } from './quake-tooltip';
 import type { GlobeControls } from './use-globe-controls';
@@ -96,48 +97,41 @@ function getQuakeFeatures(earthquakes: readonly Earthquake[]) {
       properties: {
         key: getQuakeKey(earthquake),
         color: getDepthColor(earthquake.depthKm),
-        radius: getQuakeMapRadiusPx(earthquake.magnitude),
+        radius: getEpicentreRadiusPx(earthquake.magnitude),
+        ringRadius: getMinRingRadiusPx(earthquake.magnitude),
+        isFelt: getFeltReachKm(earthquake) > 0,
       },
     })),
   };
 }
 
-function getFeltFeatures(earthquake: Earthquake | undefined) {
-  const reachKm = earthquake ? getFeltReachKm(earthquake) : 0;
-  if (!earthquake || !(reachKm > 0)) return { type: 'FeatureCollection' as const, features: [] };
-  const { polygon, outline } = getFeltRing(earthquake.latitude, earthquake.longitude, reachKm);
-  const properties = { color: getDepthColor(earthquake.depthKm) };
+function getFeltFeatures(earthquakes: readonly Earthquake[]) {
   return {
     type: 'FeatureCollection' as const,
-    features: [
-      {
-        type: 'Feature' as const,
-        geometry: { type: 'Polygon' as const, coordinates: polygon },
-        properties,
-      },
-      {
-        type: 'Feature' as const,
-        geometry: { type: 'LineString' as const, coordinates: outline },
-        properties,
-      },
-    ],
+    features: earthquakes.flatMap((earthquake) => {
+      const reachKm = getFeltReachKm(earthquake);
+      if (!(reachKm > 0)) return [];
+      const { polygon, outline } = getFeltRing(earthquake.latitude, earthquake.longitude, reachKm);
+      const properties = { color: getDepthColor(earthquake.depthKm) };
+      return [
+        {
+          type: 'Feature' as const,
+          geometry: { type: 'Polygon' as const, coordinates: polygon },
+          properties,
+        },
+        {
+          type: 'Feature' as const,
+          geometry: { type: 'LineString' as const, coordinates: outline },
+          properties,
+        },
+      ];
+    }),
   };
-}
-
-function getSelectedEarthquake(
-  earthquakes: readonly Earthquake[],
-  quake: string | undefined,
-): Earthquake | undefined {
-  if (quake === undefined) return undefined;
-  return earthquakes.find((earthquake) => getQuakeKey(earthquake) === quake);
 }
 
 function setQuakeData(map: MapLibreMap, earthquakes: readonly Earthquake[]) {
   map.getSource<GeoJSONSource>(QUAKE_SOURCE_ID)?.setData(getQuakeFeatures(earthquakes));
-}
-
-function setFeltData(map: MapLibreMap, earthquake: Earthquake | undefined) {
-  map.getSource<GeoJSONSource>(FELT_SOURCE_ID)?.setData(getFeltFeatures(earthquake));
+  map.getSource<GeoJSONSource>(FELT_SOURCE_ID)?.setData(getFeltFeatures(earthquakes));
 }
 
 function getMapOpacity(isReady: boolean, isActive: boolean, globeZoom: number): number {
@@ -164,8 +158,6 @@ export default function GlobeMap({
   const mapRef = useRef<MapLibreMap | null>(null);
   const earthquakes = data?.earthquakes ?? EMPTY_EARTHQUAKES;
   const earthquakesRef = useRef(earthquakes);
-  const selectedEarthquake = getSelectedEarthquake(earthquakes, search.quake);
-  const selectedEarthquakeRef = useRef(selectedEarthquake);
   const variant = search.quake === undefined ? 'full' : 'compact';
   const callbacksRef = useRef({
     onReady,
@@ -210,16 +202,11 @@ export default function GlobeMap({
       onMove: setCamera,
     };
     earthquakesRef.current = earthquakes;
-    selectedEarthquakeRef.current = selectedEarthquake;
   });
 
   useEffect(() => {
     if (mapRef.current) setQuakeData(mapRef.current, earthquakes);
   }, [earthquakes]);
-
-  useEffect(() => {
-    if (mapRef.current) setFeltData(mapRef.current, selectedEarthquake);
-  }, [selectedEarthquake]);
 
   useEffect(() => {
     if (!hovered) return;
@@ -351,7 +338,6 @@ export default function GlobeMap({
         getMapProjection(getMapZoom(getRadius(ZOOM_RANGE[1]), 0)) as ProjectionSpecification,
       );
       setQuakeData(map, earthquakesRef.current);
-      setFeltData(map, selectedEarthquakeRef.current);
       sync(controls.viewRef.current);
       map.once('idle', () => {
         isReady = true;

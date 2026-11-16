@@ -9,8 +9,10 @@ import {
   MAP_COLORS,
   MAP_FONT,
   QUAKE_LAYER_ID,
+  QUAKE_RING_LAYER_ID,
   getStreetMapStyle,
 } from './map-style';
+import { QUAKE_MARKER_LOOK } from './quakes';
 
 const FONT_URLS = { latin: 'regular.woff2', latinExt: 'regular-ext.woff2' };
 const NONLATIN_NAME = ['case', ['has', 'name:nonlatin'], ['get', 'name:nonlatin'], ['get', 'name']];
@@ -172,13 +174,30 @@ describe('getStreetMapStyle', () => {
     });
   });
 
-  it('draws felt rings and then quakes over the last line or fill layer', () => {
+  it('draws felt rings, hollow rings and then quakes over the last line or fill layer', () => {
     const ids = style.layers.map((layer) => layer.id);
     expect(ids.slice(ids.indexOf('boundary_state') + 1, ids.indexOf(QUAKE_LAYER_ID) + 1)).toEqual([
       FELT_FILL_LAYER_ID,
       FELT_LINE_LAYER_ID,
+      QUAKE_RING_LAYER_ID,
       QUAKE_LAYER_ID,
     ]);
-    expect(getLayer(QUAKE_LAYER_ID).paint).toMatchObject({ 'circle-opacity': 0.8 });
+  });
+
+  it('draws epicentres and hollow rings like the globe does', () => {
+    expect(getLayer(QUAKE_LAYER_ID).paint).toMatchObject({
+      'circle-radius': ['get', 'radius'],
+      'circle-opacity': QUAKE_MARKER_LOOK.epicentreA,
+    });
+    expect(getLayer(QUAKE_RING_LAYER_ID)).toMatchObject({
+      filter: ['!', ['get', 'isFelt']],
+      paint: {
+        'circle-radius': ['get', 'ringRadius'],
+        'circle-opacity': 0,
+        'circle-stroke-color': ['get', 'color'],
+        'circle-stroke-width': FELT_RING_LOOK.strokePx,
+        'circle-stroke-opacity': FELT_RING_LOOK.hollowA,
+      },
+    });
   });
 });

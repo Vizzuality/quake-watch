@@ -5,7 +5,6 @@ import {
   getMapPaddingTop,
   getMapZoom,
   getMapZoomFromUrl,
-  getQuakeMapRadiusPx,
   getUrlZoom,
 } from './map-handover';
 
@@ -34,17 +33,6 @@ describe('URL zoom', () => {
 
   it('opens a globe-range zoom at the handover', () => {
     expect(getMapZoomFromUrl(3, 4.34)).toBe(4.34);
-  });
-});
-
-describe('getQuakeMapRadiusPx', () => {
-  it.each([
-    [Number.NaN, 4.36],
-    [2, 4.36],
-    [6.4, 7],
-    [9, 7],
-  ])('sizes magnitude %f to %f px', (magnitude, radius) => {
-    expect(getQuakeMapRadiusPx(magnitude)).toBeCloseTo(radius, 2);
   });
 });
 
