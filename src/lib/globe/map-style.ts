@@ -6,6 +6,7 @@ import type {
 } from 'maplibre-gl';
 
 import { FELT_RING_LOOK } from './felt-rings';
+import { QUAKE_MARKER_LOOK } from './quakes';
 
 export const MAP_STYLE_URL = 'https://tiles.openfreemap.org/styles/dark';
 export const MAP_SOURCE_ID = 'openmaptiles';
@@ -16,6 +17,7 @@ export const QUAKE_LAYER_ID = 'quakes';
 export const FELT_SOURCE_ID = 'felt-rings';
 export const FELT_FILL_LAYER_ID = 'felt-rings-fill';
 export const FELT_LINE_LAYER_ID = 'felt-rings-line';
+export const QUAKE_RING_LAYER_ID = 'quake-rings';
 export const MAP_FONT = 'Space Grotesk Regular';
 export const MAP_ATTRIBUTION =
   '<a href="https://openfreemap.org" target="_blank">OpenFreeMap</a> <a href="https://www.openmaptiles.org/" target="_blank">&copy; OpenMapTiles</a> Data from <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a>';
@@ -27,7 +29,6 @@ export const MAP_COLORS = {
   label: '#9A9CC0',
 };
 export const BOUNDARY_OPACITY = 0.25;
-const QUAKE_OPACITY = 0.8;
 const EMPTY_COLLECTION = { type: 'FeatureCollection' as const, features: [] };
 const NAME: ExpressionSpecification = [
   'coalesce',
@@ -107,7 +108,20 @@ export function getStreetMapStyle(
     paint: {
       'circle-color': ['get', 'color'],
       'circle-radius': ['get', 'radius'],
-      'circle-opacity': QUAKE_OPACITY,
+      'circle-opacity': QUAKE_MARKER_LOOK.epicentreA,
+    },
+  };
+  const quakeRings: LayerSpecification = {
+    id: QUAKE_RING_LAYER_ID,
+    type: 'circle',
+    source: QUAKE_SOURCE_ID,
+    filter: ['!', ['get', 'isFelt']],
+    paint: {
+      'circle-radius': ['get', 'ringRadius'],
+      'circle-opacity': 0,
+      'circle-stroke-color': ['get', 'color'],
+      'circle-stroke-width': FELT_RING_LOOK.strokePx,
+      'circle-stroke-opacity': FELT_RING_LOOK.hollowA,
     },
   };
   const feltRings: LayerSpecification[] = [
@@ -141,6 +155,12 @@ export function getStreetMapStyle(
       [FELT_SOURCE_ID]: { type: 'geojson', data: EMPTY_COLLECTION },
       [QUAKE_SOURCE_ID]: { type: 'geojson', data: EMPTY_COLLECTION },
     },
-    layers: [...layers.slice(0, quakesIndex), ...feltRings, quakes, ...layers.slice(quakesIndex)],
+    layers: [
+      ...layers.slice(0, quakesIndex),
+      ...feltRings,
+      quakeRings,
+      quakes,
+      ...layers.slice(quakesIndex),
+    ],
   };
 }

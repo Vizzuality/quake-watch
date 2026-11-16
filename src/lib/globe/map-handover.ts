@@ -1,8 +1,6 @@
 import { ZOOM_RANGE } from './motion';
-import { getQuakeAmplitude } from './quakes';
 
 const MAPLIBRE_TILE_SIZE = 512;
-const QUAKE_DIAMETER_PX = [8, 14] as const;
 
 export const MAP_ZOOM_SPAN = 15;
 export const MAP_MERCATOR_ZOOM = 8;
@@ -38,11 +36,6 @@ export function getUrlZoom(mapZoom: number, handoverZoom: number): number {
 
 export function getMapZoomFromUrl(urlZoom: number, handoverZoom: number): number {
   return handoverZoom + Math.max(0, urlZoom - ZOOM_RANGE[1]);
-}
-
-export function getQuakeMapRadiusPx(magnitude: number): number {
-  const [min, max] = QUAKE_DIAMETER_PX;
-  return (min + (max - min) * getQuakeAmplitude(magnitude)) / 2;
 }
 
 export function getMapFade(globeZoom: number): number {
