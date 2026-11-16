@@ -16,6 +16,14 @@ export function getQuakeKey({ source, id }: Earthquake): string {
   return `${source}:${id}`;
 }
 
+export function getSelectedEarthquake(
+  earthquakes: readonly Earthquake[],
+  quake: string | undefined,
+): Earthquake | undefined {
+  if (quake === undefined) return undefined;
+  return earthquakes.find((earthquake) => getQuakeKey(earthquake) === quake);
+}
+
 export function useHoveredQuake() {
   const [hovered, setHovered] = useState<HoveredQuake | null>(null);
   const [isOverQuake, setIsOverQuake] = useState(false);

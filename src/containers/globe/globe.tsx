@@ -29,7 +29,13 @@ import type { MapCentre, MapHandover } from './maplibre-map';
 import { QuakeTooltip } from './quake-tooltip';
 import { SceneCanvas } from './scene-canvas';
 import { type HoverOptions, useGlobeControls } from './use-globe-controls';
-import { type HoveredQuake, type Point, getQuakeKey, useHoveredQuake } from './use-hovered-quake';
+import {
+  type HoveredQuake,
+  type Point,
+  getQuakeKey,
+  getSelectedEarthquake,
+  useHoveredQuake,
+} from './use-hovered-quake';
 
 declare global {
   interface Window {
@@ -51,14 +57,6 @@ function isWebGLAvailable(): boolean {
   const context = document.createElement('canvas').getContext('webgl2');
   context?.getExtension('WEBGL_lose_context')?.loseContext();
   return context !== null;
-}
-
-function getSelectedEarthquake(
-  earthquakes: readonly Earthquake[],
-  quake: string | undefined,
-): Earthquake | undefined {
-  if (quake === undefined) return undefined;
-  return earthquakes.find((earthquake) => getQuakeKey(earthquake) === quake);
 }
 
 function getInitialMapZoom({ lat, lon, zoom }: EarthquakeSearch): number | undefined {
@@ -341,7 +339,12 @@ function GlobeCanvas() {
         className={`absolute inset-0 touch-none select-none ${getCursorClassName(isOverQuake)}`}
       >
         <SceneCanvas>
-          <GlobeScene controls={controls} earthquakes={earthquakes} waves={waves} />
+          <GlobeScene
+            controls={controls}
+            earthquakes={earthquakes}
+            selectedEarthquake={selectedEarthquake}
+            waves={waves}
+          />
           <Suspense fallback={null}>
             <GlobeLabels controls={controls} />
           </Suspense>

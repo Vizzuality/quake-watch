@@ -103,9 +103,15 @@ function getQuakeGeometry({
   return geometry;
 }
 
-function getRingGeometry(earthquakes: readonly Earthquake[], waveStart: InstancedBufferAttribute) {
-  const { direction, reachAngle, minPx, color, depthKm, life, glowPx } =
-    getFeltRingAttributes(earthquakes);
+function getRingGeometry(
+  earthquakes: readonly Earthquake[],
+  selected: Earthquake | undefined,
+  waveStart: InstancedBufferAttribute,
+) {
+  const { direction, reachAngle, minPx, color, depthKm, life, glowPx } = getFeltRingAttributes(
+    earthquakes,
+    selected,
+  );
   const geometry = new InstancedBufferGeometry();
   geometry.setAttribute('position', new BufferAttribute(Float32Array.from(RING_QUAD_CORNERS), 3));
   geometry.setIndex(RING_QUAD_INDEX);
@@ -120,7 +126,7 @@ function getRingGeometry(earthquakes: readonly Earthquake[], waveStart: Instance
   return geometry;
 }
 
-function getQuakeGeometries(earthquakes: readonly Earthquake[]) {
+function getQuakeGeometries(earthquakes: readonly Earthquake[], selected: Earthquake | undefined) {
   const { markers, needles } = getQuakeMarkerAttributes(earthquakes);
   const markerGeometry = getQuakeGeometry(markers);
   markerGeometry.setAttribute('aSize', new BufferAttribute(markers.size, 1));
@@ -129,7 +135,7 @@ function getQuakeGeometries(earthquakes: readonly Earthquake[]) {
   return {
     markerGeometry,
     needleGeometry: getQuakeGeometry(needles),
-    ringGeometry: getRingGeometry(earthquakes, waveStart),
+    ringGeometry: getRingGeometry(earthquakes, selected, waveStart),
     waveStart,
   };
 }
@@ -194,16 +200,21 @@ function setWaveStarts(attribute: InstancedBufferAttribute, values: Float32Array
 export function GlobeScene({
   controls,
   earthquakes,
+  selectedEarthquake,
   waves,
 }: {
   controls: GlobeControls;
   earthquakes: readonly Earthquake[];
+  selectedEarthquake: Earthquake | undefined;
   waves: GlobeWaves;
 }) {
   const gl = useThree((state) => state.gl);
   const invalidate = useThree((state) => state.invalidate);
   const assets = useMemo(() => getGlobeAssets(), []);
-  const quakes = useMemo(() => getQuakeGeometries(earthquakes), [earthquakes]);
+  const quakes = useMemo(
+    () => getQuakeGeometries(earthquakes, selectedEarthquake),
+    [earthquakes, selectedEarthquake],
+  );
   const waveStartsRef = useRef<ReadonlyMap<string, number>>(new Map());
   const wavesEndRef = useRef(-Infinity);
   const stampedRef = useRef<InstancedBufferAttribute | null>(null);

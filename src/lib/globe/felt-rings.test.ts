@@ -11,6 +11,7 @@ import {
   getWaveFronts,
   getWaveLifeSeconds,
   getWavesEndTime,
+  isFeltRingShown,
 } from './felt-rings';
 import { EARTH_RADIUS_KM } from './quakes';
 import { getLatLonVector } from './sphere';
@@ -154,6 +155,17 @@ describe('getWaveFronts', () => {
   });
 });
 
+describe('isFeltRingShown', () => {
+  it('shows every felt ring without a selection and only the selected one with it', () => {
+    const selected = getEarthquake({ id: 'a' });
+    const other = getEarthquake({ id: 'b' });
+
+    expect(isFeltRingShown(other, undefined)).toBe(true);
+    expect(isFeltRingShown(selected, selected)).toBe(true);
+    expect(isFeltRingShown(other, selected)).toBe(false);
+  });
+});
+
 describe('getFeltRingAttributes', () => {
   it('packs one instance per Earthquake, felt or not', () => {
     const felt = getEarthquake({ id: 'a', magnitude: 5, depthKm: 10, latitude: 10, longitude: 20 });
@@ -180,6 +192,16 @@ describe('getFeltRingAttributes', () => {
     expect(attributes.life[0]).toBeCloseTo(getWaveLifeSeconds(5), 6);
     expect(attributes.glowPx[0]).toBeCloseTo(6 + 22 * ((5 - 2) / 4.4), 5);
     expect(attributes.glowPx[1]).toBeCloseTo(6 + 22 * ((4 - 2) / 4.4), 5);
+  });
+
+  it('keeps only the selected Earthquake felt ring and turns the others hollow', () => {
+    const selected = getEarthquake({ id: 'a', magnitude: 5, depthKm: 10 });
+    const other = getEarthquake({ id: 'b', magnitude: 6, depthKm: 10 });
+    const attributes = getFeltRingAttributes([selected, other], selected);
+
+    expect(attributes.reachAngle[0]).toBeCloseTo(getFeltRingAngle(5, 10), 6);
+    expect(attributes.reachAngle[1]).toBe(0);
+    expect(attributes.minPx[1]).toBeCloseTo(getMinRingRadiusPx(6), 6);
   });
 
   it('returns empty arrays for no quakes', () => {

@@ -19,7 +19,7 @@ import { getFeltReachKm } from '@/lib/earthquakes/intensity';
 import { earthquakesQueryOptions } from '@/lib/earthquakes/query-options';
 import { getEarthquakeFilters } from '@/lib/earthquakes/search-schema';
 import type { Earthquake } from '@/lib/earthquakes/types';
-import { getMinRingRadiusPx } from '@/lib/globe/felt-rings';
+import { getMinRingRadiusPx, isFeltRingShown } from '@/lib/globe/felt-rings';
 import { getGlobeFrame } from '@/lib/globe/frame';
 import { getFeltRing, getFeltRingBounds } from '@/lib/globe/map-felt-rings';
 import {
@@ -47,7 +47,7 @@ import { getEpicentreRadiusPx } from '@/lib/globe/quakes';
 
 import { QuakeTooltip } from './quake-tooltip';
 import type { GlobeControls } from './use-globe-controls';
-import { getQuakeKey, useHoveredQuake } from './use-hovered-quake';
+import { getQuakeKey, getSelectedEarthquake, useHoveredQuake } from './use-hovered-quake';
 
 export type MapCentre = { lat: number; lon: number };
 export type MapHandover = {
@@ -86,7 +86,11 @@ function getTouchDistance(touches: TouchList): number {
   );
 }
 
-function getQuakeFeatures(earthquakes: readonly Earthquake[]) {
+function isFeltShown(earthquake: Earthquake, selected: Earthquake | undefined): boolean {
+  return getFeltReachKm(earthquake) > 0 && isFeltRingShown(earthquake, selected);
+}
+
+function getQuakeFeatures(earthquakes: readonly Earthquake[], selected: Earthquake | undefined) {
   return {
     type: 'FeatureCollection' as const,
     features: earthquakes.map((earthquake) => ({
@@ -100,18 +104,18 @@ function getQuakeFeatures(earthquakes: readonly Earthquake[]) {
         color: getDepthColor(earthquake.depthKm),
         radius: getEpicentreRadiusPx(earthquake.magnitude),
         ringRadius: getMinRingRadiusPx(earthquake.magnitude),
-        isFelt: getFeltReachKm(earthquake) > 0,
+        isFelt: isFeltShown(earthquake, selected),
       },
     })),
   };
 }
 
-function getFeltFeatures(earthquakes: readonly Earthquake[]) {
+function getFeltFeatures(earthquakes: readonly Earthquake[], selected: Earthquake | undefined) {
   return {
     type: 'FeatureCollection' as const,
     features: earthquakes.flatMap((earthquake) => {
+      if (!isFeltShown(earthquake, selected)) return [];
       const reachKm = getFeltReachKm(earthquake);
-      if (!(reachKm > 0)) return [];
       const { polygon, outline } = getFeltRing(earthquake.latitude, earthquake.longitude, reachKm);
       const properties = { color: getDepthColor(earthquake.depthKm) };
       return [
@@ -130,9 +134,13 @@ function getFeltFeatures(earthquakes: readonly Earthquake[]) {
   };
 }
 
-function setQuakeData(map: MapLibreMap, earthquakes: readonly Earthquake[]) {
-  map.getSource<GeoJSONSource>(QUAKE_SOURCE_ID)?.setData(getQuakeFeatures(earthquakes));
-  map.getSource<GeoJSONSource>(FELT_SOURCE_ID)?.setData(getFeltFeatures(earthquakes));
+function setQuakeData(
+  map: MapLibreMap,
+  earthquakes: readonly Earthquake[],
+  selected: Earthquake | undefined,
+) {
+  map.getSource<GeoJSONSource>(QUAKE_SOURCE_ID)?.setData(getQuakeFeatures(earthquakes, selected));
+  map.getSource<GeoJSONSource>(FELT_SOURCE_ID)?.setData(getFeltFeatures(earthquakes, selected));
 }
 
 function getPointedEarthquake(
@@ -186,6 +194,8 @@ export default function GlobeMap({
   const mapRef = useRef<MapLibreMap | null>(null);
   const earthquakes = data?.earthquakes ?? EMPTY_EARTHQUAKES;
   const earthquakesRef = useRef(earthquakes);
+  const selectedEarthquake = getSelectedEarthquake(earthquakes, search.quake);
+  const selectedRef = useRef(selectedEarthquake);
   const variant = search.quake === undefined ? 'full' : 'compact';
   const callbacksRef = useRef({
     onReady,
@@ -228,11 +238,12 @@ export default function GlobeMap({
       onMove: setCamera,
     };
     earthquakesRef.current = earthquakes;
+    selectedRef.current = selectedEarthquake;
   });
 
   useEffect(() => {
-    if (mapRef.current) setQuakeData(mapRef.current, earthquakes);
-  }, [earthquakes]);
+    if (mapRef.current) setQuakeData(mapRef.current, earthquakes, selectedEarthquake);
+  }, [earthquakes, selectedEarthquake]);
 
   useEffect(() => {
     if (!hovered) return;
@@ -363,7 +374,7 @@ export default function GlobeMap({
       map.setProjection(
         getMapProjection(getMapZoom(getRadius(ZOOM_RANGE[1]), 0)) as ProjectionSpecification,
       );
-      setQuakeData(map, earthquakesRef.current);
+      setQuakeData(map, earthquakesRef.current, selectedRef.current);
       sync(controls.viewRef.current);
       map.once('idle', () => {
         isReady = true;

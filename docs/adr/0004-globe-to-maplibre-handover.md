@@ -56,7 +56,7 @@ Past globe zoom 5, a [MapLibre GL JS 6.18.0](https://github.com/maplibre/maplibr
 - A pinch that is still in progress doesn't carry over to the map: the globe holds the pointers, so the visitor has to lift their fingers and pinch again.
 - The globe stops at 83° latitude and the map at 85°. Returning to the globe from above 83° moves the centre to 83°.
 - Wheel scrolling that is still coming in after the return zooms the globe out further.
-- The map draws Earthquakes and the selected Earthquake's felt ring, in OpenFreeMap's dark style recoloured to the app tokens ([#115](https://github.com/Vizzuality/quake-watch/issues/115)). It doesn't draw the globe's dot grid, so the crossfade remains the only bridge between the two looks.
+- The map draws Earthquakes and their felt rings like the globe does: with an Earthquake selected, both show only its felt ring. It uses OpenFreeMap's dark style recoloured to the app tokens ([#115](https://github.com/Vizzuality/quake-watch/issues/115)). It doesn't draw the globe's dot grid, so the crossfade remains the only bridge between the two looks.
 - The globe's look on the [Quake Watch — Visual language](https://claude.ai/artifact/9to4jj5c7d7QzPowNUcFR4) board couldn't be checked during the spike, because the board only rendered "Loading…".
 
 ## Considered Options
