@@ -6,7 +6,7 @@ import { getRouteApi } from '@tanstack/react-router';
 import {
   type GeoJSONSource,
   Map as MapLibreMap,
-  type MapLayerMouseEvent,
+  type MapMouseEvent,
   type ProjectionSpecification,
   setWorkerUrl,
 } from 'maplibre-gl';
@@ -42,6 +42,7 @@ import {
   getStreetMapStyle,
 } from '@/lib/globe/map-style';
 import { type GlobeView, ZOOM_RANGE, getViewCamera } from '@/lib/globe/motion';
+import { PICK_TOLERANCE_PX, getPickedQuakeIndex } from '@/lib/globe/picking';
 import { getEpicentreRadiusPx } from '@/lib/globe/quakes';
 
 import { QuakeTooltip } from './quake-tooltip';
@@ -134,6 +135,33 @@ function setQuakeData(map: MapLibreMap, earthquakes: readonly Earthquake[]) {
   map.getSource<GeoJSONSource>(FELT_SOURCE_ID)?.setData(getFeltFeatures(earthquakes));
 }
 
+function getPointedEarthquake(
+  map: MapLibreMap,
+  earthquakes: readonly Earthquake[],
+  { point }: MapMouseEvent,
+): Earthquake | null {
+  const features = map.queryRenderedFeatures(
+    [
+      [point.x - PICK_TOLERANCE_PX, point.y - PICK_TOLERANCE_PX],
+      [point.x + PICK_TOLERANCE_PX, point.y + PICK_TOLERANCE_PX],
+    ],
+    { layers: [QUAKE_LAYER_ID] },
+  );
+  const keys = new Set(features.map((feature) => feature.properties.key));
+  const candidates = earthquakes.filter((earthquake) => keys.has(getQuakeKey(earthquake)));
+  const points = candidates.map((earthquake, index) => ({
+    index,
+    ...map.project([earthquake.longitude, earthquake.latitude]),
+  }));
+  const index = getPickedQuakeIndex(points, point.x, point.y);
+  if (index === null) return null;
+  return candidates[index];
+}
+
+function getCursor(earthquake: Earthquake | null): string {
+  return earthquake ? 'pointer' : '';
+}
+
 function getMapOpacity(isReady: boolean, isActive: boolean, globeZoom: number): number {
   if (!isReady) return 0;
   if (isActive) return 1;
@@ -175,10 +203,8 @@ export default function GlobeMap({
     void navigate({ search: (prev) => ({ ...prev, quake: key }) });
   }
 
-  function handleHover(event: MapLayerMouseEvent | null) {
+  function handleHover(earthquake: Earthquake | null) {
     const map = mapRef.current;
-    const key = event?.features?.[0]?.properties.key;
-    const earthquake = earthquakes.find((candidate) => getQuakeKey(candidate) === key);
     if (!map || !earthquake) {
       scheduleHide();
       return;
@@ -407,19 +433,19 @@ export default function GlobeMap({
       exit();
     }
 
-    function handleQuakeMove(event: MapLayerMouseEvent) {
-      map.getCanvas().style.cursor = 'pointer';
-      callbacksRef.current.onHover(event);
+    function handlePointerMove(event: MapMouseEvent) {
+      const earthquake = getPointedEarthquake(map, earthquakesRef.current, event);
+      map.getCanvas().style.cursor = getCursor(earthquake);
+      callbacksRef.current.onHover(earthquake);
     }
 
-    function handleQuakeLeave() {
+    function handlePointerOut() {
       map.getCanvas().style.cursor = '';
       callbacksRef.current.onHover(null);
     }
 
-    function handleQuakeClick(event: MapLayerMouseEvent) {
-      const key = event.features?.[0]?.properties.key;
-      const earthquake = earthquakesRef.current.find((candidate) => getQuakeKey(candidate) === key);
+    function handleClick(event: MapMouseEvent) {
+      const earthquake = getPointedEarthquake(map, earthquakesRef.current, event);
       if (earthquake) callbacksRef.current.onSelect(earthquake);
     }
 
@@ -429,9 +455,9 @@ export default function GlobeMap({
     map.once('style.load', handleStyleLoad);
     map.on('movestart', handleMoveStart);
     map.on('moveend', handleMoveEnd);
-    map.on('mousemove', QUAKE_LAYER_ID, handleQuakeMove);
-    map.on('mouseleave', QUAKE_LAYER_ID, handleQuakeLeave);
-    map.on('click', QUAKE_LAYER_ID, handleQuakeClick);
+    map.on('mousemove', handlePointerMove);
+    map.on('mouseout', handlePointerOut);
+    map.on('click', handleClick);
     element.addEventListener('wheel', handleWheel, { capture: true });
     element.addEventListener('touchmove', handleTouchMove, { capture: true });
     element.addEventListener('touchend', handleTouchEnd, { capture: true });
