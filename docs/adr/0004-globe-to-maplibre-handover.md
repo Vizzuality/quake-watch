@@ -6,7 +6,8 @@ Past globe zoom 5, a [MapLibre GL JS 6.18.0](https://github.com/maplibre/maplibr
 
 ## Handover
 
-- **When:** the globe is at zoom 5 and the visitor keeps zooming in (wheel or pinch). The map opens on the same centre at the same scale and fades in once it has drawn its first frame. The globe stops taking input while the map loads, so the camera can't drift away from the map's; with the network throttled, a drag and a wheel-out during the load left the switch within 0.02 px. If the map fails to load, the globe stays.
+- **When:** the map mounts hidden once the globe reaches zoom 4 and follows the globe camera on every frame. The globe fades out and the map fades in as the globe zooms from 4.5 to 5. At zoom 5 the next wheel or pinch goes to the map, with no wait. If the map fails to load, an error boundary drops it and the globe stays at zoom 5.
+- **Click:** clicking an Earthquake on the globe flies the globe to it at zoom 5, then opens the map framed on its felt ring, or at URL zoom 7 when it has none. A drag or a change of `?quake=` during the flight cancels the switch.
 - **Scale:** the map zoom is `log2(2π · R · cos φ / 512)`, where `R` is the globe's radius in screen pixels at zoom 5 and `φ` the centre latitude. MapLibre draws its globe with radius `512 · 2^z / (2π · cos φ)` ([globe_utils.ts](https://github.com/maplibre/maplibre-gl-js/blob/v6.18.0/src/geo/projection/globe_utils.ts#L84-L90)).
 
   | Viewport | Globe radius at zoom 5 | Map zoom at the equator | Map zoom at 40° | km per px at the centre |
@@ -26,14 +27,14 @@ Past globe zoom 5, a [MapLibre GL JS 6.18.0](https://github.com/maplibre/maplibr
   Quake markers drawn on the globe land on the right islands on the map: the Azores, the Canaries, Sicily and the Aegean.
 
 - **Projection:** the map starts in `vertical-perspective` and becomes `mercator` by zoom 8, through a `["interpolate", ["linear"], ["zoom"], z₀, "vertical-perspective", 8, "mercator"]` projection, where `z₀` is the handover zoom at the equator. At zoom 7.9 the map is still blending; at 8 it is flat.
-- **Crossfade:** the globe and the map fade over 250 ms with CSS opacity, and switch with no fade under `prefers-reduced-motion`. In the browser the globe's opacity dropped from 1 to 0.02 within 200 ms and to 0 by 250 ms.
+- **Crossfade:** the map's opacity is `(zoom − 4.5) / 0.5`, clamped to 0–1, and the globe's is its complement, so the fade follows the zoom gesture instead of a timer. It stays at 0 until the map has drawn its first frame. Measured at zoom 4.5, 4.75 and 5 at 1440×900: at most 0.007 px between globe and map, and opacity exactly linear in zoom. A pinch at 390×844 stayed within 1.14 px.
 - **Back to the globe:** zooming out while the map is at its minimum zoom (the handover zoom for the current centre latitude, recomputed after each move) puts the globe back at zoom 5 on the map's centre. Measured on Madrid (at both viewports) and Tokyo, the globe landed at zoom 5 with the centre within 0.000001°.
 
 ## Loading
 
-- MapLibre is not in the globe chunk. It loads in its own chunks once the globe settles at zoom 4 or more, so a visitor who never zooms in never downloads it. In the browser, nothing from MapLibre or OpenFreeMap was requested up to zoom 3.8; the first requests came at zoom 4.3.
+- MapLibre is not in the globe chunk. It loads in its own chunks once the globe reaches zoom 4, and unmounts below 3.5, so a visitor who never zooms in never downloads it. In the browser, nothing from MapLibre or OpenFreeMap was requested below zoom 4.
 - Cost when it loads:
-  - map chunk: 289 kB gzip;
+  - map chunk: 292 kB gzip;
   - styles: 10 kB gzip;
   - MapLibre's worker: 148 kB gzip.
 
@@ -42,6 +43,7 @@ Past globe zoom 5, a [MapLibre GL JS 6.18.0](https://github.com/maplibre/maplibr
 - **Vite:** MapLibre 6 looks for its worker next to its own module, and Vite's dependency optimiser moves that module. Import the worker with `?url` and pass it to `setWorkerUrl`.
 - **CSS:** `maplibre-gl.css` sets `.maplibregl-map { position: relative }`, which overrides Tailwind's `absolute inset-0` and leaves the container 0 px tall. Size the container with `size-full` inside a positioned wrapper instead.
 - **Tiles:** OpenFreeMap's dark style needs no key. The attribution is "OpenFreeMap © OpenMapTiles Data from OpenStreetMap", shown in the compact attribution control.
+- **Fast pans:** a copy of the water layer reads a second source capped at `maxzoom: 0`, so one tile covers the world under every layer and a fast pan shows coarse sea instead of empty tiles. `zoomLevelsToOverscale` must be unset: its default of 4 makes MapLibre fetch tiles past a source's `maxzoom` ([MapOptions](https://maplibre.org/maplibre-gl-js/docs/API/type-aliases/MapOptions/#zoomlevelstooverscale)).
 
 ## Coastline at the handover
 
@@ -54,7 +56,7 @@ Past globe zoom 5, a [MapLibre GL JS 6.18.0](https://github.com/maplibre/maplibr
 - A pinch that is still in progress doesn't carry over to the map: the globe holds the pointers, so the visitor has to lift their fingers and pinch again.
 - The globe stops at 83° latitude and the map at 85°. Returning to the globe from above 83° moves the centre to 83°.
 - Wheel scrolling that is still coming in after the return zooms the globe out further.
-- The map shows no Earthquakes yet. Drawing them on the map, and matching the map's look to the globe, are for [#115](https://github.com/Vizzuality/quake-watch/issues/115).
+- The map draws Earthquakes and the selected Earthquake's felt ring, in OpenFreeMap's dark style recoloured to the app tokens ([#115](https://github.com/Vizzuality/quake-watch/issues/115)). It doesn't draw the globe's dot grid, so the crossfade remains the only bridge between the two looks.
 - The globe's look on the [Quake Watch — Visual language](https://claude.ai/artifact/9to4jj5c7d7QzPowNUcFR4) board couldn't be checked during the spike, because the board only rendered "Loading…".
 
 ## Considered Options
