@@ -29,6 +29,13 @@ export const MAP_COLORS = {
   label: '#9A9CC0',
 };
 export const BOUNDARY_OPACITY = 0.25;
+export const QUAKE_ZOOM_SCALES = [
+  [4, 1],
+  [8, 2],
+  [12, 4],
+  [16, 6],
+] as const;
+export const QUAKE_EDGE_PX = 0.5;
 const EMPTY_COLLECTION = { type: 'FeatureCollection' as const, features: [] };
 const NAME: ExpressionSpecification = [
   'coalesce',
@@ -46,6 +53,21 @@ function getFontFaces({ latin, latinExt }: MapFontUrls): FontFacesSpecification 
       { url: latinExt, 'unicode-range': ['U+100-24F', 'U+1E00-1EFF', 'U+20A0-20CF'] },
     ],
   };
+}
+
+function getScaledRadius(scale: number): ExpressionSpecification {
+  return ['*', ['+', ['get', 'radius'], QUAKE_EDGE_PX], scale];
+}
+
+function getScaledRingRadius(scale: number): ExpressionSpecification {
+  return ['+', getScaledRadius(scale), ['-', ['get', 'ringRadius'], ['get', 'radius']]];
+}
+
+function getZoomedRadius(
+  getRadius: (scale: number) => ExpressionSpecification,
+): ExpressionSpecification {
+  const stops = QUAKE_ZOOM_SCALES.flatMap(([zoom, scale]) => [zoom, getRadius(scale)]);
+  return ['interpolate', ['linear'], ['zoom'], ...stops] as ExpressionSpecification;
 }
 
 function getTextField(textField: unknown) {
@@ -107,7 +129,7 @@ export function getStreetMapStyle(
     source: QUAKE_SOURCE_ID,
     paint: {
       'circle-color': ['get', 'color'],
-      'circle-radius': ['get', 'radius'],
+      'circle-radius': getZoomedRadius(getScaledRadius),
       'circle-opacity': QUAKE_MARKER_LOOK.epicentreA,
     },
   };
@@ -117,7 +139,7 @@ export function getStreetMapStyle(
     source: QUAKE_SOURCE_ID,
     filter: ['!', ['get', 'isFelt']],
     paint: {
-      'circle-radius': ['get', 'ringRadius'],
+      'circle-radius': getZoomedRadius(getScaledRingRadius),
       'circle-opacity': 0,
       'circle-stroke-color': ['get', 'color'],
       'circle-stroke-width': FELT_RING_LOOK.strokePx,
