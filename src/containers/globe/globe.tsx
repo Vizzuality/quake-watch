@@ -43,6 +43,8 @@ declare global {
 const EMPTY_EARTHQUAKES: readonly Earthquake[] = [];
 const homeRoute = getRouteApi('/');
 const GlobeMap = lazy(() => import('./maplibre-map'));
+// A rejected chunk must not reach SceneErrorBoundary, which would take the whole globe down.
+const GlobeLabels = lazy(() => import('./globe-labels').catch(() => ({ default: () => null })));
 const CENTRE_TOLERANCE = 1e-4;
 
 function isWebGLAvailable(): boolean {
@@ -340,6 +342,9 @@ function GlobeCanvas() {
       >
         <SceneCanvas>
           <GlobeScene controls={controls} earthquakes={earthquakes} waves={waves} />
+          <Suspense fallback={null}>
+            <GlobeLabels controls={controls} />
+          </Suspense>
         </SceneCanvas>
       </div>
       {isMapMounted && (

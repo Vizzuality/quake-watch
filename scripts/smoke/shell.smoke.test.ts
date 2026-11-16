@@ -59,7 +59,9 @@ describe('placeholder shell', () => {
 
 describe('globe first paint', () => {
   it('builds three.js into its own lazy globe chunk', () => {
-    const chunks = readdirSync(ASSETS_DIR).filter((name) => /^globe-[\w-]+\.js$/.test(name));
+    const chunks = readdirSync(ASSETS_DIR).filter((name) =>
+      /^globe-(?!labels-)[\w-]+\.js$/.test(name),
+    );
     expect(chunks).toHaveLength(1);
     expect(readFileSync(path.join(ASSETS_DIR, chunks[0]), 'utf8')).toContain(THREE_MARKER);
   });
