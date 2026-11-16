@@ -84,7 +84,19 @@ export function getWaveFronts({
   return { sAngle: sKm / EARTH_RADIUS_KM, pAngle };
 }
 
-export function getFeltRingAttributes(earthquakes: readonly Earthquake[]): FeltRingAttributes {
+export function isFeltRingShown(earthquake: Earthquake, selected: Earthquake | undefined): boolean {
+  return selected === undefined || earthquake === selected;
+}
+
+function getShownReachAngle(earthquake: Earthquake, selected: Earthquake | undefined): number {
+  if (!isFeltRingShown(earthquake, selected)) return 0;
+  return getFeltRingAngle(earthquake.magnitude, earthquake.depthKm);
+}
+
+export function getFeltRingAttributes(
+  earthquakes: readonly Earthquake[],
+  selected?: Earthquake,
+): FeltRingAttributes {
   const count = earthquakes.length;
   const attributes: FeltRingAttributes = {
     direction: new Float32Array(count * 3),
@@ -96,13 +108,14 @@ export function getFeltRingAttributes(earthquakes: readonly Earthquake[]): FeltR
     glowPx: new Float32Array(count),
   };
 
-  earthquakes.forEach(({ latitude, longitude, magnitude, depthKm }, index) => {
+  earthquakes.forEach((earthquake, index) => {
+    const { latitude, longitude, magnitude, depthKm } = earthquake;
     attributes.direction.set(getLatLonVector(latitude, longitude), index * 3);
     attributes.color.set(
       getDepthRgb(depthKm).map((channel) => channel / 255),
       index * 3,
     );
-    attributes.reachAngle[index] = getFeltRingAngle(magnitude, depthKm);
+    attributes.reachAngle[index] = getShownReachAngle(earthquake, selected);
     attributes.minPx[index] = getMinRingRadiusPx(magnitude);
     attributes.depthKm[index] = depthKm;
     attributes.life[index] = getWaveLifeSeconds(magnitude);
