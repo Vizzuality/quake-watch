@@ -184,15 +184,45 @@ describe('getStreetMapStyle', () => {
     ]);
   });
 
-  it('draws epicentres and hollow rings like the globe does', () => {
+  it('draws epicentres as the globe does at the handover and grows them as the map zooms in', () => {
+    const epicentre = ['+', ['get', 'radius'], 0.5];
     expect(getLayer(QUAKE_LAYER_ID).paint).toMatchObject({
-      'circle-radius': ['get', 'radius'],
+      'circle-radius': [
+        'interpolate',
+        ['linear'],
+        ['zoom'],
+        4,
+        ['*', epicentre, 1],
+        8,
+        ['*', epicentre, 2],
+        12,
+        ['*', epicentre, 4],
+        16,
+        ['*', epicentre, 6],
+      ],
       'circle-opacity': QUAKE_MARKER_LOOK.epicentreA,
     });
+  });
+
+  it('keeps each hollow ring the same gap outside its growing epicentre', () => {
+    const gap = ['-', ['get', 'ringRadius'], ['get', 'radius']];
+    const epicentre = ['+', ['get', 'radius'], 0.5];
     expect(getLayer(QUAKE_RING_LAYER_ID)).toMatchObject({
       filter: ['!', ['get', 'isFelt']],
       paint: {
-        'circle-radius': ['get', 'ringRadius'],
+        'circle-radius': [
+          'interpolate',
+          ['linear'],
+          ['zoom'],
+          4,
+          ['+', ['*', epicentre, 1], gap],
+          8,
+          ['+', ['*', epicentre, 2], gap],
+          12,
+          ['+', ['*', epicentre, 4], gap],
+          16,
+          ['+', ['*', epicentre, 6], gap],
+        ],
         'circle-opacity': 0,
         'circle-stroke-color': ['get', 'color'],
         'circle-stroke-width': FELT_RING_LOOK.strokePx,
