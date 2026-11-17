@@ -3,6 +3,7 @@ import { createFileRoute } from '@tanstack/react-router';
 import { lazy } from 'react';
 
 import { Wordmark } from '@/components/brand/wordmark';
+import { FiltersPanel } from '@/containers/filters/filters-panel';
 import { GlobeSlot } from '@/containers/globe/globe-slot';
 import { earthquakesQueryOptions } from '@/lib/earthquakes/query-options';
 import { EARTHQUAKE_SEARCH_ROUTE, getEarthquakeFilters } from '@/lib/earthquakes/search-schema';
@@ -45,6 +46,7 @@ function Home() {
           <Wordmark />
         </div>
       </header>
+      <FiltersPanel />
     </main>
   );
 }

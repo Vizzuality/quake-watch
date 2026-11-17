@@ -43,5 +43,20 @@
   "tooltip_age_days": "{count} d ago",
   "tooltip_depth_deep": "{depth} deep",
   "tooltip_likely_felt": "Likely felt",
-  "tooltip_click_to_open": "Click to open"
+  "tooltip_click_to_open": "Click to open",
+  "filters_label": "Filters",
+  "filter_time": "Time",
+  "filter_magnitude": "Magnitude",
+  "filter_depth": "Depth",
+  "filter_source": "Source",
+  "filter_interval_24h": "24h",
+  "filter_interval_3d": "3d",
+  "filter_interval_7d": "7d",
+  "filter_all": "All",
+  "filter_magnitude_min": "{magnitude}+",
+  "filter_depth_shallow": "Shallow",
+  "filter_depth_mid": "Mid",
+  "filter_depth_deep": "Deep",
+  "filter_source_usgs": "USGS",
+  "filter_source_emsc": "EMSC"
 }
