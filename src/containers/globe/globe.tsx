@@ -5,6 +5,7 @@ import { Suspense, lazy, useEffect, useId, useMemo, useRef, useState } from 'rea
 import { type Camera, getWrappedLongitude, useCameraSearch } from '@/hooks/use-camera-search';
 import { playbackClock } from '@/lib/earthquakes/playback-clock';
 import { earthquakesQueryOptions } from '@/lib/earthquakes/query-options';
+import { getRegionEarthquakes } from '@/lib/earthquakes/regions';
 import { type EarthquakeSearch, getEarthquakeFilters } from '@/lib/earthquakes/search-schema';
 import { getShownEarthquakes } from '@/lib/earthquakes/timeline';
 import type { Earthquake } from '@/lib/earthquakes/types';
@@ -21,6 +22,7 @@ import {
   getViewCamera,
 } from '@/lib/globe/motion';
 import { getPickedQuakeIndex, getQuakeScreenPoints } from '@/lib/globe/picking';
+import { getPlaceFocus } from '@/lib/globe/place-focus';
 import { getLatLonVector, getRotatedVector } from '@/lib/globe/sphere';
 import { m } from '@/paraglide/messages';
 
@@ -149,7 +151,7 @@ function GlobeCanvas() {
   } = useHoveredQuake();
   const tooltipId = useId();
   const earthquakes = data?.earthquakes ?? EMPTY_EARTHQUAKES;
-  const { quake } = search;
+  const { quake, place } = search;
   const selectedEarthquake = useMemo(
     () => getSelectedEarthquake(earthquakes, quake),
     [earthquakes, quake],
@@ -157,6 +159,7 @@ function GlobeCanvas() {
   const variant = selectedEarthquake === undefined ? 'full' : 'compact';
   const [waves] = useState(createGlobeWaves);
   const lastFlownRef = useRef<string | undefined>(undefined);
+  const lastPlaceRef = useRef(initialView === undefined ? undefined : place);
   const isFramingDecidedRef = useRef(false);
 
   function getPointedQuake(point: Point): HoveredQuake | null {
@@ -300,11 +303,25 @@ function GlobeCanvas() {
   useEffect(() => {
     if (data === undefined || isFramingDecidedRef.current) return;
     isFramingDecidedRef.current = true;
-    if (initialView !== undefined || quake !== undefined) return;
+    if (initialView !== undefined || quake !== undefined || place !== undefined) return;
     const longitude = getFramedLongitude(data.earthquakes);
     if (longitude === undefined) return;
     controls.frameTo(getFramedView(longitude, controls.viewRef.current));
-  }, [data, initialView, quake, controls]);
+  }, [data, initialView, quake, place, controls]);
+
+  useEffect(() => {
+    if (place === lastPlaceRef.current || quake !== undefined || isMapActive) return;
+    const view = controls.viewRef.current;
+    if (place === undefined) {
+      lastPlaceRef.current = undefined;
+      controls.flyTo(getFramedView(getViewCamera(view).lon, view));
+      return;
+    }
+    const focus = getPlaceFocus(getRegionEarthquakes(earthquakes, place));
+    if (!focus) return;
+    lastPlaceRef.current = place;
+    controls.flyTo({ ...getCenteredView(focus.latitude, focus.longitude, view), zoom: focus.zoom });
+  }, [place, quake, earthquakes, controls, isMapActive]);
 
   useEffect(() => {
     const pending = pendingMapQuakeRef.current;

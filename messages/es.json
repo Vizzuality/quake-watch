@@ -105,5 +105,12 @@
   "summary_earthquakes_7d_other": "terremotos esta semana.",
   "summary_likely_felt": "Probablemente sentidos",
   "summary_largest": "Mayor",
-  "summary_largest_at": "Mayor · {place}"
+  "summary_largest_at": "Mayor · {place}",
+  "summary_in_view": "En vista · {place}",
+  "summary_largest_here": "Mayor aquí",
+  "summary_area_empty": "No hay terremotos aquí en este intervalo. Prueba un intervalo más largo o aleja el zoom.",
+  "search_label": "Buscar un lugar",
+  "search_suggestions": "Lugares con terremotos",
+  "search_clear": "Borrar búsqueda",
+  "search_empty": "No hay terremotos cerca de un lugar con ese nombre. Prueba con un país o una región."
 }

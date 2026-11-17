@@ -6,6 +6,7 @@ import { Wordmark } from '@/components/brand/wordmark';
 import { DepthLegend } from '@/containers/depth-legend/depth-legend';
 import { FiltersPanel } from '@/containers/filters/filters-panel';
 import { GlobeSlot } from '@/containers/globe/globe-slot';
+import { PlaceSearch } from '@/containers/search/place-search';
 import { SummaryPanel } from '@/containers/summary/summary-panel';
 import { Timeline } from '@/containers/timeline/timeline';
 import { getShareEarthquake } from '@/lib/earthquakes/details/share-earthquake';
@@ -63,6 +64,7 @@ function Home() {
         </div>
       </header>
       <SummaryPanel />
+      <PlaceSearch />
       {quake !== undefined && (
         <ClientOnly>
           <Suspense fallback={null}>

@@ -6,6 +6,7 @@ import { useIsQuakeSelected } from '@/hooks/use-is-quake-selected';
 import { getMagnitudeValueLabel } from '@/lib/earthquakes/details-panel';
 import { playbackClock } from '@/lib/earthquakes/playback-clock';
 import { earthquakesQueryOptions } from '@/lib/earthquakes/query-options';
+import { getRegionEarthquakes } from '@/lib/earthquakes/regions';
 import { type Interval, getEarthquakeFilters } from '@/lib/earthquakes/search-schema';
 import {
   type SummaryStats,
@@ -37,7 +38,12 @@ function getCountPhrase(interval: Interval, count: number, locale: Locale): stri
   return phrase({}, { locale });
 }
 
-function getLargestLabel(largest: Earthquake | null, locale: Locale): string {
+function getLargestLabel(
+  largest: Earthquake | null,
+  place: string | undefined,
+  locale: Locale,
+): string {
+  if (place !== undefined) return m.summary_largest_here({}, { locale });
   if (!largest?.place) return m.summary_largest({}, { locale });
   return m.summary_largest_at({ place: largest.place }, { locale });
 }
@@ -51,6 +57,15 @@ function getSummaryClassName(isHidden: boolean): string {
     'absolute top-[143px] left-14 z-10 w-[250px] backdrop-blur-[50px] [transition:opacity_450ms_ease-out,translate_600ms_ease-out,visibility_600ms] motion-reduce:transition-none',
     isHidden && 'pointer-events-none invisible -translate-x-6 opacity-0',
   );
+}
+
+function getAreaEarthquakes(earthquakes: Earthquake[], place: string | undefined): Earthquake[] {
+  return place === undefined ? earthquakes : getRegionEarthquakes(earthquakes, place);
+}
+
+function getCountClassName(place: string | undefined): string {
+  const padding = place === undefined ? 'py-6' : 'pt-2 pb-6';
+  return `flex flex-col gap-2 text-foreground ${padding}`;
 }
 
 type SummaryStatProps = { label: string; value: string };
@@ -71,10 +86,15 @@ export function SummaryPanel() {
   const { data } = useQuery(earthquakesQueryOptions(getEarthquakeFilters(search)));
   const isQuakeSelected = useIsQuakeSelected();
   const locale = getLocale();
+  const { place } = search;
   const earthquakes = data?.earthquakes ?? EMPTY_EARTHQUAKES;
-  const index = useMemo(() => getSummaryIndex(earthquakes), [earthquakes]);
+  const index = useMemo(
+    () => getSummaryIndex(getAreaEarthquakes(earthquakes, place)),
+    [earthquakes, place],
+  );
   const [shownCount, setShownCount] = useState<number | null>(null);
   const stats: SummaryStats = getSummaryStats(index, shownCount ?? index.sortedTimes.length);
+  const isAreaEmpty = place !== undefined && stats.count === 0;
 
   useLayoutEffect(() => {
     let current: number | null = null;
@@ -97,22 +117,37 @@ export function SummaryPanel() {
       data-testid="summary"
       className={getSummaryClassName(isQuakeSelected)}
     >
-      <p className="flex flex-col gap-2 py-6 text-foreground">
-        <span data-testid="summary-count" className="text-numeral-l">
-          {getDecimalLabel(stats.count, locale)}
-        </span>{' '}
-        <span className="text-value">{getCountPhrase(search.interval, stats.count, locale)}</span>
-      </p>
-      <dl className="border-b border-line">
-        <SummaryStat
-          label={m.summary_likely_felt({}, { locale })}
-          value={getDecimalLabel(stats.feltCount, locale)}
-        />
-        <SummaryStat
-          label={getLargestLabel(stats.largest, locale)}
-          value={getLargestValue(stats.largest, locale)}
-        />
-      </dl>
+      {place !== undefined && (
+        <p data-testid="summary-eyebrow" className="truncate pt-6 text-label text-muted uppercase">
+          {m.summary_in_view({ place }, { locale })}
+        </p>
+      )}
+      {isAreaEmpty ? (
+        <p className="border-b border-line pt-2 pb-6 text-body text-foreground">
+          {m.summary_area_empty({}, { locale })}
+        </p>
+      ) : (
+        <>
+          <p className={getCountClassName(place)}>
+            <span data-testid="summary-count" className="text-numeral-l">
+              {getDecimalLabel(stats.count, locale)}
+            </span>{' '}
+            <span className="text-value">
+              {getCountPhrase(search.interval, stats.count, locale)}
+            </span>
+          </p>
+          <dl className="border-b border-line">
+            <SummaryStat
+              label={m.summary_likely_felt({}, { locale })}
+              value={getDecimalLabel(stats.feltCount, locale)}
+            />
+            <SummaryStat
+              label={getLargestLabel(stats.largest, place, locale)}
+              value={getLargestValue(stats.largest, locale)}
+            />
+          </dl>
+        </>
+      )}
     </section>
   );
 }
