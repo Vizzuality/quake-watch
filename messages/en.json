@@ -43,5 +43,6 @@
   "tooltip_age_days": "{count} d ago",
   "tooltip_depth_deep": "{depth} deep",
   "tooltip_likely_felt": "Likely felt",
-  "tooltip_click_to_open": "Click to open"
+  "tooltip_click_to_open": "Click to open",
+  "depth_legend_label": "Depth scale, {shallowest} to {deepest}"
 }

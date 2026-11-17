@@ -3,7 +3,7 @@ import path from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-import { DEPTH_COLOR_STOPS, getDepthColor, getDepthRgb } from './depth-color';
+import { DEPTH_COLOR_STOPS, getDepthColor, getDepthGradient, getDepthRgb } from './depth-color';
 
 function getStopRgb(index: number): string {
   const [, r, g, b] = DEPTH_COLOR_STOPS[index];
@@ -45,6 +45,14 @@ describe('getDepthRgb', () => {
 
   it('interpolates unrounded channels between stops', () => {
     expect(getDepthRgb(35)).toEqual([255, 124, 92.5]);
+  });
+});
+
+describe('getDepthGradient', () => {
+  it('places every depth stop at its share of the 0–700 km scale', () => {
+    expect(getDepthGradient(180)).toBe(
+      `linear-gradient(180deg, ${getStopRgb(0)} 0%, ${getStopRgb(1)} 10%, ${getStopRgb(2)} 42.86%, ${getStopRgb(3)} 100%)`,
+    );
   });
 });
 
