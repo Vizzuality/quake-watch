@@ -1,4 +1,4 @@
-import { type PointerEventHandler, useLayoutEffect, useRef, useState } from 'react';
+import { type PointerEventHandler, useEffect, useLayoutEffect, useRef, useState } from 'react';
 
 import { getDepthColor } from '@/lib/earthquakes/depth-color';
 import {
@@ -25,6 +25,7 @@ type QuakeTooltipProps = {
   anchor: Point;
   containerSize: Size;
   onOpen: () => void;
+  getWheelTarget: () => HTMLElement | null | undefined;
   onPointerEnter: PointerEventHandler<HTMLDivElement>;
   onPointerLeave: PointerEventHandler<HTMLDivElement>;
 };
@@ -157,6 +158,7 @@ export function QuakeTooltip({
   anchor,
   containerSize,
   onOpen,
+  getWheelTarget,
   onPointerEnter,
   onPointerLeave,
 }: QuakeTooltipProps) {
@@ -172,6 +174,19 @@ export function QuakeTooltip({
     if (!element) return;
     setMeasuredSize((current) => getMeasuredSize(current, element));
   }, [earthquake, variant, locale]);
+
+  useEffect(() => {
+    const element = ref.current;
+    if (!element) return;
+    function handleWheel(event: WheelEvent) {
+      const target = getWheelTarget();
+      if (target && !target.dispatchEvent(new WheelEvent(event.type, event))) {
+        event.preventDefault();
+      }
+    }
+    element.addEventListener('wheel', handleWheel, { passive: false });
+    return () => element.removeEventListener('wheel', handleWheel);
+  }, [getWheelTarget]);
 
   return (
     <div

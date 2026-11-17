@@ -10,9 +10,21 @@ const PNG_SIGNATURE = '89504e470d0a1a0a';
 let up: SmokeServer;
 let down: SmokeServer;
 
+async function getPage(server: SmokeServer, pathname: string) {
+  const response = await fetch(`${server.origin}${pathname}`, { headers: { accept: 'text/html' } });
+  return { status: response.status, html: await response.text() };
+}
+
 async function getHtml(pathname: string): Promise<string> {
-  const response = await fetch(`${up.origin}${pathname}`, { headers: { accept: 'text/html' } });
-  return response.text();
+  return (await getPage(up, pathname)).html;
+}
+
+function getTitle(html: string): string | undefined {
+  return /<title>([^<]*)<\/title>/.exec(html)?.[1];
+}
+
+function getCanonical(html: string): string[] {
+  return [...html.matchAll(/<link rel="canonical" href="([^"]*)"/g)].map((match) => match[1]);
 }
 
 function getProperty(html: string, property: string): string[] {
@@ -109,5 +121,38 @@ describe('site share card', () => {
   it('answers 404 for an unknown catalogue', async () => {
     const image = await getImage(up, 'http://x/en/og/earthquakes/nope/abc.png');
     expect(image.status).toBe(404);
+  });
+});
+
+describe('shared Earthquake page', () => {
+  it('previews the Earthquake in the request locale with a quake-only canonical', async () => {
+    const { status, html } = await getPage(up, `/es?quake=usgs:${USGS_ID}&lat=10&lon=20&zoom=3`);
+    const canonical = expect.stringMatching(new RegExp(`/es\\?quake=usgs:${USGS_ID}$`));
+
+    expect(status).toBe(200);
+    expect(getTitle(html)).toMatch(/^Terremoto M7\.7 · 12 km WSW of Pitaloza Arriba, Panama · /);
+    expect(getProperty(html, 'og:image')).toEqual([
+      expect.stringMatching(new RegExp(`/es/og/earthquakes/usgs/${USGS_ID}\\.png$`)),
+    ]);
+    expect(getCanonical(html)).toEqual([canonical]);
+    expect(getProperty(html, 'og:url')).toEqual([canonical]);
+    expect(getName(html, 'robots')).toEqual([expect.stringContaining('noindex')]);
+  });
+
+  it('falls back to the site preview for an unknown Earthquake', async () => {
+    const { status, html } = await getPage(up, '/en?quake=usgs:doesnotexist123');
+
+    expect(status).toBe(200);
+    expect(getTitle(html)).toBe('Earthquakes worldwide | Quake Watch');
+    expect(getProperty(html, 'og:image')).toEqual([expect.stringMatching(/\/en\/og\/site\.png$/)]);
+    expect(getCanonical(html)).toEqual([expect.stringMatching(/\/en$/)]);
+  });
+
+  it('falls back to the site preview when the agency is down', async () => {
+    const { status, html } = await getPage(down, `/en?quake=usgs:${USGS_ID}`);
+
+    expect(status).toBe(200);
+    expect(getTitle(html)).toBe('Earthquakes worldwide | Quake Watch');
+    expect(getProperty(html, 'og:image')).toEqual([expect.stringMatching(/\/en\/og\/site\.png$/)]);
   });
 });

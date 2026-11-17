@@ -21,6 +21,7 @@ import {
 } from '@/containers/globe/use-globe-controls';
 import { CAMERA_DEBOUNCE_MS, type Camera } from '@/hooks/use-camera-search';
 import { getFeltReachKm } from '@/lib/earthquakes/intensity';
+import { playbackClock } from '@/lib/earthquakes/playback-clock';
 import { EARTHQUAKE_SEARCH_ROUTE, type MinMagnitude } from '@/lib/earthquakes/search-schema';
 import {
   FELT_RING_LOOK,
@@ -38,6 +39,8 @@ import {
   SELECT_MIN_ZOOM,
   ZOOM_RANGE,
   getFlyView,
+  getWheelFactor,
+  getZoomedView,
 } from '@/lib/globe/motion';
 import { QUAKE_MARKER_LOOK, getEpicentreRadiusPx, getHypocentreRadius } from '@/lib/globe/quakes';
 import { getLatLonVector, getRotatedVector } from '@/lib/globe/sphere';
@@ -1334,6 +1337,19 @@ describe('globe quake tooltip', () => {
     expect(globe.getTooltip()).toBeNull();
   });
 
+  it('zooms the globe on a wheel over the tooltip as over the empty globe', async () => {
+    const globe = await renderTooltipGlobe([TOOLTIP_M5]);
+    const tooltip = await globe.hover(getScreenPoint(TOOLTIP_M5.lat, TOOLTIP_M5.lon, 1));
+    globe.moveOntoTooltip(tooltip);
+
+    const event = new WheelEvent('wheel', { deltaY: -200, bubbles: true, cancelable: true });
+    tooltip.dispatchEvent(event);
+
+    expect(event.defaultPrevented).toBe(true);
+    expect(getGlobeView().zoom).toBeCloseTo(getZoomedView(INITIAL_VIEW, getWheelFactor(-200)).zoom);
+    await expect.poll(globe.getTooltip).toBeNull();
+  });
+
   it('keeps the Click to open button out of the tab order', async () => {
     const globe = await renderTooltipGlobe([TOOLTIP_M5]);
 
@@ -2297,5 +2313,109 @@ describe('globe controls', () => {
     expect(step(60)).toEqual(initialView);
     controls.frameTo(FLY_TARGET);
     expect(controls.advance(1, 0)).toEqual(initialView);
+  });
+});
+
+describe('globe playback', { timeout: 30_000 }, () => {
+  const early = '2026-11-01T10:00:00.000Z';
+  const late = '2026-11-01T14:00:00.000Z';
+  const range = {
+    start: Date.parse('2026-11-01T00:00:00.000Z'),
+    end: Date.parse(late) + 3_600_000,
+  };
+
+  afterEach(() => {
+    playbackClock.setRange(null);
+    vi.restoreAllMocks();
+  });
+
+  async function renderPlayback(
+    quakes: TestQuake[],
+    { reducedMotion = true, playbackRange = range } = {},
+  ) {
+    stubReducedMotion(reducedMotion);
+    stubPreservedDrawingBuffer();
+    const globe = await renderGlobe({ 3: quakes }, { initialEntries: [BOARD_VIEW_PATH] });
+    const empty = await globe.getSettledSnapshot();
+    const live = await globe.showMinMagnitude(3);
+    playbackClock.setRange(playbackRange);
+    const snapshot = async () => {
+      await waitFrames(3);
+      return getSnapshot(globe.getCanvas());
+    };
+    return { empty, live, snapshot };
+  }
+
+  it('renders only the Earthquakes up to the playhead and all of them when live', async () => {
+    const north = { ...NORTH_QUAKE, time: early };
+    const south = { ...SOUTH_QUAKE, time: late };
+    const { empty, live, snapshot } = await renderPlayback([north, south]);
+    const northPoint = getQuakePoints(north).hypocentre;
+    const southPoint = getQuakePoints(south).hypocentre;
+
+    expect(getPaintedDiffCount(empty, live, northPoint, 6)).toBeGreaterThan(0);
+    expect(getPaintedDiffCount(empty, live, southPoint, 6)).toBeGreaterThan(0);
+    playbackClock.seek(Date.parse(early) + 60_000);
+    const between = await snapshot();
+    expect(getPaintedDiffCount(empty, between, northPoint, 6)).toBeGreaterThan(0);
+    expect(getPaintedDiffCount(empty, between, southPoint, 6)).toBe(0);
+    playbackClock.seek(range.start);
+    expect(getChangedPixelCount(empty, await snapshot())).toBe(0);
+    playbackClock.setRange(null);
+    expect(getChangedPixelCount(live, await snapshot())).toBe(0);
+  });
+
+  it('starts a wave when the playhead passes the Earthquake', async () => {
+    const wave = { ...WAVE_M7, time: early };
+    const { live, snapshot } = await renderPlayback([wave], { reducedMotion: false });
+
+    playbackClock.seek(Date.parse(early) - 60_000);
+    playbackClock.play();
+    await expect.poll(() => playbackClock.getPlayhead() ?? 0).toBeGreaterThan(Date.parse(early));
+    const passed = await snapshot();
+    playbackClock.pause();
+
+    expect(getChangedPixelCount(live, passed)).toBeGreaterThan(0);
+  });
+
+  it('starts the wave of an Earthquake passed in the last frame before the end', async () => {
+    const wave = { ...WAVE_M7, time: early };
+    const end = Date.parse(early) + 30_000;
+    const { live, snapshot } = await renderPlayback([wave], {
+      reducedMotion: false,
+      playbackRange: { start: end - 3_600_000, end },
+    });
+    const clock = freezeClock();
+
+    playbackClock.seek(Date.parse(early) - 60_000);
+    playbackClock.play();
+    await waitFrames(3);
+    clock.advance(48_000);
+    await waitFrames(3);
+    expect(playbackClock.getSnapshot()).toMatchObject({ isPlaying: false, playhead: null });
+    clock.advance(getWaveLifeSeconds(7) * 500);
+    invalidate();
+    const passed = await snapshot();
+    clock.restore();
+
+    expect(getChangedPixelCount(live, passed)).toBeGreaterThan(0);
+  });
+
+  it('steps the playhead without waves under reduced motion', async () => {
+    const wave = { ...WAVE_M7, time: early };
+    const { live, snapshot } = await renderPlayback([wave]);
+
+    playbackClock.seek(Date.parse(early) - 60_000);
+    playbackClock.play();
+    const started = playbackClock.getPlayhead();
+    await waitFrames(30);
+    expect(playbackClock.getPlayhead()).toBe(started);
+    await expect
+      .poll(() => playbackClock.getPlayhead() ?? 0, { timeout: 5000 })
+      .toBeGreaterThan(Date.parse(early));
+    const passed = await snapshot();
+    playbackClock.pause();
+
+    expect(getChangedPixelCount(live, passed)).toBe(0);
   });
 });

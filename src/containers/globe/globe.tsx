@@ -3,8 +3,10 @@ import { getRouteApi } from '@tanstack/react-router';
 import { Suspense, lazy, useEffect, useId, useMemo, useRef, useState } from 'react';
 
 import { type Camera, getWrappedLongitude, useCameraSearch } from '@/hooks/use-camera-search';
+import { playbackClock } from '@/lib/earthquakes/playback-clock';
 import { earthquakesQueryOptions } from '@/lib/earthquakes/query-options';
 import { type EarthquakeSearch, getEarthquakeFilters } from '@/lib/earthquakes/search-schema';
+import { getShownEarthquakes } from '@/lib/earthquakes/timeline';
 import type { Earthquake } from '@/lib/earthquakes/types';
 import { getGlobeFrame } from '@/lib/globe/frame';
 import { getFramedLongitude } from '@/lib/globe/framing';
@@ -160,7 +162,8 @@ function GlobeCanvas() {
   function getPointedQuake(point: Point): HoveredQuake | null {
     const container = containerRef.current;
     if (!container) return null;
-    return getHoveredQuake(earthquakes, controls.viewRef.current, container, point);
+    const shown = getShownEarthquakes(earthquakes, playbackClock.getPlayhead());
+    return getHoveredQuake(shown, controls.viewRef.current, container, point);
   }
 
   function selectQuake(earthquake: Earthquake) {
@@ -382,6 +385,7 @@ function GlobeCanvas() {
           anchor={hovered.anchor}
           containerSize={hovered.containerSize}
           onOpen={() => selectQuake(hovered.earthquake)}
+          getWheelTarget={() => containerRef.current}
           onPointerEnter={enterTooltip}
           onPointerLeave={leaveTooltip}
         />

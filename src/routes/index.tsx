@@ -3,22 +3,36 @@ import { ClientOnly, createFileRoute } from '@tanstack/react-router';
 import { Suspense, lazy } from 'react';
 
 import { Wordmark } from '@/components/brand/wordmark';
+import { DepthLegend } from '@/containers/depth-legend/depth-legend';
+import { FiltersPanel } from '@/containers/filters/filters-panel';
 import { GlobeSlot } from '@/containers/globe/globe-slot';
+import { Timeline } from '@/containers/timeline/timeline';
+import { getShareEarthquake } from '@/lib/earthquakes/details/share-earthquake';
 import { earthquakesQueryOptions } from '@/lib/earthquakes/query-options';
 import { EARTHQUAKE_SEARCH_ROUTE, getEarthquakeFilters } from '@/lib/earthquakes/search-schema';
+import { getDetailMeta } from '@/lib/seo/detail-meta';
 import { m } from '@/paraglide/messages';
-import { isServer } from '@/paraglide/runtime';
+import { getLocale, isServer } from '@/paraglide/runtime';
 
 const Globe = lazy(() => import('@/containers/globe/globe'));
 const EarthquakePanel = lazy(() => import('@/containers/earthquake-panel/earthquake-panel'));
 
 export const Route = createFileRoute('/')({
   ...EARTHQUAKE_SEARCH_ROUTE,
-  loaderDeps: ({ search }) => getEarthquakeFilters(search),
-  loader: ({ context, deps, preload }) => {
-    if (preload || isServer) return;
-    void context.queryClient.prefetchQuery(earthquakesQueryOptions(deps));
+  loaderDeps: ({ search }) => ({ filters: getEarthquakeFilters(search), quake: search.quake }),
+  loader: async ({ context, deps, preload }) => {
+    if (!preload && !isServer) {
+      void context.queryClient.prefetchQuery(earthquakesQueryOptions(deps.filters));
+    }
+    return { earthquake: await getShareEarthquake(context.queryClient, deps.quake) };
   },
+  head: ({ match, loaderData }) => ({
+    meta: getDetailMeta({
+      status: match.status,
+      earthquake: loaderData?.earthquake,
+      locale: getLocale(),
+    }),
+  }),
   component: Home,
 });
 
@@ -40,6 +54,7 @@ function Home() {
           <Globe />
         </GlobeSlot>
       </div>
+      <Timeline />
       <h1 className="sr-only">{m.app_title()}</h1>
       <header className="pointer-events-none relative z-10 px-10 py-4">
         <div className="flex h-10 items-center">
@@ -53,6 +68,8 @@ function Home() {
           </Suspense>
         </ClientOnly>
       )}
+      <FiltersPanel />
+      <DepthLegend />
     </main>
   );
 }
