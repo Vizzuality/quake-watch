@@ -6,6 +6,7 @@ import { Wordmark } from '@/components/brand/wordmark';
 import { DepthLegend } from '@/containers/depth-legend/depth-legend';
 import { FiltersPanel } from '@/containers/filters/filters-panel';
 import { GlobeSlot } from '@/containers/globe/globe-slot';
+import { SummaryPanel } from '@/containers/summary/summary-panel';
 import { Timeline } from '@/containers/timeline/timeline';
 import { getShareEarthquake } from '@/lib/earthquakes/details/share-earthquake';
 import { earthquakesQueryOptions } from '@/lib/earthquakes/query-options';
@@ -61,6 +62,7 @@ function Home() {
           <Wordmark />
         </div>
       </header>
+      <SummaryPanel />
       {quake !== undefined && (
         <ClientOnly>
           <Suspense fallback={null}>
