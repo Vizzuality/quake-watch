@@ -47,11 +47,17 @@ import { getEpicentreRadiusPx } from '@/lib/globe/quakes';
 
 import { QuakeTooltip } from './quake-tooltip';
 import type { GlobeControls } from './use-globe-controls';
-import { getQuakeKey, getSelectedEarthquake, useHoveredQuake } from './use-hovered-quake';
+import {
+  getQuakeKey,
+  getSelectedEarthquake,
+  listenForTooltipEscape,
+  useHoveredQuake,
+} from './use-hovered-quake';
 
 export type MapCentre = { lat: number; lon: number };
 export type MapHandover = {
   activate: (urlZoom?: number) => boolean;
+  centre: (earthquake: Earthquake) => void;
   focus: (earthquake: Earthquake) => void;
 };
 
@@ -247,11 +253,7 @@ export default function GlobeMap({
 
   useEffect(() => {
     if (!hovered) return;
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === 'Escape') hide();
-    }
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
+    return listenForTooltipEscape(hide);
   }, [hovered, hide]);
 
   useEffect(() => {
@@ -335,6 +337,10 @@ export default function GlobeMap({
       setInput(true);
       setOpacity(controls.viewRef.current);
       return true;
+    }
+
+    function centre({ latitude, longitude }: Earthquake) {
+      map.easeTo({ center: [longitude, latitude] });
     }
 
     function focus(earthquake: Earthquake) {
@@ -462,7 +468,7 @@ export default function GlobeMap({
 
     sync(controls.viewRef.current);
     controls.setFrameListener(sync);
-    handoverRef.current = { activate, focus };
+    handoverRef.current = { activate, centre, focus };
     map.once('style.load', handleStyleLoad);
     map.on('movestart', handleMoveStart);
     map.on('moveend', handleMoveEnd);

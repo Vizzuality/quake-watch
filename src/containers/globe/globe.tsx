@@ -36,8 +36,10 @@ import {
   type Point,
   getQuakeKey,
   getSelectedEarthquake,
+  listenForTooltipEscape,
   useHoveredQuake,
 } from './use-hovered-quake';
+import { subscribeWaveReplay } from './wave-replay';
 
 declare global {
   interface Window {
@@ -262,6 +264,8 @@ function GlobeCanvas() {
     };
   }, [waves]);
 
+  useEffect(() => subscribeWaveReplay((id) => waves.play([id])), [waves]);
+
   useEffect(() => {
     if (!import.meta.env.DEV) return;
     window.__globeQuakePoints = () => {
@@ -311,8 +315,11 @@ function GlobeCanvas() {
     }
     if (!selectedEarthquake || quake === lastFlownRef.current) return;
     lastFlownRef.current = quake;
-    if (isMapActive) return;
     hideHover();
+    if (isMapActive) {
+      mapHandoverRef.current?.centre(selectedEarthquake);
+      return;
+    }
     const { latitude, longitude } = selectedEarthquake;
     controls.flyTo(getCenteredView(latitude, longitude, controls.viewRef.current));
   }, [quake, selectedEarthquake, controls, hideHover, isMapActive]);
@@ -323,11 +330,7 @@ function GlobeCanvas() {
 
   useEffect(() => {
     if (!hovered) return;
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === 'Escape') hideHover();
-    }
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
+    return listenForTooltipEscape(hideHover);
   }, [hovered, hideHover]);
 
   return (
