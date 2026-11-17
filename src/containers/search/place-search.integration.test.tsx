@@ -130,6 +130,24 @@ describe('place search', () => {
     await expect.element(screen.getByRole('listbox')).not.toBeInTheDocument();
   });
 
+  it('starts from the first option again after picking a later one', async () => {
+    const { screen, router, combobox } = await renderSearch();
+    await userEvent.type(combobox, 'Vanu');
+    await expect.element(screen.getByRole('option').nth(1)).toBeVisible();
+
+    await userEvent.keyboard('{ArrowDown}');
+    await userEvent.keyboard('{Enter}');
+    await expect.poll(() => getPlaceSearch(router)).toBe('Vanuatu Islands');
+    await userEvent.keyboard('{ArrowDown}');
+
+    const first = screen.getByRole('option').nth(0);
+    await expect.element(first).toHaveTextContent('Vanuatu Islands 1');
+    expect(combobox.element().getAttribute('aria-activedescendant')).toBe(first.element().id);
+    await userEvent.keyboard('{Enter}');
+    await expect.poll(() => getPlaceSearch(router)).toBe('Vanuatu Islands');
+    await expect.element(combobox).toHaveValue('Vanuatu Islands');
+  });
+
   it('closes the list on Escape without closing the layer under it', async () => {
     const { screen, combobox } = await renderSearch();
     const onLayerEscape = vi.fn<() => void>();

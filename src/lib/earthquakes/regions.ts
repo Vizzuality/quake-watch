@@ -1,11 +1,14 @@
+import { REGION_ALIASES } from './region-aliases';
 import type { Earthquake } from './types';
 
 export const REGION_SUGGESTION_LIMIT = 6;
 
 const DISTANCE_PREFIX = /^\d+(?:\.\d+)?\s*km\s+[NSEW]{1,3}\s+of\s+/i;
 const DIRECTION_PREFIX =
-  /^(?:(?:near|off)\s+(?:the\s+)?(?:(?:north|south|east|west)(?:ern)?\s+)?coast\s+of|(?:north|south|east|west|northeast|northwest|southeast|southwest)\s+of)\s+(?:the\s+)?/i;
-const REGION_SUFFIX = /\s+region$/i;
+  /^(?:(?:near|off)\s+(?:the\s+)?(?:(?:north|south|east|west|[ns]\.?[ew]|[nsew])\.?(?:ern)?\s+)?coast\s+of|(?:north|south|east|west|northeast|northwest|southeast|southwest)\s+of)\s+(?:the\s+)?/i;
+const ISLAND_PREFIX = /^(?:north|south)\s+island\s+of\s+/i;
+const REGION_SUFFIX = /\s+(?:region|reg\.?)$/i;
+const ISLANDS_ABBREVIATION = /\bIs\.(?=[\s-]|$)/g;
 
 export type RegionSuggestion = { name: string; count: number };
 
@@ -15,9 +18,12 @@ export function getEarthquakeRegion(place: string | null): string | null {
   const region = segment
     .replace(DISTANCE_PREFIX, '')
     .replace(DIRECTION_PREFIX, '')
+    .replace(ISLAND_PREFIX, '')
     .replace(REGION_SUFFIX, '')
+    .replace(ISLANDS_ABBREVIATION, 'Islands')
     .trim();
-  return region || null;
+  if (!region) return null;
+  return REGION_ALIASES.get(region.toLowerCase()) ?? region;
 }
 
 export function getRegionKey(name: string): string {

@@ -1621,6 +1621,18 @@ describe('globe camera URL', () => {
     expect(Math.abs(getGlobeView().lat - VIEW_LAT)).toBeLessThanOrEqual(0.1);
   });
 
+  it('frames the most active window for a place without Earthquakes', async () => {
+    await renderTooltipGlobe(FRAME_QUAKES, {
+      initialEntries: ['/?place=Atlantis'],
+      reducedMotion: false,
+    });
+
+    await expect
+      .poll(() => getLonDistance(getGlobeView().lon, FRAME_LON), { timeout: 3000 })
+      .toBeLessThanOrEqual(2.5);
+    expect(getGlobeView().zoom).toBe(1);
+  });
+
   it('leaves the camera in place on Back and Forward', async () => {
     const globe = await renderTooltipGlobe([TOOLTIP_M5, COMPACT_M4]);
 

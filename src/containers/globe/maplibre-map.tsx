@@ -59,6 +59,7 @@ export type MapHandover = {
   activate: (urlZoom?: number) => boolean;
   centre: (earthquake: Earthquake) => void;
   focus: (earthquake: Earthquake) => void;
+  exit: () => void;
 };
 
 type GlobeMapProps = {
@@ -468,7 +469,7 @@ export default function GlobeMap({
 
     sync(controls.viewRef.current);
     controls.setFrameListener(sync);
-    handoverRef.current = { activate, centre, focus };
+    handoverRef.current = { activate, centre, focus, exit };
     map.once('style.load', handleStyleLoad);
     map.on('movestart', handleMoveStart);
     map.on('moveend', handleMoveEnd);

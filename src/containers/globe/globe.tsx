@@ -84,6 +84,10 @@ function isViewCentredOn(view: GlobeView, { latitude, longitude }: Earthquake): 
   );
 }
 
+function isPlaceFound(earthquakes: readonly Earthquake[], place: string | undefined): boolean {
+  return place !== undefined && getRegionEarthquakes(earthquakes, place).length > 0;
+}
+
 function getCursorClassName(isOverQuake: boolean): string {
   return isOverQuake ? 'cursor-pointer' : 'cursor-grab';
 }
@@ -303,14 +307,19 @@ function GlobeCanvas() {
   useEffect(() => {
     if (data === undefined || isFramingDecidedRef.current) return;
     isFramingDecidedRef.current = true;
-    if (initialView !== undefined || quake !== undefined || place !== undefined) return;
+    if (initialView !== undefined || quake !== undefined) return;
+    if (isPlaceFound(data.earthquakes, place)) return;
     const longitude = getFramedLongitude(data.earthquakes);
     if (longitude === undefined) return;
     controls.frameTo(getFramedView(longitude, controls.viewRef.current));
   }, [data, initialView, quake, place, controls]);
 
   useEffect(() => {
-    if (place === lastPlaceRef.current || quake !== undefined || isMapActive) return;
+    if (place === lastPlaceRef.current || quake !== undefined) return;
+    if (isMapActive) {
+      mapHandoverRef.current?.exit();
+      return;
+    }
     const view = controls.viewRef.current;
     if (place === undefined) {
       lastPlaceRef.current = undefined;

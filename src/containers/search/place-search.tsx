@@ -97,23 +97,27 @@ export function PlaceSearch() {
   const suggestions = useMemo(() => getRegionSuggestions(earthquakes, text), [earthquakes, text]);
   const isListShown = isOpen && text.trim() !== '';
   const hasOptions = isListShown && suggestions.length > 0;
+  const optionIndex = Math.min(activeIndex, Math.max(suggestions.length - 1, 0));
   const controlsId = hasOptions ? listboxId : undefined;
-  const activeOption = hasOptions ? `${listboxId}-${activeIndex}` : undefined;
+  const activeOption = hasOptions ? `${listboxId}-${optionIndex}` : undefined;
 
   if (place !== syncedPlace) {
     setSyncedPlace(place);
     setText(place ?? '');
+    setActiveIndex(0);
   }
 
   function pick(suggestion: RegionSuggestion) {
     setText(suggestion.name);
     setIsOpen(false);
+    setActiveIndex(0);
     void setSearch({ place: suggestion.name });
   }
 
   function clear() {
     setText('');
     setIsOpen(false);
+    setActiveIndex(0);
     if (place !== undefined) void setSearch({ place: undefined });
   }
 
@@ -133,12 +137,13 @@ export function PlaceSearch() {
     if (step !== undefined) {
       event.preventDefault();
       setIsOpen(true);
-      if (hasOptions) setActiveIndex(getNextIndex(activeIndex, step, suggestions.length));
+      if (hasOptions) setActiveIndex(getNextIndex(optionIndex, step, suggestions.length));
       return;
     }
-    if (event.key !== 'Enter' || !hasOptions) return;
+    const suggestion = suggestions.at(optionIndex);
+    if (event.key !== 'Enter' || !hasOptions || !suggestion) return;
     event.preventDefault();
-    pick(suggestions[activeIndex]);
+    pick(suggestion);
   }
 
   function handleClearClick() {
@@ -168,7 +173,7 @@ export function PlaceSearch() {
           <Suggestions
             id={listboxId}
             suggestions={suggestions}
-            activeIndex={activeIndex}
+            activeIndex={optionIndex}
             onPick={pick}
           />
         </div>
