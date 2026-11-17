@@ -45,6 +45,23 @@ describe('getAlternateLinks', () => {
     expect(links.isNoindex).toBe(true);
   });
 
+  it('keeps only the shared quake in the canonical and alternates', () => {
+    overwriteGetLocale(() => 'es');
+
+    const links = getAlternateLinks({
+      pathname: '/',
+      search: { quake: 'usgs:us6000u4j2', lat: 10, lon: 20, zoom: 2 },
+      quake: 'usgs:us6000u4j2',
+    });
+
+    expect(links.canonical).toBe(`${ORIGIN}/es?quake=usgs:us6000u4j2`);
+    expect(links.alternates).toEqual([
+      { hreflang: 'en', href: `${ORIGIN}/en?quake=usgs:us6000u4j2` },
+      { hreflang: 'es', href: `${ORIGIN}/es?quake=usgs:us6000u4j2` },
+      { hreflang: 'x-default', href: `${ORIGIN}/en?quake=usgs:us6000u4j2` },
+    ]);
+  });
+
   it('indexes the home page without search params', () => {
     expect(getAlternateLinks({ pathname: '/', search: {} }).isNoindex).toBe(false);
   });
