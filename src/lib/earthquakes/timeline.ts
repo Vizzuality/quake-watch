@@ -1,4 +1,4 @@
-import type { Interval } from './search-schema';
+import { type Interval, getIntervalStart } from './search-schema';
 import type { Earthquake } from './types';
 
 type PlaybackWindow = '24h' | '7d';
@@ -9,7 +9,7 @@ const DAY_MS = 86_400_000;
 const WINDOW_MS: Record<PlaybackWindow, number> = { '24h': DAY_MS, '7d': 7 * DAY_MS };
 
 export const AGE_OPACITY_FLOOR = 0.25;
-export const PLAYBACK_DURATION_MS = 30_000;
+export const PLAYBACK_DURATION_MS = 48_000;
 
 export function getLoadedRange(earthquakes: Earthquake[]): TimeRange | null {
   if (earthquakes.length === 0) return null;
@@ -104,4 +104,46 @@ export function getPlaybackT(input: { range: TimeRange; elapsedMs: number }): nu
   const span = range.end - range.start;
   if (span <= 0) return range.end;
   return Math.min(range.end, range.start + elapsedMs * (span / PLAYBACK_DURATION_MS));
+}
+
+export function getPlaybackSpeed(range: TimeRange): number {
+  return (range.end - range.start) / PLAYBACK_DURATION_MS;
+}
+
+export function getShownCount(sortedTimes: ArrayLike<number>, playhead: number | null): number {
+  if (playhead === null) return sortedTimes.length;
+  let low = 0;
+  let high = sortedTimes.length;
+  while (low < high) {
+    const middle = (low + high) >>> 1;
+    if (sortedTimes[middle] <= playhead) low = middle + 1;
+    else high = middle;
+  }
+  return low;
+}
+
+export function getSortedByTime<T extends { time: number }>(items: readonly T[]): T[] {
+  return [...items].sort((a, b) => a.time - b.time);
+}
+
+export function getPassedItems<T>(
+  sorted: readonly T[],
+  sortedTimes: ArrayLike<number>,
+  from: number | null,
+  to: number | null,
+): T[] {
+  if (from === null || to === null || to <= from) return [];
+  return sorted.slice(getShownCount(sortedTimes, from), getShownCount(sortedTimes, to));
+}
+
+export function getShownEarthquakes<T extends { time: number }>(
+  earthquakes: readonly T[],
+  playhead: number | null,
+): readonly T[] {
+  if (playhead === null) return earthquakes;
+  return earthquakes.filter(({ time }) => time <= playhead);
+}
+
+export function getIntervalRange(interval: Interval, fetchedAt: number): TimeRange {
+  return { start: getIntervalStart(interval, new Date(fetchedAt)).getTime(), end: fetchedAt };
 }

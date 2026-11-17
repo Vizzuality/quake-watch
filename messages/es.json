@@ -43,5 +43,12 @@
   "tooltip_age_days": "hace {count} d",
   "tooltip_depth_deep": "{depth} de profundidad",
   "tooltip_likely_felt": "Probablemente sentido",
-  "tooltip_click_to_open": "Abrir detalles"
+  "tooltip_click_to_open": "Abrir detalles",
+  "timeline_label": "Línea de tiempo",
+  "timeline_play": "Reproducir",
+  "timeline_pause": "Pausar",
+  "timeline_now": "Ahora",
+  "timeline_speed_hour": "1 hora ≈ {seconds} s",
+  "timeline_speed_day": "1 día ≈ {seconds} s",
+  "timeline_scrub_hint": "arrastra el anillo para moverte en el tiempo"
 }

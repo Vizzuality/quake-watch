@@ -43,5 +43,12 @@
   "tooltip_age_days": "{count} d ago",
   "tooltip_depth_deep": "{depth} deep",
   "tooltip_likely_felt": "Likely felt",
-  "tooltip_click_to_open": "Click to open"
+  "tooltip_click_to_open": "Click to open",
+  "timeline_label": "Timeline",
+  "timeline_play": "Play",
+  "timeline_pause": "Pause",
+  "timeline_now": "Now",
+  "timeline_speed_hour": "1 hour ≈ {seconds} s",
+  "timeline_speed_day": "1 day ≈ {seconds} s",
+  "timeline_scrub_hint": "drag the ring to scrub"
 }

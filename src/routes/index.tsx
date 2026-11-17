@@ -4,6 +4,7 @@ import { lazy } from 'react';
 
 import { Wordmark } from '@/components/brand/wordmark';
 import { GlobeSlot } from '@/containers/globe/globe-slot';
+import { Timeline } from '@/containers/timeline/timeline';
 import { earthquakesQueryOptions } from '@/lib/earthquakes/query-options';
 import { EARTHQUAKE_SEARCH_ROUTE, getEarthquakeFilters } from '@/lib/earthquakes/search-schema';
 import { m } from '@/paraglide/messages';
@@ -39,6 +40,7 @@ function Home() {
           <Globe />
         </GlobeSlot>
       </div>
+      <Timeline />
       <h1 className="sr-only">{m.app_title()}</h1>
       <header className="pointer-events-none relative z-10 px-10 py-4">
         <div className="flex h-10 items-center">
