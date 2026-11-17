@@ -35,7 +35,19 @@ import {
 import { getEarthquakeMeaning } from '@/lib/earthquakes/meaning';
 import { SOURCE_ADAPTERS, earthquakesQueryOptions } from '@/lib/earthquakes/query-options';
 import { getEarthquakeFilters } from '@/lib/earthquakes/search-schema';
-import { getTooltipFelt } from '@/lib/earthquakes/tooltip';
+import {
+  type Sequence,
+  getSequenceBlurb,
+  getSequenceOf,
+  getSequenceRoleLabel,
+  getSequenceRows,
+  getSequences,
+} from '@/lib/earthquakes/sequences';
+import {
+  getTooltipCompactMeta,
+  getTooltipFelt,
+  getTooltipMagnitude,
+} from '@/lib/earthquakes/tooltip';
 import type { Earthquake } from '@/lib/earthquakes/types';
 import { getDecimalLabel, getKmLabel } from '@/lib/format';
 import { m } from '@/paraglide/messages';
@@ -238,6 +250,64 @@ function EarthquakeFacts({
   );
 }
 
+function getRoleClassName(isSelected: boolean): string {
+  return isSelected ? 'text-label text-accent uppercase' : 'text-label text-muted uppercase';
+}
+
+function RelatedEarthquakes({
+  sequence,
+  selected,
+  locale,
+  onGoTo,
+}: {
+  sequence: Sequence | null;
+  selected: Earthquake;
+  locale: Locale;
+  onGoTo: (earthquake: Earthquake) => void;
+}) {
+  const rows = sequence ? getSequenceRows(sequence, selected) : [];
+
+  return (
+    <div className="mt-4 flex flex-col gap-2 border-t border-line pt-3.5">
+      <h3 className="text-label text-muted uppercase">{m.details_related()}</h3>
+      <p className="text-body-s text-muted">{getSequenceBlurb(sequence, selected, locale)}</p>
+      {rows.length > 1 && (
+        <ul className="flex flex-col">
+          {rows.map((member) => {
+            const { earthquake } = member;
+            const isSelected = earthquake === selected;
+            return (
+              <li key={getQuakeKey(earthquake)}>
+                <button
+                  type="button"
+                  aria-current={isSelected || undefined}
+                  onClick={() => onGoTo(earthquake)}
+                  className="flex h-9 w-full cursor-pointer items-center gap-3 border-b border-line text-left hover:text-accent"
+                >
+                  <span
+                    aria-hidden="true"
+                    className="size-2 shrink-0 rounded-full"
+                    style={{ backgroundColor: getDepthColor(earthquake.depthKm) }}
+                  />
+                  <span className="text-body-s font-medium">
+                    {getTooltipMagnitude(earthquake.magnitude, locale)}
+                  </span>
+                  <span className="text-label-s text-muted uppercase">
+                    {getTooltipCompactMeta(earthquake.time, earthquake.depthKm, locale)}
+                  </span>
+                  <span className={`ml-auto ${getRoleClassName(isSelected)}`}>
+                    {getSequenceRoleLabel(member, selected, locale)}
+                  </span>
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </div>
+  );
+}
+
 function PanelNavigation({
   position,
   locale,
@@ -325,9 +395,10 @@ export default function EarthquakePanel({ quake }: { quake: string }) {
   const locale = getLocale();
   const earthquakes = list?.earthquakes ?? EMPTY_EARTHQUAKES;
   const ordered = useMemo(() => getTimeOrderedEarthquakes(earthquakes), [earthquakes]);
+  const sequences = useMemo(() => getSequences(earthquakes), [earthquakes]);
   const position = getEarthquakePosition(ordered, quake);
-  const earthquake =
-    getSelectedEarthquake(earthquakes, quake) ?? getDetailEarthquake(detail ?? null);
+  const listed = getSelectedEarthquake(earthquakes, quake);
+  const earthquake = listed ?? getDetailEarthquake(detail ?? null);
   const state = getPanelState(earthquake, { isListPending, isDetailPending, isDetailError });
   const [returnFocusTarget] = useState(getFocusedElement);
 
@@ -379,6 +450,14 @@ export default function EarthquakePanel({ quake }: { quake: string }) {
             headingId={headingId}
             headingRef={headingRef}
             locale={locale}
+          />
+        )}
+        {state === 'ready' && listed && (
+          <RelatedEarthquakes
+            sequence={getSequenceOf(sequences, listed)}
+            selected={listed}
+            locale={locale}
+            onGoTo={goTo}
           />
         )}
         {state === 'not-found' && (
