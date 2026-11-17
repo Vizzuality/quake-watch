@@ -95,5 +95,15 @@
   "filter_depth_deep": "Profundo",
   "filter_source_usgs": "USGS",
   "filter_source_emsc": "EMSC",
-  "depth_legend_label": "Escala de profundidad, de {shallowest} a {deepest}"
+  "depth_legend_label": "Escala de profundidad, de {shallowest} a {deepest}",
+  "summary_label": "Resumen",
+  "summary_earthquakes_24h_one": "terremoto en las últimas 24 horas.",
+  "summary_earthquakes_24h_other": "terremotos en las últimas 24 horas.",
+  "summary_earthquakes_3d_one": "terremoto en los últimos 3 días.",
+  "summary_earthquakes_3d_other": "terremotos en los últimos 3 días.",
+  "summary_earthquakes_7d_one": "terremoto esta semana.",
+  "summary_earthquakes_7d_other": "terremotos esta semana.",
+  "summary_likely_felt": "Probablemente sentidos",
+  "summary_largest": "Mayor",
+  "summary_largest_at": "Mayor · {place}"
 }

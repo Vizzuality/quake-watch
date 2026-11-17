@@ -95,5 +95,15 @@
   "filter_depth_deep": "Deep",
   "filter_source_usgs": "USGS",
   "filter_source_emsc": "EMSC",
-  "depth_legend_label": "Depth scale, {shallowest} to {deepest}"
+  "depth_legend_label": "Depth scale, {shallowest} to {deepest}",
+  "summary_label": "Summary",
+  "summary_earthquakes_24h_one": "earthquake in the last 24 hours.",
+  "summary_earthquakes_24h_other": "earthquakes in the last 24 hours.",
+  "summary_earthquakes_3d_one": "earthquake in the last 3 days.",
+  "summary_earthquakes_3d_other": "earthquakes in the last 3 days.",
+  "summary_earthquakes_7d_one": "earthquake this week.",
+  "summary_earthquakes_7d_other": "earthquakes this week.",
+  "summary_likely_felt": "Likely felt",
+  "summary_largest": "Largest",
+  "summary_largest_at": "Largest · {place}"
 }
