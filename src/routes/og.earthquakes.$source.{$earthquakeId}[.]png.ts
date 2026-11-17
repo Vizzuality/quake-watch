@@ -6,8 +6,8 @@ import { getEmscEarthquakeDetail } from '@/lib/earthquakes/details/emsc';
 import { getUsgsEarthquakeDetail } from '@/lib/earthquakes/details/usgs';
 import type { Earthquake } from '@/lib/earthquakes/types';
 import { getLocale } from '@/paraglide/runtime';
+import { EarthquakeShareCard } from '@/server/og/earthquake-share-card';
 import { getShareCardPng, getShareCardResponse } from '@/server/og/render-share-card';
-import { EarthquakeShareCard } from '@/server/og/share-card';
 
 type DetailFetcher = (
   id: string,

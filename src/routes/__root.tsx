@@ -3,6 +3,7 @@ import type { QueryClient } from '@tanstack/react-query';
 import { createRootRouteWithContext, HeadContent, Outlet, Scripts } from '@tanstack/react-router';
 import type { ReactNode } from 'react';
 
+import { getShareQuakeFromMatches } from '@/lib/earthquakes/details/share-earthquake';
 import { getAlternateLinks } from '@/lib/seo/alternate-links';
 import { isSiteIndexable } from '@/lib/seo/indexing';
 import { getSiteOpenGraphMeta } from '@/lib/seo/open-graph';
@@ -18,6 +19,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     const { canonical, alternates, isNoindex } = getAlternateLinks({
       pathname: leaf?.pathname ?? '/',
       search: leaf?.search ?? {},
+      quake: getShareQuakeFromMatches(matches),
     });
     const title = getPageTitle(matches);
 

@@ -1,1 +1,2 @@
 export const SERVER_FETCH_TIMEOUT_MS = 4_000;
+export const PAGE_FETCH_TIMEOUT_MS = 1_500;
