@@ -19,24 +19,28 @@ function isNonDefaultParam([key, value]: [string, unknown]): boolean {
   return !(key in DEFAULTS) || DEFAULTS[key] !== value;
 }
 
-function getLocalizedHref(pathname: string, locale: Locale): string {
-  return localizeUrl(new URL(pathname, getSiteUrl()), { locale }).href;
+function getLocalizedHref(pathname: string, locale: Locale, quake: string | undefined): string {
+  const url = localizeUrl(new URL(pathname, getSiteUrl()), { locale });
+  if (quake) url.search = `?quake=${quake}`;
+  return url.href;
 }
 
 export function getAlternateLinks({
   pathname,
   search,
+  quake,
 }: {
   pathname: string;
   search: Record<string, unknown>;
+  quake?: string;
 }): AlternateLinks {
-  const enHref = getLocalizedHref(pathname, 'en');
+  const enHref = getLocalizedHref(pathname, 'en', quake);
 
   return {
-    canonical: getLocalizedHref(pathname, getLocale()),
+    canonical: getLocalizedHref(pathname, getLocale(), quake),
     alternates: [
       { hreflang: 'en', href: enHref },
-      { hreflang: 'es', href: getLocalizedHref(pathname, 'es') },
+      { hreflang: 'es', href: getLocalizedHref(pathname, 'es', quake) },
       { hreflang: 'x-default', href: enHref },
     ],
     isNoindex: Object.entries(search).some(isNonDefaultParam),

@@ -33,6 +33,8 @@
   "og_site_headline": "Terremotos, explicados para todos.",
   "og_site_summary": "Dónde fue, de qué magnitud y qué supuso para los lugares que te importan.",
   "og_site_history": "Terremotos M6+, 2000–2025",
+  "og_magnitude_label": "Magnitud",
+  "og_depth_surface": "Superficie",
   "not_found_line": "Aquí no hay nada.",
   "error_line": "Algo ha ido mal.",
   "back_to_globe": "Volver al globo",
@@ -50,5 +52,6 @@
   "timeline_now": "Ahora",
   "timeline_speed_hour": "1 hora ≈ {seconds} s",
   "timeline_speed_day": "1 día ≈ {seconds} s",
-  "timeline_scrub_hint": "arrastra el anillo para moverte en el tiempo"
+  "timeline_scrub_hint": "arrastra el anillo para moverte en el tiempo",
+  "depth_legend_label": "Escala de profundidad, de {shallowest} a {deepest}"
 }

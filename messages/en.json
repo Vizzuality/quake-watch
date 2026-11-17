@@ -33,6 +33,8 @@
   "og_site_headline": "Earthquakes, explained for everyone.",
   "og_site_summary": "Where it hit, how big it was and what it meant for the places you care about.",
   "og_site_history": "M6+ earthquakes, 2000–2025",
+  "og_magnitude_label": "Magnitude",
+  "og_depth_surface": "Surface",
   "not_found_line": "Nothing here.",
   "error_line": "Something went wrong.",
   "back_to_globe": "Back to the globe",
@@ -50,5 +52,6 @@
   "timeline_now": "Now",
   "timeline_speed_hour": "1 hour ≈ {seconds} s",
   "timeline_speed_day": "1 day ≈ {seconds} s",
-  "timeline_scrub_hint": "drag the ring to scrub"
+  "timeline_scrub_hint": "drag the ring to scrub",
+  "depth_legend_label": "Depth scale, {shallowest} to {deepest}"
 }
