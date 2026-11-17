@@ -63,6 +63,20 @@ export function getWavesEndTime(
   return end;
 }
 
+export function getPrunedWaveStarts(
+  earthquakes: readonly Earthquake[],
+  waveStarts: ReadonlyMap<string, number>,
+  time: number,
+): Map<string, number> {
+  const pruned = new Map<string, number>();
+  for (const { id, magnitude, depthKm } of earthquakes) {
+    const start = waveStarts.get(id);
+    if (start === undefined || getFeltRingAngle(magnitude, depthKm) <= 0) continue;
+    if (time <= start + getWaveLifeSeconds(magnitude)) pruned.set(id, start);
+  }
+  return pruned;
+}
+
 export function getGlowRadiusPx(magnitude: number): number {
   return FELT_RING_LOOK.glowBasePx + FELT_RING_LOOK.glowAmpPx * getQuakeAmplitude(magnitude);
 }

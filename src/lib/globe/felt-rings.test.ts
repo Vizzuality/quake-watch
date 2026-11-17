@@ -9,6 +9,7 @@ import {
   getFeltRingAttributes,
   getMinRingRadiusPx,
   getWaveFronts,
+  getPrunedWaveStarts,
   getWaveLifeSeconds,
   getWavesEndTime,
   isFeltRingShown,
@@ -79,6 +80,31 @@ describe('getWaveLifeSeconds', () => {
     [9, 4],
   ])('lasts M%f %f s', (magnitude, seconds) => {
     expect(getWaveLifeSeconds(magnitude)).toBeCloseTo(seconds, 6);
+  });
+});
+
+describe('getPrunedWaveStarts', () => {
+  const m5 = getEarthquake({ id: 'm5', magnitude: 5, depthKm: 10 });
+  const m7 = getEarthquake({ id: 'm7', magnitude: 7, depthKm: 10 });
+  const unfelt = getEarthquake({ id: 'unfelt', magnitude: 4, depthKm: 500 });
+
+  it('keeps running waves and drops finished, unfelt and unknown ones', () => {
+    const starts = new Map([
+      ['m5', 0],
+      ['m7', 0],
+      ['unfelt', 0],
+      ['gone', 0],
+    ]);
+    const time = getWaveLifeSeconds(5) + 0.1;
+
+    expect(getWaveLifeSeconds(7)).toBeGreaterThan(time);
+    expect(getPrunedWaveStarts([m5, m7, unfelt], starts, time)).toEqual(new Map([['m7', 0]]));
+  });
+
+  it('keeps a wave on its last frame', () => {
+    const starts = new Map([['m5', 2]]);
+
+    expect(getPrunedWaveStarts([m5], starts, 2 + getWaveLifeSeconds(5))).toEqual(starts);
   });
 });
 

@@ -14,8 +14,14 @@ import {
   Vector3,
 } from 'three';
 
+import { playbackClock } from '@/lib/earthquakes/playback-clock';
+import { getPassedItems, getShownCount, getSortedByTime } from '@/lib/earthquakes/timeline';
 import type { Earthquake } from '@/lib/earthquakes/types';
-import { getFeltRingAttributes, getWavesEndTime } from '@/lib/globe/felt-rings';
+import {
+  getFeltRingAttributes,
+  getPrunedWaveStarts,
+  getWavesEndTime,
+} from '@/lib/globe/felt-rings';
 import { getGlobeFrame } from '@/lib/globe/frame';
 import { getLandMask } from '@/lib/globe/land-mask';
 import { GLOBE_DOT_COUNT, GLOBE_LOOK } from '@/lib/globe/look';
@@ -37,6 +43,7 @@ import {
 import type { GlobeControls } from './use-globe-controls';
 
 type GlobeAssets = ReturnType<typeof getGlobeAssets>;
+type QuakeGeometries = ReturnType<typeof getQuakeGeometries>;
 type ViewUniforms = {
   uLon: { value: number };
   uLat: { value: number };
@@ -192,6 +199,27 @@ function setFrameUniforms(
   view.uDpr.value = dpr;
 }
 
+function setShownCount(quakes: QuakeGeometries, count: number) {
+  quakes.markerGeometry.setDrawRange(0, count * 2);
+  quakes.needleGeometry.setDrawRange(0, count * 2);
+  quakes.ringGeometry.instanceCount = count;
+}
+
+function getPlaybackWaveEnd(playhead: number | null): number | null {
+  if (playbackClock.getSnapshot().isPlaying) return playhead;
+  return playbackClock.getFinishedAt();
+}
+
+function getPlaybackWaveIds(
+  sorted: readonly Earthquake[],
+  times: Float64Array,
+  from: number | null,
+  to: number | null,
+): string[] {
+  if (playbackClock.isStepped()) return [];
+  return getPassedItems(sorted, times, from, getPlaybackWaveEnd(to)).map(({ id }) => id);
+}
+
 function setWaveStarts(attribute: InstancedBufferAttribute, values: Float32Array) {
   attribute.set(values);
   attribute.needsUpdate = true;
@@ -211,25 +239,34 @@ export function GlobeScene({
   const gl = useThree((state) => state.gl);
   const invalidate = useThree((state) => state.invalidate);
   const assets = useMemo(() => getGlobeAssets(), []);
+  const sorted = useMemo(() => getSortedByTime(earthquakes), [earthquakes]);
+  const times = useMemo(() => Float64Array.from(sorted, ({ time }) => time), [sorted]);
   const quakes = useMemo(
-    () => getQuakeGeometries(earthquakes, selectedEarthquake),
-    [earthquakes, selectedEarthquake],
+    () => getQuakeGeometries(sorted, selectedEarthquake),
+    [sorted, selectedEarthquake],
   );
   const waveStartsRef = useRef<ReadonlyMap<string, number>>(new Map());
   const wavesEndRef = useRef(-Infinity);
   const stampedRef = useRef<InstancedBufferAttribute | null>(null);
   const isContinuingRef = useRef(false);
+  const playheadRef = useRef<number | null>(null);
 
   useFrame((state, delta) => {
     const time = state.clock.elapsedTime;
     const dt = isContinuingRef.current ? delta : Math.min(delta, FRAME_SECONDS);
     const view = controls.advance(dt, time * 1000);
     setFrameUniforms(assets, view, state.size, state.viewport.dpr, time);
+    const playhead = playbackClock.getPlayhead();
+    setShownCount(quakes, getShownCount(times, playhead));
     const requests = waves.takeRequests();
+    const passed = getPlaybackWaveIds(sorted, times, playheadRef.current, playhead);
+    playheadRef.current = playhead;
+    if (passed.length > 0) requests.push(passed);
     if (requests.length > 0 || stampedRef.current !== quakes.waveStart) {
-      waveStartsRef.current = getWaveStarts(waveStartsRef.current, requests, earthquakes, time);
-      setWaveStarts(quakes.waveStart, getWaveStartValues(earthquakes, waveStartsRef.current));
-      wavesEndRef.current = getWavesEndTime(earthquakes, waveStartsRef.current);
+      const starts = getWaveStarts(waveStartsRef.current, requests, sorted, time);
+      waveStartsRef.current = getPrunedWaveStarts(sorted, starts, time);
+      setWaveStarts(quakes.waveStart, getWaveStartValues(sorted, waveStartsRef.current));
+      wavesEndRef.current = getWavesEndTime(sorted, waveStartsRef.current);
       stampedRef.current = quakes.waveStart;
     }
     isContinuingRef.current = controls.isAnimating() || time <= wavesEndRef.current + FRAME_SECONDS;
@@ -244,6 +281,8 @@ export function GlobeScene({
     },
     [assets],
   );
+
+  useEffect(() => playbackClock.subscribeFrame(invalidate), [invalidate]);
 
   useEffect(() => {
     const canvas = gl.domElement;
