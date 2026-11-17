@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
-import { createFileRoute } from '@tanstack/react-router';
-import { lazy } from 'react';
+import { ClientOnly, createFileRoute } from '@tanstack/react-router';
+import { Suspense, lazy } from 'react';
 
 import { Wordmark } from '@/components/brand/wordmark';
 import { GlobeSlot } from '@/containers/globe/globe-slot';
@@ -10,6 +10,7 @@ import { m } from '@/paraglide/messages';
 import { isServer } from '@/paraglide/runtime';
 
 const Globe = lazy(() => import('@/containers/globe/globe'));
+const EarthquakePanel = lazy(() => import('@/containers/earthquake-panel/earthquake-panel'));
 
 export const Route = createFileRoute('/')({
   ...EARTHQUAKE_SEARCH_ROUTE,
@@ -24,7 +25,7 @@ export const Route = createFileRoute('/')({
 function Home() {
   const search = Route.useSearch();
   useQuery(earthquakesQueryOptions(getEarthquakeFilters(search)));
-  const { source, interval, minmag, depth } = search;
+  const { source, interval, minmag, depth, quake } = search;
 
   return (
     <main
@@ -45,6 +46,13 @@ function Home() {
           <Wordmark />
         </div>
       </header>
+      {quake !== undefined && (
+        <ClientOnly>
+          <Suspense fallback={null}>
+            <EarthquakePanel quake={quake} />
+          </Suspense>
+        </ClientOnly>
+      )}
     </main>
   );
 }

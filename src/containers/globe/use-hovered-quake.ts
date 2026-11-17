@@ -24,6 +24,16 @@ export function getSelectedEarthquake(
   return earthquakes.find((earthquake) => getQuakeKey(earthquake) === quake);
 }
 
+export function listenForTooltipEscape(onEscape: () => void): () => void {
+  function handleKeyDown(event: KeyboardEvent) {
+    if (event.key !== 'Escape' || event.defaultPrevented) return;
+    event.preventDefault();
+    onEscape();
+  }
+  document.addEventListener('keydown', handleKeyDown, { capture: true });
+  return () => document.removeEventListener('keydown', handleKeyDown, { capture: true });
+}
+
 export function useHoveredQuake() {
   const [hovered, setHovered] = useState<HoveredQuake | null>(null);
   const [isOverQuake, setIsOverQuake] = useState(false);
