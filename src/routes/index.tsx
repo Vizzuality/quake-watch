@@ -4,6 +4,7 @@ import { lazy } from 'react';
 
 import { Wordmark } from '@/components/brand/wordmark';
 import { DepthLegend } from '@/containers/depth-legend/depth-legend';
+import { FiltersPanel } from '@/containers/filters/filters-panel';
 import { GlobeSlot } from '@/containers/globe/globe-slot';
 import { Timeline } from '@/containers/timeline/timeline';
 import { getShareEarthquake } from '@/lib/earthquakes/details/share-earthquake';
@@ -59,6 +60,7 @@ function Home() {
           <Wordmark />
         </div>
       </header>
+      <FiltersPanel />
       <DepthLegend />
     </main>
   );
