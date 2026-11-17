@@ -13,7 +13,7 @@ export const EMSC_ID = '20261013_0000326';
 
 const USGS_HOST = 'earthquake.usgs.gov';
 const EMSC_HOST = 'www.seismicportal.eu';
-const SMOKE_LIST_SENTINEL = 'smokelistsentinel';
+export const SMOKE_LIST_SENTINEL = 'smokelistsentinel';
 
 function getUsgsResponse(id) {
   if (id === USGS_ID) return Response.json(usgsPanamaDetail);
@@ -29,7 +29,12 @@ function getListResponse(url) {
   const log = process.env.SMOKE_UPSTREAM_LOG;
   if (log) appendFileSync(log, `${url.href}\n`);
   const getFeature = url.hostname === USGS_HOST ? getUsgsFeature : getEmscFeature;
-  return Response.json(getFeatureCollection([getFeature({ id: SMOKE_LIST_SENTINEL })]));
+  return Response.json(
+    getFeatureCollection([
+      getFeature({ id: SMOKE_LIST_SENTINEL }),
+      getFeature({ id: `${SMOKE_LIST_SENTINEL}2`, mag: 2.1 }),
+    ]),
+  );
 }
 
 function getRequestUrl(input) {

@@ -28,7 +28,10 @@ export function getCachedDetail<T>(key: string, load: () => Promise<T>): Promise
   return promise;
 }
 
-function getCallerBound<T>(promise: Promise<T>, signal: AbortSignal | undefined): Promise<T> {
+export function getCallerBound<T>(
+  promise: Promise<T>,
+  signal: AbortSignal | undefined,
+): Promise<T> {
   if (!signal) return promise;
   if (signal.aborted) return Promise.reject(signal.reason);
   return new Promise<T>((resolve, reject) => {
