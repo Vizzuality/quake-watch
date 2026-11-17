@@ -71,6 +71,7 @@ describe('depth legend', () => {
     expectWithinPixel(bar.left, 1363.5);
     expect(bar.width).toBe(1.5);
     expect(bar.height).toBe(140);
+    expect(getComputedStyle(screen.getByTestId('depth-legend').element()).fontSize).toBe('10px');
   });
 
   it('hides when an Earthquake is selected and returns when it is cleared', async () => {
