@@ -7,9 +7,15 @@ import {
   getDefaultT,
   getHistogramBins,
   getHistogramUnit,
+  getIntervalRange,
   getLoadedRange,
+  getPassedItems,
   getPlaybackRange,
+  getPlaybackSpeed,
   getPlaybackT,
+  getShownCount,
+  getShownEarthquakes,
+  getSortedByTime,
   getTimelineRange,
   getWindowMs,
   PLAYBACK_DURATION_MS,
@@ -277,5 +283,104 @@ describe('getTimelineRange', () => {
     const last = bins.at(-1);
     expect(last?.start).toBeLessThanOrEqual(nowMs);
     expect(last?.end).toBeGreaterThan(nowMs);
+  });
+});
+
+describe('getPlaybackSpeed', () => {
+  it('plays a 24 h interval in 48 s, so one hour takes 2 s', () => {
+    const range = { start: 0, end: DAY };
+    const speed = getPlaybackSpeed(range);
+
+    expect(PLAYBACK_DURATION_MS).toBe(48_000);
+    expect(range.start + 48_000 * speed).toBe(range.end);
+    expect(range.start + 47_000 * speed).toBeLessThan(range.end);
+    expect(HOUR / speed).toBe(2000);
+  });
+
+  it('plays a 7 d interval in 48 s, so one day takes about 7 s', () => {
+    const speed = getPlaybackSpeed({ start: 0, end: 7 * DAY });
+
+    expect((7 * DAY) / speed).toBe(48_000);
+    expect(Math.round(DAY / speed / 1000)).toBe(7);
+  });
+});
+
+describe('getShownCount', () => {
+  const times = [10, 20, 20, 30];
+
+  it('shows every item when live', () => {
+    expect(getShownCount(times, null)).toBe(4);
+  });
+
+  it('counts the items at or before the playhead', () => {
+    expect(getShownCount(times, 5)).toBe(0);
+    expect(getShownCount(times, 10)).toBe(1);
+    expect(getShownCount(times, 20)).toBe(3);
+    expect(getShownCount(times, 29)).toBe(3);
+    expect(getShownCount(times, 30)).toBe(4);
+  });
+
+  it('matches a plain filter of the list', () => {
+    const quakes = [getQuake(40), getQuake(10), getQuake(25), getQuake(25), getQuake(5)];
+    const sorted = getSortedByTime(quakes);
+    const sortedTimes = sorted.map(({ time }) => time);
+
+    for (const playhead of [0, 5, 24, 25, 39, 40, 100]) {
+      expect(getShownCount(sortedTimes, playhead)).toBe(
+        getShownEarthquakes(quakes, playhead).length,
+      );
+    }
+  });
+});
+
+describe('getSortedByTime', () => {
+  it('sorts a copy oldest first', () => {
+    const quakes = [getQuake(3), getQuake(1), getQuake(2)];
+
+    expect(getSortedByTime(quakes).map(({ time }) => time)).toEqual([1, 2, 3]);
+    expect(quakes.map(({ time }) => time)).toEqual([3, 1, 2]);
+  });
+});
+
+describe('getPassedItems', () => {
+  const sorted = [getQuake(10), getQuake(20), getQuake(30)];
+  const times = [10, 20, 30];
+
+  it('returns the items the playhead passed since the last frame', () => {
+    expect(getPassedItems(sorted, times, 10, 30).map(({ time }) => time)).toEqual([20, 30]);
+    expect(getPassedItems(sorted, times, 0, 10).map(({ time }) => time)).toEqual([10]);
+  });
+
+  it('returns nothing when the playhead stood still, went back or was live', () => {
+    expect(getPassedItems(sorted, times, 20, 20)).toEqual([]);
+    expect(getPassedItems(sorted, times, 30, 10)).toEqual([]);
+    expect(getPassedItems(sorted, times, null, 10)).toEqual([]);
+    expect(getPassedItems(sorted, times, 10, null)).toEqual([]);
+  });
+});
+
+describe('getShownEarthquakes', () => {
+  it('returns the same list when live', () => {
+    const quakes = [getQuake(1)];
+
+    expect(getShownEarthquakes(quakes, null)).toBe(quakes);
+  });
+
+  it('keeps the earthquakes at or before the playhead', () => {
+    const quakes = [getQuake(1), getQuake(5), getQuake(3)];
+
+    expect(getShownEarthquakes(quakes, 3).map(({ time }) => time)).toEqual([1, 3]);
+  });
+});
+
+describe('getIntervalRange', () => {
+  it('ends at the fetch time and starts one interval before', () => {
+    const fetchedAt = Date.parse('2026-11-02T12:00:00.000Z');
+
+    expect(getIntervalRange('24h', fetchedAt)).toEqual({ start: fetchedAt - DAY, end: fetchedAt });
+    expect(getIntervalRange('7d', fetchedAt)).toEqual({
+      start: fetchedAt - 7 * DAY,
+      end: fetchedAt,
+    });
   });
 });

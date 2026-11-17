@@ -6,6 +6,7 @@ import { Wordmark } from '@/components/brand/wordmark';
 import { DepthLegend } from '@/containers/depth-legend/depth-legend';
 import { FiltersPanel } from '@/containers/filters/filters-panel';
 import { GlobeSlot } from '@/containers/globe/globe-slot';
+import { Timeline } from '@/containers/timeline/timeline';
 import { getShareEarthquake } from '@/lib/earthquakes/details/share-earthquake';
 import { earthquakesQueryOptions } from '@/lib/earthquakes/query-options';
 import { EARTHQUAKE_SEARCH_ROUTE, getEarthquakeFilters } from '@/lib/earthquakes/search-schema';
@@ -52,6 +53,7 @@ function Home() {
           <Globe />
         </GlobeSlot>
       </div>
+      <Timeline />
       <h1 className="sr-only">{m.app_title()}</h1>
       <header className="pointer-events-none relative z-10 px-10 py-4">
         <div className="flex h-10 items-center">
