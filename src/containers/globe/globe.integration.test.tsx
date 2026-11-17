@@ -38,6 +38,8 @@ import {
   SELECT_MIN_ZOOM,
   ZOOM_RANGE,
   getFlyView,
+  getWheelFactor,
+  getZoomedView,
 } from '@/lib/globe/motion';
 import { QUAKE_MARKER_LOOK, getEpicentreRadiusPx, getHypocentreRadius } from '@/lib/globe/quakes';
 import { getLatLonVector, getRotatedVector } from '@/lib/globe/sphere';
@@ -1332,6 +1334,19 @@ describe('globe quake tooltip', () => {
     );
     await waitFrames(3);
     expect(globe.getTooltip()).toBeNull();
+  });
+
+  it('zooms the globe on a wheel over the tooltip as over the empty globe', async () => {
+    const globe = await renderTooltipGlobe([TOOLTIP_M5]);
+    const tooltip = await globe.hover(getScreenPoint(TOOLTIP_M5.lat, TOOLTIP_M5.lon, 1));
+    globe.moveOntoTooltip(tooltip);
+
+    const event = new WheelEvent('wheel', { deltaY: -200, bubbles: true, cancelable: true });
+    tooltip.dispatchEvent(event);
+
+    expect(event.defaultPrevented).toBe(true);
+    expect(getGlobeView().zoom).toBeCloseTo(getZoomedView(INITIAL_VIEW, getWheelFactor(-200)).zoom);
+    await expect.poll(globe.getTooltip).toBeNull();
   });
 
   it('keeps the Click to open button out of the tab order', async () => {

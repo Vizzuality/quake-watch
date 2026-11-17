@@ -507,6 +507,7 @@ export default function GlobeMap({
           anchor={hovered.anchor}
           containerSize={hovered.containerSize}
           onOpen={() => selectQuake(hovered.earthquake)}
+          getWheelTarget={() => mapRef.current?.getCanvas()}
           onPointerEnter={enterTooltip}
           onPointerLeave={leaveTooltip}
         />

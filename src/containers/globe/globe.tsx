@@ -379,6 +379,7 @@ function GlobeCanvas() {
           anchor={hovered.anchor}
           containerSize={hovered.containerSize}
           onOpen={() => selectQuake(hovered.earthquake)}
+          getWheelTarget={() => containerRef.current}
           onPointerEnter={enterTooltip}
           onPointerLeave={leaveTooltip}
         />
