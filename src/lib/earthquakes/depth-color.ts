@@ -33,3 +33,12 @@ export function getDepthRgb(depthKm: number): [number, number, number] {
 export function getDepthColor(depthKm: number): string {
   return getRgb(getDepthRgb(depthKm));
 }
+
+export function getDepthGradient(angleDeg: number): string {
+  const maxKm = DEPTH_COLOR_STOPS[DEPTH_COLOR_STOPS.length - 1][0];
+  const stops = DEPTH_COLOR_STOPS.map(([km, r, g, b]) => {
+    const percent = Math.round((km / maxKm) * 10_000) / 100;
+    return `${getRgb([r, g, b])} ${percent}%`;
+  });
+  return `linear-gradient(${angleDeg}deg, ${stops.join(', ')})`;
+}
