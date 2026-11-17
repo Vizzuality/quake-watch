@@ -46,11 +46,22 @@ function TestPage() {
   );
 }
 
-type RenderOptions = { emscDetailStatuses?: number[]; listGate?: Promise<void> };
+const SEQUENCE = [
+  getEmscFeature({ id: 'main', mag: 6.2, time: '2026-10-29T21:48:00Z' }),
+  getEmscFeature({ id: 'fore', mag: 5.1, time: '2026-10-29T18:00:00Z', lat: 37.2 }),
+  getEmscFeature({ id: 'after', mag: 4.4, time: '2026-10-30T02:00:00Z', lon: -3.5 }),
+  getEmscFeature({ id: 'small', mag: 3.2, time: '2026-10-30T08:00:00Z', lat: 37.05 }),
+];
+
+type RenderOptions = {
+  emscDetailStatuses?: number[];
+  listGate?: Promise<void>;
+  list?: unknown[];
+};
 
 async function renderPanel(
   initialEntry: string,
-  { emscDetailStatuses = [], listGate }: RenderOptions = {},
+  { emscDetailStatuses = [], listGate, list = LIST }: RenderOptions = {},
 ) {
   const statuses = [...emscDetailStatuses];
   stubFetch([
@@ -66,7 +77,7 @@ async function renderPanel(
       match: (url) => url.hostname === 'www.seismicportal.eu',
       respond: async () => {
         await listGate;
-        return Response.json(getFeatureCollection(LIST));
+        return Response.json(getFeatureCollection(list));
       },
     },
   ]);
@@ -263,6 +274,31 @@ describe('earthquake panel', () => {
 
     expect(listener).toHaveBeenCalledExactlyOnceWith(EARLY_ID);
     unsubscribe();
+  });
+
+  it('lists at most three related Earthquakes, always including the selected one', async () => {
+    const { screen } = await renderPanel('/?quake=emsc:small', { list: SEQUENCE });
+
+    await expect.element(screen.getByText('Followed an M6.2 nearby on Thu 29.10.')).toBeVisible();
+    const rows = screen.getByRole('listitem');
+    await expect.poll(() => rows.elements().length).toBe(3);
+    await expect.element(screen.getByRole('button', { name: /M6\.2 .* Largest/ })).toBeVisible();
+    await expect.element(screen.getByRole('button', { name: /M5\.1 .* Before/ })).toBeVisible();
+    await expect
+      .element(screen.getByRole('button', { name: /M3\.2 .* Selected/ }))
+      .toHaveAttribute('aria-current', 'true');
+    await expect.element(screen.getByRole('button', { name: /M4\.4/ })).not.toBeInTheDocument();
+  });
+
+  it('selects a related Earthquake when its row is clicked', async () => {
+    const { screen, router } = await renderPanel('/?quake=emsc:small', { list: SEQUENCE });
+
+    await screen.getByRole('button', { name: /M6\.2 .* Largest/ }).click();
+
+    await expect.poll(() => router.state.location.search.quake).toBe('emsc:main');
+    await expect
+      .element(screen.getByText('The largest of a group: 3 struck nearby this week.'))
+      .toBeVisible();
   });
 
   it('disables Replay for an Earthquake that is not on the globe', async () => {
