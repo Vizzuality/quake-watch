@@ -380,7 +380,7 @@ export default function GlobeMap({
     }
 
     function centre({ latitude, longitude }: Earthquake) {
-      map.easeTo({ center: [longitude, latitude], padding: getElementDetailPadding(element) });
+      map.flyTo({ center: [longitude, latitude], padding: getElementDetailPadding(element) });
     }
 
     function getFocusZoom(earthquake: Earthquake, padding: MapPadding): number {
