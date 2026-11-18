@@ -120,4 +120,13 @@ describe('filters panel', () => {
     await expect.element(screen.getByRole('radiogroup', { name: 'Profundidad' })).toBeVisible();
     await expect.element(screen.getByRole('radio', { name: 'Superficial' })).toBeVisible();
   });
+
+  it('renders in Portuguese', async () => {
+    overwriteGetLocale(() => 'pt');
+    const { screen } = await renderPanel();
+    await expect.element(screen.getByRole('region', { name: 'Filtros' })).toBeVisible();
+    await expect.element(screen.getByRole('radiogroup', { name: 'Profundidade' })).toBeVisible();
+    await expect.element(screen.getByRole('radio', { name: 'Intermédio' })).toBeVisible();
+    await expect.element(screen.getByRole('radio', { name: 'Todos' }).first()).toBeVisible();
+  });
 });

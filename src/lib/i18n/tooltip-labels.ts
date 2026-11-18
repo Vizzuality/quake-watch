@@ -1,4 +1,5 @@
 import type { IntensityLevelKey } from '@/lib/earthquakes/intensity';
+import { getIntlLocale } from '@/lib/i18n/intl-locale';
 import { m } from '@/paraglide/messages';
 import type { Locale } from '@/paraglide/runtime';
 
@@ -24,9 +25,12 @@ export function getIntensityLevelLabel(key: IntensityLevelKey, locale: Locale): 
 }
 
 export function getNumberLabel(value: number, locale: Locale): string {
-  return new Intl.NumberFormat(locale, { maximumFractionDigits: 1 }).format(value);
+  return new Intl.NumberFormat(getIntlLocale(locale), { maximumFractionDigits: 1 }).format(value);
 }
 
 export function getDateTimeLabel(time: number, locale: Locale): string {
-  return new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short' }).format(time);
+  return new Intl.DateTimeFormat(getIntlLocale(locale), {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  }).format(time);
 }

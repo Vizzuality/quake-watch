@@ -1,9 +1,11 @@
+import { getIntlLocale } from '@/lib/i18n/intl-locale';
+
 const MINUTE_MS = 60_000;
 const HOUR_MS = 3_600_000;
 const DAY_MS = 86_400_000;
 
 function getRelativeTimeLabel(elapsedMs: number, locale: string): string {
-  const format = new Intl.RelativeTimeFormat(locale, { numeric: 'auto' });
+  const format = new Intl.RelativeTimeFormat(getIntlLocale(locale), { numeric: 'auto' });
   if (elapsedMs < HOUR_MS) return format.format(-Math.round(elapsedMs / MINUTE_MS), 'minute');
   return format.format(-Math.round(elapsedMs / HOUR_MS), 'hour');
 }
@@ -11,7 +13,7 @@ function getRelativeTimeLabel(elapsedMs: number, locale: string): string {
 export function getTimeLabel(time: number, now: number, locale: string, timeZone?: string): string {
   const elapsedMs = now - time;
   if (elapsedMs >= 0 && elapsedMs < DAY_MS) return getRelativeTimeLabel(elapsedMs, locale);
-  return new Intl.DateTimeFormat(locale, {
+  return new Intl.DateTimeFormat(getIntlLocale(locale), {
     dateStyle: 'medium',
     timeStyle: 'short',
     timeZone,
@@ -19,7 +21,7 @@ export function getTimeLabel(time: number, now: number, locale: string, timeZone
 }
 
 export function getKmLabel(km: number, locale: string, fractionDigits = 0): string {
-  return new Intl.NumberFormat(locale, {
+  return new Intl.NumberFormat(getIntlLocale(locale), {
     style: 'unit',
     unit: 'kilometer',
     maximumFractionDigits: fractionDigits,
@@ -27,11 +29,13 @@ export function getKmLabel(km: number, locale: string, fractionDigits = 0): stri
 }
 
 export function getDecimalLabel(value: number, locale: string, fractionDigits = 0): string {
-  return new Intl.NumberFormat(locale, { maximumFractionDigits: fractionDigits }).format(value);
+  return new Intl.NumberFormat(getIntlLocale(locale), {
+    maximumFractionDigits: fractionDigits,
+  }).format(value);
 }
 
 export function getDegreesLabel(degrees: number, locale: string, fractionDigits = 0): string {
-  return new Intl.NumberFormat(locale, {
+  return new Intl.NumberFormat(getIntlLocale(locale), {
     style: 'unit',
     unit: 'degree',
     unitDisplay: 'narrow',
@@ -40,7 +44,7 @@ export function getDegreesLabel(degrees: number, locale: string, fractionDigits 
 }
 
 export function getSecondsLabel(seconds: number, locale: string, fractionDigits = 2): string {
-  return new Intl.NumberFormat(locale, {
+  return new Intl.NumberFormat(getIntlLocale(locale), {
     style: 'unit',
     unit: 'second',
     unitDisplay: 'narrow',
@@ -49,12 +53,14 @@ export function getSecondsLabel(seconds: number, locale: string, fractionDigits 
 }
 
 export function getPercentLabel(fraction: number, locale: string): string {
-  return new Intl.NumberFormat(locale, { style: 'percent', maximumFractionDigits: 0 }).format(
-    fraction,
-  );
+  return new Intl.NumberFormat(getIntlLocale(locale), {
+    style: 'percent',
+    maximumFractionDigits: 0,
+  }).format(fraction);
 }
 
 const COORDINATE_DIGITS = 3;
+const WEST_HEMISPHERES: Record<string, string> = { es: 'O', pt: 'O' };
 
 function getCoordinateLabel(value: number, hemispheres: readonly [string, string], locale: string) {
   const hemisphere = value < 0 ? hemispheres[1] : hemispheres[0];
@@ -66,7 +72,7 @@ export function getLatitudeLabel(latitude: number, locale: string): string {
 }
 
 export function getLongitudeLabel(longitude: number, locale: string): string {
-  return getCoordinateLabel(longitude, ['E', locale === 'es' ? 'O' : 'W'], locale);
+  return getCoordinateLabel(longitude, ['E', WEST_HEMISPHERES[locale] ?? 'W'], locale);
 }
 
 export function getCoordinatesLabel(
@@ -86,7 +92,7 @@ export function getScientificLabel(value: number, locale: string): string {
 }
 
 export function getFullDateTimeLabel(time: number, locale: string, timeZone?: string): string {
-  return new Intl.DateTimeFormat(locale, {
+  return new Intl.DateTimeFormat(getIntlLocale(locale), {
     dateStyle: 'long',
     timeStyle: 'long',
     timeZone,
@@ -99,11 +105,16 @@ export const LOCAL_DATE_TIME_FORMAT: Intl.DateTimeFormatOptions = {
 };
 
 export function getLocalDateTimeLabel(time: number, locale: string, timeZone?: string): string {
-  return new Intl.DateTimeFormat(locale, { ...LOCAL_DATE_TIME_FORMAT, timeZone }).format(time);
+  return new Intl.DateTimeFormat(getIntlLocale(locale), {
+    ...LOCAL_DATE_TIME_FORMAT,
+    timeZone,
+  }).format(time);
 }
 
 export const CLOCK_TIME_FORMAT: Intl.DateTimeFormatOptions = { hour: 'numeric', minute: '2-digit' };
 
 export function getClockTimeLabel(time: number, locale: string, timeZone?: string): string {
-  return new Intl.DateTimeFormat(locale, { ...CLOCK_TIME_FORMAT, timeZone }).format(time);
+  return new Intl.DateTimeFormat(getIntlLocale(locale), { ...CLOCK_TIME_FORMAT, timeZone }).format(
+    time,
+  );
 }

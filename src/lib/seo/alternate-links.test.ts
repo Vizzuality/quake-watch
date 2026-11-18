@@ -18,6 +18,7 @@ describe('getAlternateLinks', () => {
       alternates: [
         { hreflang: 'en', href: `${ORIGIN}/en` },
         { hreflang: 'es', href: `${ORIGIN}/es` },
+        { hreflang: 'pt', href: `${ORIGIN}/pt` },
         { hreflang: 'x-default', href: `${ORIGIN}/en` },
       ],
       isNoindex: false,
@@ -32,10 +33,17 @@ describe('getAlternateLinks', () => {
       alternates: [
         { hreflang: 'en', href: `${ORIGIN}/en` },
         { hreflang: 'es', href: `${ORIGIN}/es` },
+        { hreflang: 'pt', href: `${ORIGIN}/pt` },
         { hreflang: 'x-default', href: `${ORIGIN}/en` },
       ],
       isNoindex: false,
     });
+  });
+
+  it('canonicalises a Portuguese page to /pt', () => {
+    overwriteGetLocale(() => 'pt');
+
+    expect(getAlternateLinks({ pathname: '/', search: {} }).canonical).toBe(`${ORIGIN}/pt`);
   });
 
   it('drops search params from the canonical', () => {
@@ -58,6 +66,7 @@ describe('getAlternateLinks', () => {
     expect(links.alternates).toEqual([
       { hreflang: 'en', href: `${ORIGIN}/en?quake=usgs:us6000u4j2` },
       { hreflang: 'es', href: `${ORIGIN}/es?quake=usgs:us6000u4j2` },
+      { hreflang: 'pt', href: `${ORIGIN}/pt?quake=usgs:us6000u4j2` },
       { hreflang: 'x-default', href: `${ORIGIN}/en?quake=usgs:us6000u4j2` },
     ]);
   });

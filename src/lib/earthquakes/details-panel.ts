@@ -1,3 +1,4 @@
+import { getIntlLocale } from '@/lib/i18n/intl-locale';
 import { m } from '@/paraglide/messages';
 import type { Locale } from '@/paraglide/runtime';
 
@@ -74,7 +75,7 @@ export function getDepthScaleFraction(depthKm: number): number {
 }
 
 export function getMagnitudeValueLabel(magnitude: number, locale: Locale): string {
-  return new Intl.NumberFormat(locale, {
+  return new Intl.NumberFormat(getIntlLocale(locale), {
     minimumFractionDigits: 1,
     maximumFractionDigits: 1,
   }).format(magnitude);
@@ -86,7 +87,7 @@ export function getMagnitudeTypeCaption(magnitudeType: string, locale: Locale): 
 }
 
 export function getDetailsDate(time: number, locale: Locale): string {
-  const parts = new Intl.DateTimeFormat(locale, {
+  const parts = new Intl.DateTimeFormat(getIntlLocale(locale), {
     weekday: 'short',
     day: '2-digit',
     month: '2-digit',

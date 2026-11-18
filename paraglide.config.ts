@@ -11,6 +11,7 @@ export const paraglideOptions: Parameters<typeof paraglideVitePlugin>[0] = {
       localized: [
         ['en', '/en'],
         ['es', '/es'],
+        ['pt', '/pt'],
       ],
     },
     {
@@ -18,6 +19,7 @@ export const paraglideOptions: Parameters<typeof paraglideVitePlugin>[0] = {
       localized: [
         ['en', '/en/:path(.*)?'],
         ['es', '/es/:path(.*)?'],
+        ['pt', '/pt/:path(.*)?'],
       ],
     },
   ],

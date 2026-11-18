@@ -1,4 +1,5 @@
 import { getDecimalLabel, getKmLabel } from '@/lib/format';
+import { getIntlLocale } from '@/lib/i18n/intl-locale';
 import { m } from '@/paraglide/messages';
 import type { Locale } from '@/paraglide/runtime';
 
@@ -13,7 +14,7 @@ const HOURS_LIMIT_MS = 48 * HOUR_MS;
 type DateParts = Record<'weekday' | 'day' | 'month' | 'hour' | 'minute', string>;
 
 function getUtcDateParts(time: number, locale: Locale): DateParts {
-  const parts = new Intl.DateTimeFormat(locale, {
+  const parts = new Intl.DateTimeFormat(getIntlLocale(locale), {
     weekday: 'short',
     day: '2-digit',
     month: '2-digit',
@@ -64,7 +65,7 @@ export function getTooltipFelt(magnitude: number, depthKm: number, locale: Local
 }
 
 export function getTooltipMagnitude(magnitude: number, locale: Locale): string {
-  const label = new Intl.NumberFormat(locale, {
+  const label = new Intl.NumberFormat(getIntlLocale(locale), {
     minimumFractionDigits: 1,
     maximumFractionDigits: 1,
   }).format(magnitude);

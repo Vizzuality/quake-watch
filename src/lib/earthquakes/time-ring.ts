@@ -1,3 +1,4 @@
+import { getIntlLocale } from '@/lib/i18n/intl-locale';
 import { m } from '@/paraglide/messages';
 import type { Locale } from '@/paraglide/runtime';
 
@@ -106,7 +107,7 @@ export function getPastWedgePath(fraction: number, radius: number): string {
 }
 
 function getUtcParts(time: number, locale: Locale) {
-  const parts = new Intl.DateTimeFormat(locale, {
+  const parts = new Intl.DateTimeFormat(getIntlLocale(locale), {
     weekday: 'short',
     day: '2-digit',
     hour: '2-digit',

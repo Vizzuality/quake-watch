@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import type { Earthquake } from '@/lib/earthquakes/types';
 
 import {
+  getAlternateOgLocales,
   getEarthquakeOpenGraphMeta,
   getEarthquakeShareImageUrl,
   getSiteOpenGraphMeta,
@@ -23,14 +24,21 @@ const PANAMA: Earthquake = {
   url: 'https://earthquake.usgs.gov/earthquakes/eventpage/us6000u18k',
 };
 
+function getContents(tags: OpenGraphTag[], key: string): string[] {
+  return tags
+    .filter((tag) => ('property' in tag ? tag.property : tag.name) === key)
+    .map((tag) => tag.content);
+}
+
 function getContent(tags: OpenGraphTag[], key: string): string | undefined {
-  return tags.find((tag) => ('property' in tag ? tag.property : tag.name) === key)?.content;
+  return getContents(tags, key)[0];
 }
 
 describe('share image URLs', () => {
   it('serves the site image under the locale prefix as an absolute URL', () => {
     expect(getSiteShareImageUrl('en')).toBe('https://quake-watch.up.railway.app/en/og/site.png');
     expect(getSiteShareImageUrl('es')).toBe('https://quake-watch.up.railway.app/es/og/site.png');
+    expect(getSiteShareImageUrl('pt')).toBe('https://quake-watch.up.railway.app/pt/og/site.png');
   });
 
   it('serves one image per Earthquake, catalogue and locale', () => {
@@ -57,12 +65,20 @@ describe('getSiteOpenGraphMeta', () => {
     expect(getContent(tags, 'og:url')).toBe(url);
   });
 
-  it('declares the page locale and the other language as the alternate', () => {
+  it('declares the page locale and leaves the alternates to the document head', () => {
     expect(getContent(tags, 'og:locale')).toBe('es_ES');
-    expect(getContent(tags, 'og:locale:alternate')).toBe('en_US');
-    const english = getSiteOpenGraphMeta({ title: 'Map', url, locale: 'en' });
-    expect(getContent(english, 'og:locale')).toBe('en_US');
-    expect(getContent(english, 'og:locale:alternate')).toBe('es_ES');
+    expect(getContents(tags, 'og:locale:alternate')).toEqual([]);
+    const portuguese = getSiteOpenGraphMeta({ title: 'Mapa', url, locale: 'pt' });
+    expect(getContent(portuguese, 'og:locale')).toBe('pt_PT');
+    expect(getContent(portuguese, 'og:description')).toBe(
+      'Sismos em todo o mundo, à medida que acontecem.',
+    );
+  });
+
+  it('lists every other locale as an og:locale alternate', () => {
+    expect(getAlternateOgLocales('en')).toEqual(['es_ES', 'pt_PT']);
+    expect(getAlternateOgLocales('es')).toEqual(['en_US', 'pt_PT']);
+    expect(getAlternateOgLocales('pt')).toEqual(['en_US', 'es_ES']);
   });
 
   it('describes the site and asks for a large image card', () => {

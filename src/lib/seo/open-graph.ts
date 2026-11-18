@@ -1,6 +1,6 @@
 import type { Earthquake } from '@/lib/earthquakes/types';
 import { m } from '@/paraglide/messages';
-import { localizeUrl } from '@/paraglide/runtime';
+import { localizeUrl, locales } from '@/paraglide/runtime';
 import type { Locale } from '@/paraglide/runtime';
 
 import { getSiteUrl } from './site-url';
@@ -12,10 +12,16 @@ export type OpenGraphTag =
 export const SHARE_IMAGE_WIDTH = 1200;
 export const SHARE_IMAGE_HEIGHT = 630;
 
-const OG_LOCALES: Record<Locale, string> = { en: 'en_US', es: 'es_ES' };
+const OG_LOCALES: Record<Locale, string> = { en: 'en_US', es: 'es_ES', pt: 'pt_PT' };
 
 function getLocalizedShareImageUrl(pathname: string, locale: Locale): string {
   return localizeUrl(new URL(pathname, getSiteUrl()), { locale }).href;
+}
+
+export function getAlternateOgLocales(locale: Locale): string[] {
+  return locales
+    .filter((alternate) => alternate !== locale)
+    .map((alternate) => OG_LOCALES[alternate]);
 }
 
 export function getSiteShareImageUrl(locale: Locale): string {
@@ -52,12 +58,10 @@ export function getSiteOpenGraphMeta({
   url: string;
   locale: Locale;
 }): OpenGraphTag[] {
-  const alternateLocale: Locale = locale === 'es' ? 'en' : 'es';
   return [
     { property: 'og:site_name', content: m.app_title({}, { locale }) },
     { property: 'og:type', content: 'website' },
     { property: 'og:locale', content: OG_LOCALES[locale] },
-    { property: 'og:locale:alternate', content: OG_LOCALES[alternateLocale] },
     { property: 'og:url', content: url },
     { property: 'og:title', content: title },
     { property: 'og:description', content: m.app_description({}, { locale }) },
