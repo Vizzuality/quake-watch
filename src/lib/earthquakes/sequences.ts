@@ -1,4 +1,5 @@
 import { EARTH_RADIUS_KM } from '@/lib/globe/quakes';
+import { getIntlLocale } from '@/lib/i18n/intl-locale';
 import { m } from '@/paraglide/messages';
 import type { Locale } from '@/paraglide/runtime';
 
@@ -112,7 +113,7 @@ export function getSequenceRows(
 }
 
 function getSequenceDate(time: number, locale: Locale): string {
-  const parts = new Intl.DateTimeFormat(locale, {
+  const parts = new Intl.DateTimeFormat(getIntlLocale(locale), {
     weekday: 'short',
     day: '2-digit',
     month: '2-digit',
@@ -124,8 +125,8 @@ function getSequenceDate(time: number, locale: Locale): string {
 }
 
 function getLargestBlurb(count: number, locale: Locale): string {
-  const formatted = new Intl.NumberFormat(locale).format(count);
-  const isOne = new Intl.PluralRules(locale).select(count) === 'one';
+  const formatted = new Intl.NumberFormat(getIntlLocale(locale)).format(count);
+  const isOne = new Intl.PluralRules(getIntlLocale(locale)).select(count) === 'one';
   return isOne
     ? m.details_sequence_largest_one({ count: formatted }, { locale })
     : m.details_sequence_largest_other({ count: formatted }, { locale });

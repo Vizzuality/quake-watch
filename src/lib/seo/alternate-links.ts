@@ -1,5 +1,5 @@
 import { EARTHQUAKE_SEARCH_DEFAULTS } from '@/lib/earthquakes/search-schema';
-import { getLocale, localizeUrl } from '@/paraglide/runtime';
+import { getLocale, localizeUrl, locales } from '@/paraglide/runtime';
 import type { Locale } from '@/paraglide/runtime';
 
 import { getSiteUrl } from './site-url';
@@ -39,8 +39,10 @@ export function getAlternateLinks({
   return {
     canonical: getLocalizedHref(pathname, getLocale(), quake),
     alternates: [
-      { hreflang: 'en', href: enHref },
-      { hreflang: 'es', href: getLocalizedHref(pathname, 'es', quake) },
+      ...locales.map((locale) => ({
+        hreflang: locale,
+        href: getLocalizedHref(pathname, locale, quake),
+      })),
       { hreflang: 'x-default', href: enHref },
     ],
     isNoindex: Object.entries(search).some(isNonDefaultParam),

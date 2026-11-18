@@ -3,6 +3,7 @@ import type { AnyRouteMatch } from '@tanstack/react-router';
 import { getEarthquakeMeaning } from '@/lib/earthquakes/meaning';
 import type { Earthquake } from '@/lib/earthquakes/types';
 import { getFullDateTimeLabel, getKmLabel } from '@/lib/format';
+import { getIntlLocale } from '@/lib/i18n/intl-locale';
 import { getEarthquakeMeaningLabel } from '@/lib/i18n/meaning-labels';
 import { m } from '@/paraglide/messages';
 import type { Locale } from '@/paraglide/runtime';
@@ -27,7 +28,10 @@ function getSentencePlaceLabel(place: string | null, locale: Locale): string {
 }
 
 function getUtcDateLabel(time: number, locale: Locale): string {
-  return new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeZone: 'UTC' }).format(time);
+  return new Intl.DateTimeFormat(getIntlLocale(locale), {
+    dateStyle: 'medium',
+    timeZone: 'UTC',
+  }).format(time);
 }
 
 export function getDetailTitle(earthquake: Earthquake, locale: Locale): string {

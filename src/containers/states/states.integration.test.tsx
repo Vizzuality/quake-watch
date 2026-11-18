@@ -41,4 +41,17 @@ describe('page states', () => {
     const error = await renderWithRouter(ErrorState);
     await expect.element(error.screen.getByRole('alert')).toHaveTextContent('Algo ha ido mal.');
   });
+
+  it('renders both states in Portuguese', async () => {
+    overwriteGetLocale(() => 'pt');
+    const notFound = await renderWithRouter(NotFound);
+    await expect.element(notFound.screen.getByText('Não há nada aqui.')).toBeVisible();
+    await expect
+      .element(notFound.screen.getByRole('link', { name: 'Voltar ao globo' }))
+      .toBeVisible();
+    notFound.screen.unmount();
+
+    const error = await renderWithRouter(ErrorState);
+    await expect.element(error.screen.getByRole('alert')).toHaveTextContent('Algo correu mal.');
+  });
 });

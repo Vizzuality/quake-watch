@@ -3,6 +3,7 @@ import { DEPTH_COLOR_STOPS, getDepthColor, getDepthRgb } from '@/lib/earthquakes
 import { getTooltipDate } from '@/lib/earthquakes/tooltip';
 import type { Earthquake } from '@/lib/earthquakes/types';
 import { getKmLabel } from '@/lib/format';
+import { getIntlLocale } from '@/lib/i18n/intl-locale';
 import { SHARE_IMAGE_HEIGHT, SHARE_IMAGE_WIDTH } from '@/lib/seo/open-graph';
 import { m } from '@/paraglide/messages';
 import type { Locale } from '@/paraglide/runtime';
@@ -46,7 +47,7 @@ const CAPTION_STYLE = {
 } as const;
 
 function getMagnitudeNumeral(magnitude: number, locale: Locale): string {
-  return new Intl.NumberFormat(locale, {
+  return new Intl.NumberFormat(getIntlLocale(locale), {
     minimumFractionDigits: 1,
     maximumFractionDigits: 1,
   }).format(magnitude);

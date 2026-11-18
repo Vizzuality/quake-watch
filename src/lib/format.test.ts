@@ -40,6 +40,7 @@ describe('getCoordinatesLabel', () => {
     expect(getCoordinatesLabel({ latitude: -5.4162, longitude: -80.769 }, 'es')).toBe(
       '5,416° S, 80,769° O',
     );
+    expect(getCoordinatesLabel(point, 'pt')).toBe('7,587° N, 80,769° O');
   });
 });
 

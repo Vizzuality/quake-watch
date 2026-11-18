@@ -6,7 +6,7 @@ import type { ReactNode } from 'react';
 import { getShareQuakeFromMatches } from '@/lib/earthquakes/details/share-earthquake';
 import { getAlternateLinks } from '@/lib/seo/alternate-links';
 import { isSiteIndexable } from '@/lib/seo/indexing';
-import { getSiteOpenGraphMeta } from '@/lib/seo/open-graph';
+import { getAlternateOgLocales, getSiteOpenGraphMeta } from '@/lib/seo/open-graph';
 import { getPageTitle } from '@/lib/seo/page-title';
 import { m } from '@/paraglide/messages';
 import { getLocale } from '@/paraglide/runtime';
@@ -60,6 +60,10 @@ function RootDocument({ children }: { children: ReactNode }) {
     <html lang={getLocale()}>
       <head>
         <HeadContent />
+        {/* head() keeps one meta per property: https://github.com/TanStack/router/issues/5146 */}
+        {getAlternateOgLocales(getLocale()).map((alternate) => (
+          <meta key={alternate} property="og:locale:alternate" content={alternate} />
+        ))}
       </head>
       <body className="font-sans">
         {children}

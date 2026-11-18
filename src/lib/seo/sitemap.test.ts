@@ -23,16 +23,17 @@ describe('getSitemap', () => {
     expect(xml.trimEnd().endsWith('</urlset>')).toBe(true);
   });
 
-  it('lists only the en and es homes, each with three hreflang alternates', () => {
+  it('lists only the en, es and pt homes, each with four hreflang alternates', () => {
     const xml = getSitemap();
     const alternates = [
       `<xhtml:link rel="alternate" hreflang="en" href="${ORIGIN}/en"/>`,
       `<xhtml:link rel="alternate" hreflang="es" href="${ORIGIN}/es"/>`,
+      `<xhtml:link rel="alternate" hreflang="pt" href="${ORIGIN}/pt"/>`,
       `<xhtml:link rel="alternate" hreflang="x-default" href="${ORIGIN}/en"/>`,
     ];
 
-    expect(getUrlBlocks(xml)).toHaveLength(2);
-    for (const loc of [`${ORIGIN}/en`, `${ORIGIN}/es`]) {
+    expect(getUrlBlocks(xml)).toHaveLength(3);
+    for (const loc of [`${ORIGIN}/en`, `${ORIGIN}/es`, `${ORIGIN}/pt`]) {
       const block = getBlockFor(xml, loc);
       for (const alternate of alternates) expect(block).toContain(alternate);
     }

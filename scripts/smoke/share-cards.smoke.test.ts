@@ -97,7 +97,7 @@ describe.each([
 });
 
 describe('site share card', () => {
-  it.each(['/en', '/es'])('%s links the site image and a large card', async (pathname) => {
+  it.each(['/en', '/es', '/pt'])('%s links the site image and a large card', async (pathname) => {
     const html = await getHtml(pathname);
     const locale = pathname.slice(1, 3);
     expect(getProperty(html, 'og:site_name')).toEqual(['Quake Watch']);
@@ -106,6 +106,16 @@ describe('site share card', () => {
     ]);
     expect(getProperty(html, 'og:url')).toEqual([expect.stringContaining(pathname)]);
     expect(getName(html, 'twitter:card')).toEqual(['summary_large_image']);
+  });
+
+  it.each([
+    { pathname: '/en', locale: 'en_US', alternates: ['es_ES', 'pt_PT'] },
+    { pathname: '/es', locale: 'es_ES', alternates: ['en_US', 'pt_PT'] },
+    { pathname: '/pt', locale: 'pt_PT', alternates: ['en_US', 'es_ES'] },
+  ])('$pathname declares its og:locale and the two others', async (expected) => {
+    const html = await getHtml(expected.pathname);
+    expect(getProperty(html, 'og:locale')).toEqual([expected.locale]);
+    expect(getProperty(html, 'og:locale:alternate')).toEqual(expected.alternates);
   });
 
   it('renders the site image as a 1200×630 PNG', async () => {

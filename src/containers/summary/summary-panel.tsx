@@ -16,6 +16,7 @@ import {
 } from '@/lib/earthquakes/summary';
 import type { Earthquake } from '@/lib/earthquakes/types';
 import { getDecimalLabel } from '@/lib/format';
+import { getIntlLocale } from '@/lib/i18n/intl-locale';
 import { cn } from '@/lib/utils';
 import { m } from '@/paraglide/messages';
 import { type Locale, getLocale } from '@/paraglide/runtime';
@@ -34,7 +35,10 @@ const COUNT_PHRASES: Record<Interval, { one: CountPhrase; other: CountPhrase }> 
 
 function getCountPhrase(interval: Interval, count: number, locale: Locale): string {
   const phrases = COUNT_PHRASES[interval];
-  const phrase = new Intl.PluralRules(locale).select(count) === 'one' ? phrases.one : phrases.other;
+  const phrase =
+    new Intl.PluralRules(getIntlLocale(locale)).select(count) === 'one'
+      ? phrases.one
+      : phrases.other;
   return phrase({}, { locale });
 }
 
