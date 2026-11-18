@@ -1,18 +1,33 @@
 import { describe, expect, it } from 'vitest';
 
-import { GLOBE_DOT_COUNT, GLOBE_LOOK } from './look';
+import { GLOBE_DOT_COUNT, GLOBE_LOOK, getCoastAlpha } from './look';
 
 describe('globe look', () => {
-  it('pins the look fitted to the Figma D1 globe', () => {
+  it('pins the prototype look', () => {
     expect(GLOBE_DOT_COUNT).toBe(30_000);
     expect(GLOBE_LOOK).toEqual({
-      ocean: [96, 104, 200],
-      oceanA: 0.27,
-      land: [240, 208, 178],
-      landA: 1,
-      landS: 1.5,
-      dot: 1.5,
-      rim: 1.15,
+      ocean: [63, 127, 217],
+      oceanA: 1,
+      land: [124, 214, 178],
+      landA: 0.25,
+      landS: 0.9,
+      dot: 0.7,
+      rim: 1,
+      backFace: 0.18,
+      veil: [24, 26, 54],
+      veilA: 0.7,
+      halo: [90, 100, 255],
+      haloA: 0.1,
+      haloFrom: 0.92,
+      haloTo: 1.28,
+      coastA: 0.15,
+      coastPx: 0.5,
     });
+  });
+
+  it('spreads the 0.5 px coastline over the 1 device px WebGL line', () => {
+    expect(getCoastAlpha(2)).toBe(0.15);
+    expect(getCoastAlpha(1)).toBe(0.075);
+    expect(getCoastAlpha(3)).toBe(0.15);
   });
 });

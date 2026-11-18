@@ -77,6 +77,10 @@ describe('filters panel', () => {
 
     await userEvent.click(screen.getByText('7d', { exact: true }));
     await userEvent.keyboard('{Tab}');
+    await expect
+      .element(screen.getByRole('button', { name: 'More about Magnitude' }))
+      .toHaveFocus();
+    await userEvent.keyboard('{Tab}');
     await expect.element(screen.getByRole('radio', { name: 'All' }).first()).toHaveFocus();
   });
 
@@ -105,6 +109,22 @@ describe('filters panel', () => {
     const reloaded = await renderPanel(href);
     for (const name of ['USGS', '5+', 'Deep', '7d']) {
       await expect.element(reloaded.screen.getByRole('radio', { name })).toBeChecked();
+    }
+  });
+
+  it('puts an Info button next to each filter label without renaming the groups', async () => {
+    const { screen } = await renderPanel();
+
+    for (const [name, info] of [
+      ['Time', /How far back/],
+      ['Magnitude', /logarithmic/],
+      ['Depth', /70 km/],
+      ['Source', /USGS and EMSC/],
+    ] as const) {
+      await expect.element(screen.getByRole('radiogroup', { name, exact: true })).toBeVisible();
+      await expect
+        .element(screen.getByRole('button', { name: `More about ${name}` }))
+        .toHaveAccessibleDescription(info);
     }
   });
 

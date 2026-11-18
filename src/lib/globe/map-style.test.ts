@@ -2,20 +2,29 @@ import type { LayerSpecification, StyleSpecification } from 'maplibre-gl';
 import { describe, expect, it } from 'vitest';
 
 import { FELT_RING_LOOK } from './felt-rings';
+import { TOWN_ICON_ID } from './map-images';
 import {
-  BOUNDARY_OPACITY,
+  AREA_LAYER_ID,
+  AREA_SOURCE_ID,
   FELT_FILL_LAYER_ID,
   FELT_LINE_LAYER_ID,
   MAP_COLORS,
-  MAP_FONT,
+  MAP_FONTS,
   QUAKE_LAYER_ID,
   QUAKE_RING_LAYER_ID,
-  getStreetMapStyle,
+  SELECTED_LAYER_ID,
+  SELECTED_RING_LAYER_ID,
+  getFeltRingPaint,
+  getQuakeMapStyle,
+  getSelectedQuakeFilter,
 } from './map-style';
 import { QUAKE_MARKER_LOOK } from './quakes';
 
-const FONT_URLS = { latin: 'regular.woff2', latinExt: 'regular-ext.woff2' };
-const NONLATIN_NAME = ['case', ['has', 'name:nonlatin'], ['get', 'name:nonlatin'], ['get', 'name']];
+const FONT_URLS = {
+  regular: { latin: 'regular.woff2', latinExt: 'regular-ext.woff2' },
+  medium: { latin: 'medium.woff2', latinExt: 'medium-ext.woff2' },
+  light: { latin: 'light.woff2', latinExt: 'light-ext.woff2' },
+};
 
 const DARK: StyleSpecification = {
   version: 8,
@@ -28,20 +37,6 @@ const DARK: StyleSpecification = {
   layers: [
     { id: 'background', type: 'background', paint: { 'background-color': 'rgb(12,12,12)' } },
     {
-      id: 'water',
-      type: 'fill',
-      source: 'openmaptiles',
-      'source-layer': 'water',
-      paint: { 'fill-color': 'rgb(27,27,29)' },
-    },
-    {
-      id: 'water_name',
-      type: 'symbol',
-      source: 'openmaptiles',
-      'source-layer': 'water_name',
-      layout: { 'text-field': NONLATIN_NAME, 'text-font': ['Noto Sans Regular'] },
-    },
-    {
       id: 'highway_minor',
       type: 'line',
       source: 'openmaptiles',
@@ -49,38 +44,16 @@ const DARK: StyleSpecification = {
       paint: { 'line-color': '#181818', 'line-width': 2 },
     },
     {
-      id: 'road_oneway',
-      type: 'symbol',
-      source: 'openmaptiles',
-      'source-layer': 'transportation',
-      layout: { 'icon-image': 'arrow' },
-    },
-    {
-      id: 'highway_name_motorway',
-      type: 'symbol',
-      source: 'openmaptiles',
-      'source-layer': 'transportation_name',
-      layout: { 'text-field': ['to-string', ['get', 'ref']], 'text-font': ['Noto Sans Regular'] },
-    },
-    {
-      id: 'boundary_state',
-      type: 'line',
-      source: 'openmaptiles',
-      'source-layer': 'boundary',
-      paint: { 'line-color': 'hsl(0,0%,21%)', 'line-opacity': 1 },
-    },
-    {
       id: 'place_city',
       type: 'symbol',
       source: 'openmaptiles',
       'source-layer': 'place',
-      layout: { 'text-field': NONLATIN_NAME, 'text-font': ['Noto Sans Regular'] },
-      paint: { 'text-color': 'rgb(101,101,101)', 'text-halo-color': 'rgba(0,0,0,0.7)' },
+      layout: { 'text-field': ['get', 'name'], 'text-font': ['Noto Sans Regular'] },
     },
   ] as LayerSpecification[],
 };
 
-const style = getStreetMapStyle(DARK, FONT_URLS);
+const style = getQuakeMapStyle(DARK, FONT_URLS);
 
 function getLayer(id: string) {
   const layer = style.layers.find((candidate) => candidate.id === id);
@@ -88,100 +61,223 @@ function getLayer(id: string) {
   return layer;
 }
 
-describe('getStreetMapStyle', () => {
-  it('paints the background in the app background colour', () => {
-    expect(getLayer('background').paint).toEqual({ 'background-color': MAP_COLORS.background });
-  });
-
-  it('paints roads and boundaries in the app colours', () => {
-    expect(getLayer('highway_minor').paint).toEqual({
-      'line-color': MAP_COLORS.road,
-      'line-width': 2,
-    });
-    expect(getLayer('boundary_state').paint).toEqual({
-      'line-color': MAP_COLORS.boundary,
-      'line-opacity': BOUNDARY_OPACITY,
-    });
-  });
-
-  it('sets every label in Space Grotesk and the muted colour, with Latin names only', () => {
-    for (const id of ['water_name', 'highway_name_motorway', 'place_city']) {
-      const layer = getLayer(id);
-      if (layer.type !== 'symbol') throw new Error(`${id} is not a symbol layer`);
-      expect(layer.layout?.['text-font']).toEqual([MAP_FONT]);
-      expect(layer.paint?.['text-color']).toBe(MAP_COLORS.label);
-      expect(layer.paint?.['text-halo-color']).toBe(MAP_COLORS.background);
-    }
-    const city = getLayer('place_city');
-    const motorway = getLayer('highway_name_motorway');
-    if (city.type !== 'symbol' || motorway.type !== 'symbol') throw new Error('Not symbol layers');
-    expect(city.layout?.['text-field']).toEqual([
-      'coalesce',
-      ['get', 'name:en'],
-      ['get', 'name:latin'],
-      ['get', 'name'],
-    ]);
-    expect(motorway.layout?.['text-field']).toEqual(['to-string', ['get', 'ref']]);
-  });
-
-  it('leaves icon-only symbols alone', () => {
-    expect(getLayer('road_oneway')).toEqual(DARK.layers[4]);
-  });
-
-  it('serves the label font from our own files and never from the OpenFreeMap glyphs', () => {
-    expect(Object.keys(style['font-faces'] ?? {})).toEqual([MAP_FONT]);
-    expect(style.glyphs).toBeUndefined();
-    expect(Object.keys(style.sources)).toEqual([
-      'openmaptiles',
-      'openmaptiles-low',
-      'felt-rings',
-      'quakes',
+describe('getQuakeMapStyle', () => {
+  it('draws plain land and sea, the streets and boundaries, the quakes and the QW labels', () => {
+    expect(style.layers.map(({ id }) => id)).toEqual([
+      'background',
+      'water-low',
+      'water',
+      'coastline',
+      'boundary-state',
+      'boundary-country',
+      'road-minor',
+      'road-secondary',
+      'road-primary',
+      'road-motorway',
+      AREA_LAYER_ID,
+      FELT_FILL_LAYER_ID,
+      FELT_LINE_LAYER_ID,
+      QUAKE_RING_LAYER_ID,
+      QUAKE_LAYER_ID,
+      SELECTED_RING_LAYER_ID,
+      SELECTED_LAYER_ID,
+      'label-road',
+      'label-sea-line',
+      'label-sea',
+      'label-neighbourhood',
+      'label-town',
+      'label-country',
     ]);
   });
 
-  it('keeps coarse water under every layer so fast pans never show empty tiles', () => {
+  it('fills the land flat and the water in the ocean colour, with no dot grid at any zoom', () => {
+    expect(getLayer('background').paint).toEqual({ 'background-color': MAP_COLORS.land });
+    expect(getLayer('water').paint).toEqual({
+      'fill-color': MAP_COLORS.ocean,
+      'fill-antialias': false,
+    });
+    const paints = style.layers.map((layer) => JSON.stringify(layer.paint ?? {}));
+    expect(paints.some((paint) => paint.includes('pattern'))).toBe(false);
+  });
+
+  it('draws roads as thin primary lines, minor streets only once zoomed in to street level', () => {
+    expect(getLayer('road-minor')).toMatchObject({
+      'source-layer': 'transportation',
+      minzoom: 12,
+      filter: [
+        'all',
+        ['==', ['geometry-type'], 'LineString'],
+        ['match', ['get', 'class'], ['minor', 'service'], true, false],
+      ],
+      paint: { 'line-color': MAP_COLORS.primary, 'line-opacity': 0.16 },
+    });
+    expect(getLayer('road-motorway')).toMatchObject({
+      minzoom: 5,
+      paint: { 'line-color': MAP_COLORS.primary, 'line-opacity': 0.4 },
+    });
+  });
+
+  it('draws land boundaries subtly and never the maritime ones', () => {
+    expect(getLayer('boundary-country')).toMatchObject({
+      'source-layer': 'boundary',
+      filter: ['all', ['==', ['get', 'admin_level'], 2], ['!=', ['get', 'maritime'], 1]],
+      paint: { 'line-opacity': 0.35, 'line-width': 0.8 },
+    });
+    expect(getLayer('boundary-state')).toMatchObject({
+      paint: { 'line-opacity': 0.18, 'line-dasharray': [3, 3] },
+    });
+  });
+
+  it('names streets along their line from zoom 13, haloed in the land colour', () => {
+    expect(getLayer('label-road')).toMatchObject({
+      'source-layer': 'transportation_name',
+      minzoom: 13,
+      layout: { 'symbol-placement': 'line', 'text-font': [MAP_FONTS.regular] },
+      paint: {
+        'text-color': MAP_COLORS.primary,
+        'text-halo-color': MAP_COLORS.land,
+        'text-halo-width': 1.5,
+      },
+    });
+  });
+
+  it('names suburbs and neighbourhoods from zoom 11 in QW/Label S', () => {
+    expect(getLayer('label-neighbourhood')).toMatchObject({
+      minzoom: 11,
+      filter: ['match', ['get', 'class'], ['suburb', 'quarter', 'neighbourhood'], true, false],
+      layout: {
+        'text-font': [MAP_FONTS.medium],
+        'text-size': 9,
+        'text-letter-spacing': 0.18,
+        'text-transform': 'uppercase',
+      },
+      paint: { 'text-halo-color': MAP_COLORS.land },
+    });
+  });
+
+  it('outlines the coast with a 0.6 px primary line', () => {
+    expect(getLayer('coastline')).toMatchObject({
+      type: 'line',
+      source: 'openmaptiles',
+      'source-layer': 'water',
+      paint: { 'line-color': MAP_COLORS.primary, 'line-width': 0.6 },
+    });
+  });
+
+  it('keeps coarse water under the map while zoomed out so fast pans never show empty tiles', () => {
     expect(style.sources['openmaptiles-low']).toEqual({
       type: 'vector',
       url: 'https://tiles.openfreemap.org/planet',
       maxzoom: 0,
     });
-    expect(style.layers.slice(0, 3).map((layer) => layer.id)).toEqual([
-      'background',
-      'water-low',
-      'water',
-    ]);
     expect(getLayer('water-low')).toMatchObject({
       source: 'openmaptiles-low',
       'source-layer': 'water',
+      paint: { 'fill-color': MAP_COLORS.ocean },
     });
   });
 
-  it('paints felt rings like the globe does', () => {
+  it('drops the coarse water at street zooms, where its rough coast would cover the land', () => {
+    expect(getLayer('water-low')).toMatchObject({ maxzoom: 8 });
+  });
+
+  it('serves the three label weights from our own files and never from the OpenFreeMap glyphs', () => {
+    expect(style['font-faces']).toEqual({
+      [MAP_FONTS.regular]: expect.arrayContaining([
+        expect.objectContaining({ url: 'regular.woff2' }),
+      ]),
+      [MAP_FONTS.medium]: expect.arrayContaining([
+        expect.objectContaining({ url: 'medium.woff2' }),
+      ]),
+      [MAP_FONTS.light]: expect.arrayContaining([expect.objectContaining({ url: 'light.woff2' })]),
+    });
+    expect(style.glyphs).toBeUndefined();
+    expect(style.sprite).toBeUndefined();
+    expect(Object.keys(style.sources)).toEqual([
+      'openmaptiles',
+      'openmaptiles-low',
+      AREA_SOURCE_ID,
+      'felt-rings',
+      'quakes',
+    ]);
+  });
+
+  it('sets countries in QW/Country: 10 px medium, 3.2 px tracking, uppercase, primary', () => {
+    expect(getLayer('label-country')).toMatchObject({
+      filter: ['==', ['get', 'class'], 'country'],
+      layout: {
+        'text-font': [MAP_FONTS.medium],
+        'text-size': 10,
+        'text-letter-spacing': 0.32,
+        'text-transform': 'uppercase',
+      },
+      paint: { 'text-color': MAP_COLORS.primary, 'text-halo-color': MAP_COLORS.land },
+    });
+  });
+
+  it('sets seas in QW/Sea: 10 px light, 3 px tracking, uppercase, muted', () => {
+    for (const id of ['label-sea', 'label-sea-line']) {
+      expect(getLayer(id)).toMatchObject({
+        'source-layer': 'water_name',
+        layout: {
+          'text-font': [MAP_FONTS.light],
+          'text-size': 10,
+          'text-letter-spacing': 0.3,
+          'text-transform': 'uppercase',
+        },
+        paint: { 'text-color': MAP_COLORS.muted, 'text-halo-color': MAP_COLORS.ocean },
+      });
+    }
+  });
+
+  it('sets towns in QW/Place at 85% with a 4 px ring 5 px before the name', () => {
+    expect(getLayer('label-town')).toMatchObject({
+      layout: {
+        'icon-image': TOWN_ICON_ID,
+        'text-font': [MAP_FONTS.regular],
+        'text-size': 11,
+        'text-anchor': 'left',
+        'text-offset': [7 / 11, 0],
+      },
+      paint: {
+        'text-color': MAP_COLORS.primary,
+        'text-opacity': 0.85,
+        'text-halo-color': MAP_COLORS.land,
+      },
+    });
+  });
+
+  it('reads Latin names only', () => {
+    const country = getLayer('label-country');
+    if (country.type !== 'symbol') throw new Error('Not a symbol layer');
+    expect(country.layout?.['text-field']).toEqual([
+      'coalesce',
+      ['get', 'name:en'],
+      ['get', 'name:latin'],
+      ['get', 'name'],
+    ]);
+  });
+
+  it('dashes the 300 km area ring 2 on 4 in the muted colour', () => {
+    expect(getLayer(AREA_LAYER_ID)).toMatchObject({
+      source: AREA_SOURCE_ID,
+      paint: { 'line-color': MAP_COLORS.muted, 'line-width': 1, 'line-dasharray': [2, 4] },
+    });
+  });
+
+  it('paints felt rings like the globe does until a quake is selected', () => {
     expect(getLayer(FELT_FILL_LAYER_ID)).toMatchObject({
       filter: ['==', ['geometry-type'], 'Polygon'],
+      paint: { 'fill-color': ['get', 'color'], 'fill-opacity': FELT_RING_LOOK.fillA },
     });
     expect(getLayer(FELT_LINE_LAYER_ID)).toMatchObject({
       filter: ['==', ['geometry-type'], 'LineString'],
+      paint: {
+        'line-color': ['get', 'color'],
+        'line-opacity': FELT_RING_LOOK.strokeA,
+        'line-width': FELT_RING_LOOK.strokePx,
+      },
     });
-    expect(getLayer(FELT_FILL_LAYER_ID).paint).toEqual({
-      'fill-color': ['get', 'color'],
-      'fill-opacity': FELT_RING_LOOK.fillA,
-    });
-    expect(getLayer(FELT_LINE_LAYER_ID).paint).toEqual({
-      'line-color': ['get', 'color'],
-      'line-opacity': FELT_RING_LOOK.strokeA,
-      'line-width': FELT_RING_LOOK.strokePx,
-    });
-  });
-
-  it('draws felt rings, hollow rings and then quakes over the last line or fill layer', () => {
-    const ids = style.layers.map((layer) => layer.id);
-    expect(ids.slice(ids.indexOf('boundary_state') + 1, ids.indexOf(QUAKE_LAYER_ID) + 1)).toEqual([
-      FELT_FILL_LAYER_ID,
-      FELT_LINE_LAYER_ID,
-      QUAKE_RING_LAYER_ID,
-      QUAKE_LAYER_ID,
-    ]);
   });
 
   it('draws epicentres as the globe does at the handover and grows them as the map zooms in', () => {
@@ -228,6 +324,49 @@ describe('getStreetMapStyle', () => {
         'circle-stroke-width': FELT_RING_LOOK.strokePx,
         'circle-stroke-opacity': FELT_RING_LOOK.hollowA,
       },
+    });
+  });
+
+  it('marks the selected quake with a 7.6 px pink dot inside a 14 px primary ring', () => {
+    expect(getLayer(SELECTED_LAYER_ID)).toMatchObject({
+      source: 'quakes',
+      filter: getSelectedQuakeFilter(null),
+      paint: { 'circle-color': MAP_COLORS.accent, 'circle-radius': 7.6 },
+    });
+    expect(getLayer(SELECTED_RING_LAYER_ID)).toMatchObject({
+      source: 'quakes',
+      filter: getSelectedQuakeFilter(null),
+      paint: {
+        'circle-radius': 13.5,
+        'circle-opacity': 0,
+        'circle-stroke-color': MAP_COLORS.primary,
+        'circle-stroke-width': 1,
+      },
+    });
+  });
+});
+
+describe('getSelectedQuakeFilter', () => {
+  it('matches only the selected quake, and nothing without a selection', () => {
+    expect(getSelectedQuakeFilter('emsc:1')).toEqual(['==', ['get', 'key'], 'emsc:1']);
+    expect(getSelectedQuakeFilter(null)).toEqual(['==', ['get', 'key'], '']);
+  });
+});
+
+describe('getFeltRingPaint', () => {
+  it('outlines the selected quake felt reach in a 1 px pink line with no fill', () => {
+    expect(getFeltRingPaint(true)).toEqual({
+      lineColor: MAP_COLORS.accent,
+      lineOpacity: 1,
+      fillOpacity: 0,
+    });
+  });
+
+  it('keeps the depth colours of the globe without a selection', () => {
+    expect(getFeltRingPaint(false)).toEqual({
+      lineColor: ['get', 'color'],
+      lineOpacity: FELT_RING_LOOK.strokeA,
+      fillOpacity: FELT_RING_LOOK.fillA,
     });
   });
 });

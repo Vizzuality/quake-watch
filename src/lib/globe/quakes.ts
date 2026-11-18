@@ -13,6 +13,14 @@ export const QUAKE_MARKER_LOOK = {
   needleBaseK: 0.5,
 } as const;
 
+export const QUAKE_AGE_LOOK = {
+  emberMinMs: 6 * 3_600_000,
+  emberSpanK: 0.29,
+  fadeFloor: 0.3,
+  alphaBase: 0.35,
+  backK: 0.75,
+} as const;
+
 const MIN_AMPLITUDE = 0.12;
 
 type MarkerAttributes = {
@@ -44,6 +52,19 @@ export function getEpicentreRadiusPx(magnitude: number): number {
 
 export function getHypocentreRadiusPx(magnitude: number): number {
   return (1.6 + 3.2 * getQuakeAmplitude(magnitude)) * 0.5;
+}
+
+export function getEmberMs(spanMs: number): number {
+  return Math.max(QUAKE_AGE_LOOK.emberMinMs, QUAKE_AGE_LOOK.emberSpanK * spanMs);
+}
+
+export function getAgeFade(ageMs: number, emberMs: number): number {
+  return Math.max(QUAKE_AGE_LOOK.fadeFloor, 1 - ageMs / emberMs);
+}
+
+export function getMarkerAlpha(fade: number, isBack: boolean): number {
+  const { alphaBase, backK } = QUAKE_AGE_LOOK;
+  return (alphaBase + (1 - alphaBase) * fade) * (isBack ? backK : 1);
 }
 
 function getEmptyNeedleAttributes(vertexCount: number): QuakeVertexAttributes {

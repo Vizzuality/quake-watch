@@ -16,10 +16,13 @@ import { getLiveSnapshot, playbackClock } from '@/lib/earthquakes/playback-clock
 import { earthquakesQueryOptions } from '@/lib/earthquakes/query-options';
 import { getEarthquakeFilters } from '@/lib/earthquakes/search-schema';
 import {
+  type RingTick,
   TIME_RING_LOOK,
+  getActiveRingTicks,
   getNeedleEarthquake,
   getPastWedgePath,
   getRingAngle,
+  getRingBarPath,
   getRingBarsPath,
   getRingFraction,
   getRingFractionAt,
@@ -44,6 +47,8 @@ const PAST_CLIP_RADIUS = R0 + TIME_RING_LOOK.barInset + TIME_RING_LOOK.barMax + 
 const HIT_RADIUS = R0 + (TIME_RING_LOOK.hitOuter - TIME_RING_LOOK.hitInner) / 2;
 const HIT_WIDTH = TIME_RING_LOOK.hitOuter + TIME_RING_LOOK.hitInner;
 const PAGE_STEPS = 6;
+const SVG_NS = 'http://www.w3.org/2000/svg';
+const ACTIVE_BAR_OPACITY = '0.95';
 
 function getDegrees(fraction: number): number {
   return (getRingAngle(fraction) * 180) / Math.PI + 90;
@@ -53,6 +58,24 @@ function getPlayheadFraction(range: TimeRange): number {
   const playhead = playbackClock.getPlayhead();
   if (playhead === null) return 1;
   return getRingFraction(playhead, range);
+}
+
+function getActiveBarElement(tick: RingTick): SVGPathElement {
+  const path = document.createElementNS(SVG_NS, 'path');
+  path.setAttribute('d', getRingBarPath(tick));
+  path.setAttribute('stroke', tick.color);
+  path.setAttribute('stroke-opacity', ACTIVE_BAR_OPACITY);
+  path.setAttribute('stroke-width', String(TIME_RING_LOOK.activeBarWidth));
+  path.setAttribute('vector-effect', 'non-scaling-stroke');
+  return path;
+}
+
+function syncActiveBars(group: SVGGElement | null, active: readonly RingTick[]) {
+  if (!group) return;
+  const ids = active.map(({ id }) => id).join(' ');
+  if (group.dataset.ids === ids) return;
+  group.dataset.ids = ids;
+  group.replaceChildren(...active.map(getActiveBarElement));
 }
 
 function getKeyTarget(key: string, current: number, range: TimeRange): number | null {
@@ -143,16 +166,18 @@ export function TimeRing({ opacity }: { opacity: number }) {
   const svgRef = useRef<SVGSVGElement>(null);
   const clipRef = useRef<SVGPathElement>(null);
   const needleRef = useRef<SVGGElement>(null);
+  const activeRef = useRef<SVGGElement>(null);
   const hitRef = useRef<SVGCircleElement>(null);
   const isDraggingRef = useRef(false);
   const clipId = useId();
   const [size, setSize] = useState<Size | null>(null);
   const locale = getLocale();
   const earthquakes = data?.earthquakes ?? EMPTY_EARTHQUAKES;
-  const barsPath = useMemo(
-    () => (range ? getRingBarsPath(getRingTicks(earthquakes, range)) : ''),
+  const ticks = useMemo(
+    () => (range ? getRingTicks(earthquakes, range) : []),
     [earthquakes, range],
   );
+  const barsPath = useMemo(() => getRingBarsPath(ticks), [ticks]);
   const marks = range ? getRingMarks(range, locale) : [];
   const isLive = playhead === null;
   const frame = size && getGlobeFrame(size.width, size.height);
@@ -207,14 +232,17 @@ export function TimeRing({ opacity }: { opacity: number }) {
   useLayoutEffect(() => {
     if (!range) return;
     const ringRange = range;
+    if (activeRef.current) delete activeRef.current.dataset.ids;
     function update() {
       const fraction = getPlayheadFraction(ringRange);
+      const playhead = playbackClock.getPlayhead() ?? ringRange.end;
       clipRef.current?.setAttribute('d', getPastWedgePath(fraction, PAST_CLIP_RADIUS));
       needleRef.current?.setAttribute('transform', `rotate(${getDegrees(fraction)})`);
+      syncActiveBars(activeRef.current, getActiveRingTicks(ticks, playhead));
     }
     update();
     return playbackClock.subscribeFrame(update);
-  }, [range, isLive, size]);
+  }, [range, ticks, isLive, size]);
 
   useEffect(() => {
     const hit = hitRef.current;
@@ -251,8 +279,9 @@ export function TimeRing({ opacity }: { opacity: number }) {
               d={barsPath}
               clipPath={`url(#${clipId})`}
               vectorEffect="non-scaling-stroke"
-              className="stroke-line-tick"
+              className="stroke-foreground/40"
             />
+            <g ref={activeRef} data-testid="time-ring-active" />
             {marks.map(({ fraction }) => {
               const angle = getRingAngle(fraction);
               const from = getRingPoint(angle, R0 - TIME_RING_LOOK.markLength);

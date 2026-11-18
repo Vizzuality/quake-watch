@@ -9,8 +9,9 @@ export const MAP_UNMOUNT_ZOOM = 3.5;
 const WHEEL_ZOOM_RATE = 0.0015;
 const INERTIA_TIME_CONSTANT = 0.15;
 const INERTIA_STOP_SPEED = 0.01;
-const IDLE_DRIFT_SPEED = 0.0133;
-const IDLE_DRIFT_PERIOD_MS = 9000;
+const IDLE_DRIFT_SPEED = 0.03;
+export const IDLE_DELAY_MS = 4000;
+const IDLE_MAX_ZOOM = 1.3;
 
 export const STOPPED: GlobeVelocity = { lon: 0, lat: 0 };
 
@@ -62,8 +63,12 @@ export function getInertiaView(
   };
 }
 
-export function getIdleDriftLon(lon: number, dtSeconds: number, elapsedMs: number): number {
-  return lon + dtSeconds * IDLE_DRIFT_SPEED * Math.cos(elapsedMs / IDLE_DRIFT_PERIOD_MS);
+export function getIdleDriftLon(lon: number, dtSeconds: number): number {
+  return lon + dtSeconds * IDLE_DRIFT_SPEED;
+}
+
+export function isIdleDriftDue(idleMs: number, zoom: number): boolean {
+  return idleMs >= IDLE_DELAY_MS && zoom < IDLE_MAX_ZOOM;
 }
 
 export const FLY_DURATION_MS = 900;

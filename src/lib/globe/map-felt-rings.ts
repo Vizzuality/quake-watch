@@ -18,7 +18,7 @@ function getClampedLat(lat: number): number {
   return Math.min(MERCATOR_MAX_LAT, Math.max(-MERCATOR_MAX_LAT, lat));
 }
 
-function getDestination(lat: number, lon: number, angle: number, bearing: number): LngLat {
+export function getDestination(lat: number, lon: number, angle: number, bearing: number): LngLat {
   const phi = getRadians(lat);
   const sinPhi =
     Math.sin(phi) * Math.cos(angle) + Math.cos(phi) * Math.sin(angle) * Math.cos(bearing);

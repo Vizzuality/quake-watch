@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
+import { getWaveLifeSeconds } from '@/lib/globe/felt-rings';
+
+import { getDepthColor } from './depth-color';
 import {
   TIME_RING_LOOK,
+  getActiveRingTicks,
   getNeedleEarthquake,
   getPastWedgePath,
   getRingAngle,
@@ -16,6 +20,7 @@ import {
   getScrubStepMs,
   getSpeedLabel,
 } from './time-ring';
+import { getPlaybackSpeed } from './timeline';
 import type { Earthquake } from './types';
 
 const HOUR = 3_600_000;
@@ -49,11 +54,29 @@ describe('getRingTicks', () => {
       getQuake('late', 10 * HOUR + 1),
     ];
 
-    expect(getRingTicks(quakes, range)).toEqual([
+    expect(getRingTicks(quakes, range)).toMatchObject([
       { id: 'a', time: 0, fraction: 0, length: getRingBarLength(3) },
       { id: 'b', time: 5 * HOUR, fraction: 0.5, length: getRingBarLength(5) },
       { id: 'c', time: 10 * HOUR, fraction: 1, length: getRingBarLength(7) },
     ]);
+  });
+
+  it('colours each tick by depth and keeps it active for its wave life in data time', () => {
+    const [tick] = getRingTicks([{ ...getQuake('a', HOUR, 6.4), depthKm: 650 }], range);
+
+    expect(tick.color).toBe(getDepthColor(650));
+    expect(tick.activeMs).toBe(getWaveLifeSeconds(6.4) * 1000 * getPlaybackSpeed(range));
+  });
+
+  it('marks as active only the ticks the playhead passed within their wave life', () => {
+    const ticks = getRingTicks(
+      [getQuake('old', 0, 7), getQuake('recent', 4 * HOUR, 7), getQuake('future', 6 * HOUR, 7)],
+      range,
+    );
+    const playhead = 4 * HOUR + ticks[1].activeMs / 2;
+
+    expect(getActiveRingTicks(ticks, playhead).map(({ id }) => id)).toEqual(['recent']);
+    expect(getActiveRingTicks(ticks, 4 * HOUR + ticks[1].activeMs + 1)).toEqual([]);
   });
 
   it('draws one path segment per tick', () => {

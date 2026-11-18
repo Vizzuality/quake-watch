@@ -14,6 +14,7 @@ import { render } from 'vitest-browser-react';
 import { userEvent } from 'vitest/browser';
 
 import { Timeline } from '@/containers/timeline/timeline';
+import { getDepthColor } from '@/lib/earthquakes/depth-color';
 import { playbackClock } from '@/lib/earthquakes/playback-clock';
 import { EARTHQUAKE_SEARCH_ROUTE } from '@/lib/earthquakes/search-schema';
 import { TIME_RING_LOOK, getRingAngle, getRingPoint } from '@/lib/earthquakes/time-ring';
@@ -253,6 +254,25 @@ describe('timeline', () => {
 
     await expect.element(screen.getByText('Wed 28.10 · 11:00')).toBeInTheDocument();
     await expect.element(screen.getByText('M6.2 · Southern Spain')).toBeInTheDocument();
+  });
+
+  it('lights the bar of an Earthquake in its depth colour while its wave is live', async () => {
+    const { screen } = await renderTimeline();
+    const active = screen.getByTestId('time-ring-active').element();
+
+    playbackClock.seek(Date.parse('2026-10-28T11:00:00.000Z'));
+    await waitFrames(2);
+
+    const bars = active.querySelectorAll('path');
+    expect(bars).toHaveLength(1);
+    expect(bars[0].getAttribute('stroke')).toBe(getDepthColor(2.1));
+    expect(bars[0].getAttribute('stroke-opacity')).toBe('0.95');
+    expect(bars[0].getAttribute('stroke-width')).toBe('1.6');
+
+    playbackClock.seek(Date.parse('2026-10-29T12:00:00.000Z'));
+    await waitFrames(2);
+
+    expect(active.querySelectorAll('path')).toHaveLength(0);
   });
 
   it('speaks Spanish', async () => {

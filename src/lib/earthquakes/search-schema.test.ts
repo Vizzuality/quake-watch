@@ -17,12 +17,13 @@ function getSearch(input: Record<string, unknown> = {}) {
 }
 
 describe('earthquakeSearchSchema', () => {
-  it('fills the four defaults and leaves the rest undefined', () => {
+  it('fills the five defaults and leaves the rest undefined', () => {
     expect(getSearch()).toEqual({
       source: 'emsc',
       interval: '7d',
       minmag: 0,
       depth: 'all',
+      view: 'map',
       place: undefined,
       quake: undefined,
       lat: undefined,
@@ -43,6 +44,7 @@ describe('earthquakeSearchSchema', () => {
         lat: 37.17,
         lon: -3.6,
         zoom: 4.5,
+        view: 'section',
       }),
     ).toEqual({
       source: 'usgs',
@@ -54,6 +56,7 @@ describe('earthquakeSearchSchema', () => {
       lat: 37.17,
       lon: -3.6,
       zoom: 4.5,
+      view: 'section',
     });
   });
 
@@ -81,6 +84,8 @@ describe('earthquakeSearchSchema', () => {
     ['minmag', '5', 0],
     ['minmag', 'banana', 0],
     ['depth', 'foo', 'all'],
+    ['view', 'globe', 'map'],
+    ['view', 1, 'map'],
     ['place', '', undefined],
     ['place', '   ', undefined],
     ['place', 'x'.repeat(121), undefined],
@@ -145,12 +150,13 @@ describe('getRoundedCoordinate', () => {
 });
 
 describe('EARTHQUAKE_SEARCH_DEFAULTS', () => {
-  it('holds exactly the four defaulted params', () => {
+  it('holds exactly the five defaulted params', () => {
     expect(EARTHQUAKE_SEARCH_DEFAULTS).toEqual({
       source: 'emsc',
       interval: '7d',
       minmag: 0,
       depth: 'all',
+      view: 'map',
     });
   });
 

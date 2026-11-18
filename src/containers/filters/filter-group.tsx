@@ -1,9 +1,12 @@
 import { useId } from 'react';
 
+import { InfoLabel } from '@/components/info-button/info-button';
+
 export type FilterGroupOption<T> = { value: T; label: string };
 
 type FilterGroupProps<T> = {
   label: string;
+  info: string;
   options: readonly FilterGroupOption<T>[];
   value: T;
   onChange: (value: T) => void;
@@ -11,6 +14,7 @@ type FilterGroupProps<T> = {
 
 export function FilterGroup<T extends string | number>({
   label,
+  info,
   options,
   value,
   onChange,
@@ -21,12 +25,12 @@ export function FilterGroup<T extends string | number>({
   return (
     <div className="flex flex-col gap-[9px] border-t border-line py-4">
       <div className="flex h-4 items-center">
-        <span
-          id={labelId}
+        <InfoLabel
+          label={label}
+          info={info}
+          labelId={labelId}
           className="text-[9.5px] leading-[1.2] font-medium tracking-[0.2em] text-muted uppercase"
-        >
-          {label}
-        </span>
+        />
       </div>
       <div
         role="radiogroup"

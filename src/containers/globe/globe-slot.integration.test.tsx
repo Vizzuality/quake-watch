@@ -13,7 +13,7 @@ describe('globe slot', () => {
     vi.restoreAllMocks();
   });
 
-  it('keeps the shell and says so inline when the globe chunk fails to load', async () => {
+  it('keeps the shell and offers a reload inline when the globe chunk fails to load', async () => {
     vi.spyOn(console, 'error').mockImplementation(() => {});
     const screen = await render(
       <main>
@@ -25,8 +25,8 @@ describe('globe slot', () => {
     );
 
     await expect
-      .element(screen.getByRole('status'))
-      .toHaveTextContent("Your browser can't draw the globe.");
+      .element(screen.getByRole('alert'))
+      .toHaveTextContent("The globe couldn't load. Reloading the page usually fixes it.");
     await expect.element(screen.getByRole('heading', { name: 'Quake Watch' })).toBeVisible();
   });
 });

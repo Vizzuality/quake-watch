@@ -23,7 +23,7 @@ export function LanguageSwitch() {
   return (
     <nav
       aria-label={m.language_switch_label()}
-      className="pointer-events-auto flex items-center gap-1.5 text-label text-muted uppercase md:mr-4"
+      className="pointer-events-auto flex items-center gap-1.5 text-label text-muted uppercase"
     >
       {locales.map((locale, index) => (
         <Fragment key={locale}>
@@ -38,10 +38,8 @@ export function LanguageSwitch() {
               getLinkClassName(locale === currentLocale),
             )}
           >
-            <span aria-hidden="true" className="sm:hidden">
-              {locale}
-            </span>
-            <span className="sr-only sm:not-sr-only">{LANGUAGE_NAMES[locale]}</span>
+            <span aria-hidden="true">{locale}</span>
+            <span className="sr-only">{LANGUAGE_NAMES[locale]}</span>
           </a>
         </Fragment>
       ))}

@@ -21,6 +21,25 @@ import { getEmscFeature, getFeatureCollection } from '@/test/fixtures/earthquake
 import { stubFetch } from '@/test/stub-fetch';
 
 const EMPTY_COPY = 'No earthquakes near a place with that name. Try a country or region.';
+const DENIED_COPY =
+  'Location access is blocked. Allow it in your browser settings to find earthquakes near you.';
+const VANUATU = { lat: -17.7, lon: 168.3 };
+
+function stubPosition(latitude: number, longitude: number) {
+  return vi
+    .spyOn(navigator.geolocation, 'getCurrentPosition')
+    .mockImplementation((onSuccess) =>
+      onSuccess({ coords: { latitude, longitude } } as GeolocationPosition),
+    );
+}
+
+function stubPositionError(code: number) {
+  return vi
+    .spyOn(navigator.geolocation, 'getCurrentPosition')
+    .mockImplementation((_onSuccess, onError) =>
+      onError?.({ code, PERMISSION_DENIED: 1 } as GeolocationPositionError),
+    );
+}
 
 function getPlaceSearch(router: { state: { location: { search: unknown } } }) {
   return (router.state.location.search as { place?: string }).place;
@@ -38,18 +57,22 @@ async function renderSearch(initialEntry = '/') {
               time: '2026-10-27T10:00:00.000Z',
               mag: 6.2,
               region: 'VANUATU',
+              ...VANUATU,
             }),
             getEmscFeature({
               id: 'b',
               time: '2026-10-29T10:00:00.000Z',
               mag: 4.1,
               region: 'VANUATU',
+              ...VANUATU,
             }),
             getEmscFeature({
               id: 'c',
               time: '2026-10-28T10:00:00.000Z',
               mag: 4.4,
               region: 'VANUATU ISLANDS REGION',
+              lat: -14.2,
+              lon: 167.1,
             }),
             getEmscFeature({ id: 'd', time: '2026-10-30T10:00:00.000Z', mag: 3.1 }),
           ]),
@@ -85,6 +108,7 @@ async function renderSearch(initialEntry = '/') {
 
 describe('place search', () => {
   afterEach(async () => {
+    vi.restoreAllMocks();
     playbackClock.setRange(null);
     await page.viewport(1280, 800);
   });
@@ -177,7 +201,9 @@ describe('place search', () => {
       .element(screen.getByTestId('summary-eyebrow'))
       .toHaveTextContent('In view · Vanuatu');
     await expect.element(screen.getByTestId('summary-count')).toHaveTextContent('2');
-    await expect.element(screen.getByRole('term').nth(1)).toHaveTextContent('Largest here');
+    await expect
+      .element(screen.getByRole('term').nth(1).getByText('Largest here', { exact: true }))
+      .toBeVisible();
     await expect.element(screen.getByRole('definition').nth(1)).toHaveTextContent('6.2');
   });
 
@@ -234,6 +260,87 @@ describe('place search', () => {
       .element(screen.getByTestId('summary-eyebrow'))
       .toHaveTextContent('In view · Vanuatu');
     await expect.element(screen.getByTestId('summary-count')).not.toBeInTheDocument();
+  });
+
+  it('selects the area of the nearest Earthquakes from the user location', async () => {
+    const { screen, router, combobox } = await renderSearch();
+    stubPosition(-17.5, 168.5);
+
+    await screen.getByRole('button', { name: 'Use my location' }).click();
+
+    await expect.poll(() => getPlaceSearch(router)).toBe('Vanuatu');
+    await expect.element(combobox).toHaveValue('Vanuatu');
+    await expect
+      .element(screen.getByTestId('summary-eyebrow'))
+      .toHaveTextContent('In view · Vanuatu');
+  });
+
+  it('keeps an inline message next to the field when location access is denied', async () => {
+    const { screen, router, combobox } = await renderSearch();
+    stubPositionError(1);
+
+    await screen.getByRole('button', { name: 'Use my location' }).click();
+
+    const alert = screen.getByRole('alert');
+    await expect.element(alert).toHaveTextContent(DENIED_COPY);
+    expect(getPlaceSearch(router)).toBeUndefined();
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    await expect.element(alert).toBeVisible();
+
+    await userEvent.type(combobox, 'V');
+    await expect.element(screen.getByRole('alert')).not.toBeInTheDocument();
+  });
+
+  it('says there are no Earthquakes near when the nearest is farther than 1500 km', async () => {
+    const { screen, router } = await renderSearch();
+    stubPosition(-33, 168.3);
+
+    await screen.getByRole('button', { name: 'Use my location' }).click();
+
+    await expect
+      .element(screen.getByRole('alert'))
+      .toHaveTextContent(
+        'No earthquakes in this view to match your location. Try a longer interval.',
+      );
+    expect(getPlaceSearch(router)).toBeUndefined();
+  });
+
+  it('says the location is unavailable when the position cannot be read', async () => {
+    const { screen } = await renderSearch();
+    stubPositionError(2);
+
+    await screen.getByRole('button', { name: 'Use my location' }).click();
+
+    await expect
+      .element(screen.getByRole('alert'))
+      .toHaveTextContent("Your location isn't available right now. Try again or search a place.");
+  });
+
+  it('draws the block caret at the insertion point while typing', async () => {
+    await page.viewport(1440, 900);
+    const { screen, combobox } = await renderSearch();
+    const caret = screen.getByTestId('search-caret');
+    await expect.element(caret).not.toBeVisible();
+
+    await userEvent.type(combobox, 'Van');
+
+    await expect.element(caret).toBeVisible();
+    const input = combobox.element().getBoundingClientRect();
+    const caretRect = caret.element().getBoundingClientRect();
+    expect(caretRect.width).toBeCloseTo(9.8, 1);
+    expect(caretRect.height).toBeCloseTo(12.1, 1);
+    expect(caretRect.left).toBeGreaterThan(input.left + 10);
+    expect(getComputedStyle(caret.element()).backgroundColor).toBe('rgb(235, 89, 142)');
+    expect(getComputedStyle(combobox.element()).caretColor).toBe('rgba(0, 0, 0, 0)');
+
+    const typedLeft = caretRect.left;
+    await userEvent.keyboard('{Home}');
+    await expect
+      .poll(() => caret.element().getBoundingClientRect().left)
+      .toBeCloseTo(input.left, 0);
+    expect(typedLeft).toBeGreaterThan(input.left);
+    combobox.element().blur();
+    await expect.element(caret).not.toBeVisible();
   });
 
   it('is hidden while an Earthquake is selected', async () => {

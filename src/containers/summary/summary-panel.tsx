@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { getRouteApi } from '@tanstack/react-router';
 import { useLayoutEffect, useMemo, useState } from 'react';
 
+import { InfoLabel } from '@/components/info-button/info-button';
 import { useIsQuakeSelected } from '@/hooks/use-is-quake-selected';
 import { getMagnitudeValueLabel } from '@/lib/earthquakes/details-panel';
 import { playbackClock } from '@/lib/earthquakes/playback-clock';
@@ -72,13 +73,13 @@ function getCountClassName(place: string | undefined): string {
   return `flex flex-col gap-2 text-foreground ${padding}`;
 }
 
-type SummaryStatProps = { label: string; value: string };
+type SummaryStatProps = { label: string; info: string; value: string };
 
-function SummaryStat({ label, value }: SummaryStatProps) {
+function SummaryStat({ label, info, value }: SummaryStatProps) {
   return (
     <div className="flex flex-col items-start gap-1 border-t border-line py-4">
       <dt className="flex h-4 max-w-full items-center">
-        <span className="truncate text-label text-muted uppercase">{label}</span>
+        <InfoLabel label={label} info={info} className="text-label text-muted uppercase" />
       </dt>
       <dd className="text-numeral-l whitespace-nowrap text-foreground">{value}</dd>
     </div>
@@ -143,10 +144,12 @@ export function SummaryPanel() {
           <dl className="border-b border-line">
             <SummaryStat
               label={m.summary_likely_felt({}, { locale })}
+              info={m.info_summary_likely_felt({}, { locale })}
               value={getDecimalLabel(stats.feltCount, locale)}
             />
             <SummaryStat
               label={getLargestLabel(stats.largest, place, locale)}
+              info={m.info_summary_largest({}, { locale })}
               value={getLargestValue(stats.largest, locale)}
             />
           </dl>

@@ -25,7 +25,6 @@ describe('LanguageSwitch', () => {
     for (const { locale, name } of LANGUAGES) {
       const link = screen.getByRole('link', { name, exact: true });
       await expect.element(link).toHaveAttribute('lang', locale);
-      expect((link.element() as HTMLElement).innerText).toBe(name.toUpperCase());
       await expect.element(link).toHaveAttribute('hreflang', locale);
     }
     await expect
@@ -36,18 +35,21 @@ describe('LanguageSwitch', () => {
       .not.toHaveAttribute('aria-current');
   });
 
-  it('shows two-letter codes at phone width and keeps the full names as accessible names', async () => {
-    await page.viewport(375, 812);
-    const { screen } = await renderWithRouter(LanguageSwitch);
+  it.each([375, 1440])(
+    'shows two-letter codes at %i px and keeps the full names as accessible names',
+    async (width) => {
+      await page.viewport(width, 812);
+      const { screen } = await renderWithRouter(LanguageSwitch);
 
-    for (const { locale, name, code } of LANGUAGES) {
-      const link = screen.getByRole('link', { name, exact: true });
-      await expect.element(link).toHaveAttribute('lang', locale);
-      const [codeLabel, nameLabel] = link.element().querySelectorAll('span');
-      expect(codeLabel?.innerText).toBe(code);
-      expect(nameLabel?.getBoundingClientRect().width).toBeLessThanOrEqual(1);
-    }
-  });
+      for (const { locale, name, code } of LANGUAGES) {
+        const link = screen.getByRole('link', { name, exact: true });
+        await expect.element(link).toHaveAttribute('lang', locale);
+        const [codeLabel, nameLabel] = link.element().querySelectorAll('span');
+        expect(codeLabel?.innerText).toBe(code);
+        expect(nameLabel?.getBoundingClientRect().width).toBeLessThanOrEqual(1);
+      }
+    },
+  );
 
   it('keeps every search param when switching language', async () => {
     const { screen, router } = await renderWithRouter(LanguageSwitch);

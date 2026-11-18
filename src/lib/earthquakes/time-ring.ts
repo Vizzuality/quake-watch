@@ -1,12 +1,21 @@
+import { getWaveLifeSeconds } from '@/lib/globe/felt-rings';
 import { getIntlLocale } from '@/lib/i18n/intl-locale';
 import { m } from '@/paraglide/messages';
 import type { Locale } from '@/paraglide/runtime';
 
+import { getDepthColor } from './depth-color';
 import type { TimeRange } from './timeline';
 import { getPlaybackSpeed } from './timeline';
 import type { Earthquake } from './types';
 
-export type RingTick = { id: string; time: number; fraction: number; length: number };
+export type RingTick = {
+  id: string;
+  time: number;
+  fraction: number;
+  length: number;
+  color: string;
+  activeMs: number;
+};
 export type RingMark = { fraction: number; label: string | null };
 type Point = { x: number; y: number };
 
@@ -19,14 +28,15 @@ export const TIME_RING_LOOK = {
   barMagnitudeFloor: 3.6,
   barMax: 40,
   markLength: 8,
+  activeBarWidth: 1.6,
   labelOffset: 64,
   labelEdgeFraction: 0.03,
   nowInner: 6,
   nowOuter: 8,
   nowLabelOffset: 19,
-  needleInner: 1,
-  needleOuter: 41,
-  dotOffset: 47,
+  needleInner: -6,
+  needleOuter: 46,
+  dotOffset: 46,
   dotRadius: 3,
   needleLabelGap: 18.6,
   needleLabelLine: 13,
@@ -74,26 +84,36 @@ export function getRingBarLength(magnitude: number): number {
 }
 
 export function getRingTicks(earthquakes: readonly Earthquake[], range: TimeRange): RingTick[] {
+  const playbackSpeed = getPlaybackSpeed(range);
   return earthquakes
     .filter(({ time }) => time >= range.start && time <= range.end)
-    .map(({ id, time, magnitude }) => ({
+    .map(({ id, time, magnitude, depthKm }) => ({
       id,
       time,
       fraction: getRingFraction(time, range),
       length: getRingBarLength(magnitude),
+      color: getDepthColor(depthKm),
+      activeMs: getWaveLifeSeconds(magnitude) * 1000 * playbackSpeed,
     }));
 }
 
-export function getRingBarsPath(ticks: readonly RingTick[]): string {
+export function getActiveRingTicks(ticks: readonly RingTick[], playhead: number): RingTick[] {
+  return ticks.filter(({ time, activeMs }) => time <= playhead && playhead - time <= activeMs);
+}
+
+export function getRingBarPath({
+  fraction,
+  length,
+}: Pick<RingTick, 'fraction' | 'length'>): string {
   const inner = TIME_RING_LOOK.radius + TIME_RING_LOOK.barInset;
-  return ticks
-    .map(({ fraction, length }) => {
-      const angle = getRingAngle(fraction);
-      const from = getRingPoint(angle, inner);
-      const to = getRingPoint(angle, inner + length);
-      return `M${from.x.toFixed(1)} ${from.y.toFixed(1)}L${to.x.toFixed(1)} ${to.y.toFixed(1)}`;
-    })
-    .join('');
+  const angle = getRingAngle(fraction);
+  const from = getRingPoint(angle, inner);
+  const to = getRingPoint(angle, inner + length);
+  return `M${from.x.toFixed(1)} ${from.y.toFixed(1)}L${to.x.toFixed(1)} ${to.y.toFixed(1)}`;
+}
+
+export function getRingBarsPath(ticks: readonly RingTick[]): string {
+  return ticks.map(getRingBarPath).join('');
 }
 
 export function getPastWedgePath(fraction: number, radius: number): string {

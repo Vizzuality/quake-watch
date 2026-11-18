@@ -1,6 +1,4 @@
 import 'maplibre-gl/dist/maplibre-gl.css';
-import latinRegular from '@fontsource/space-grotesk/files/space-grotesk-latin-400-normal.woff2?url';
-import latinExtRegular from '@fontsource/space-grotesk/files/space-grotesk-latin-ext-400-normal.woff2?url';
 import { useQuery } from '@tanstack/react-query';
 import { getRouteApi } from '@tanstack/react-router';
 import {
@@ -11,8 +9,11 @@ import {
   setWorkerUrl,
 } from 'maplibre-gl';
 import workerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?url';
-import { type RefObject, useEffect, useId, useRef } from 'react';
+import { type RefObject, useEffect, useId, useRef, useState } from 'react';
 
+import { addMapImages } from '@/containers/detail-map/add-map-images';
+import { MAP_FONT_URLS } from '@/containers/detail-map/map-fonts';
+import { MapOverlay } from '@/containers/detail-map/map-overlay';
 import { getWrappedLongitude, useCameraSearch } from '@/hooks/use-camera-search';
 import { getDepthColor } from '@/lib/earthquakes/depth-color';
 import { getFeltReachKm } from '@/lib/earthquakes/intensity';
@@ -32,6 +33,7 @@ import {
   getMapZoomFromUrl,
   getUrlZoom,
 } from '@/lib/globe/map-handover';
+import { type MapPadding, getDetailPadding } from '@/lib/globe/map-overlay';
 import {
   FELT_SOURCE_ID,
   MAP_ATTRIBUTION,
@@ -39,7 +41,7 @@ import {
   MAP_STYLE_URL,
   QUAKE_LAYER_ID,
   QUAKE_SOURCE_ID,
-  getStreetMapStyle,
+  getQuakeMapStyle,
 } from '@/lib/globe/map-style';
 import { type GlobeView, ZOOM_RANGE, getViewCamera } from '@/lib/globe/motion';
 import { PICK_TOLERANCE_PX, getPickedQuakeIndex } from '@/lib/globe/picking';
@@ -81,7 +83,6 @@ const EXIT_ZOOM_TOLERANCE = 0.01;
 const FOCUS_PADDING_PX = 48;
 const FOCUS_URL_ZOOM = 7;
 const EMPTY_EARTHQUAKES: readonly Earthquake[] = [];
-const FONT_URLS = { latin: latinRegular, latinExt: latinExtRegular };
 const homeRoute = getRouteApi('/');
 
 setWorkerUrl(workerUrl);
@@ -173,6 +174,19 @@ function getPointedEarthquake(
   return candidates[index];
 }
 
+function getElementDetailPadding(element: HTMLElement): MapPadding {
+  return getDetailPadding(element.clientWidth, element.clientHeight);
+}
+
+function getFocusPadding(padding: MapPadding): MapPadding {
+  return {
+    top: padding.top + FOCUS_PADDING_PX,
+    bottom: padding.bottom + FOCUS_PADDING_PX,
+    left: padding.left + FOCUS_PADDING_PX,
+    right: padding.right + FOCUS_PADDING_PX,
+  };
+}
+
 function getCursor(earthquake: Earthquake | null): string {
   return earthquake ? 'pointer' : '';
 }
@@ -199,10 +213,13 @@ export default function GlobeMap({
   const tooltipId = useId();
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
+  const [readyMap, setReadyMap] = useState<MapLibreMap | null>(null);
   const earthquakes = data?.earthquakes ?? EMPTY_EARTHQUAKES;
   const earthquakesRef = useRef(earthquakes);
   const selectedEarthquake = getSelectedEarthquake(earthquakes, search.quake);
   const selectedRef = useRef(selectedEarthquake);
+  const releaseDetailRef = useRef<() => void>(() => {});
+  const isSelected = selectedEarthquake !== undefined;
   const variant = search.quake === undefined ? 'full' : 'compact';
   const callbacksRef = useRef({
     onReady,
@@ -214,7 +231,11 @@ export default function GlobeMap({
 
   function selectQuake(earthquake: Earthquake) {
     hide();
-    mapRef.current?.easeTo({ center: [earthquake.longitude, earthquake.latitude] });
+    const map = mapRef.current;
+    map?.easeTo({
+      center: [earthquake.longitude, earthquake.latitude],
+      padding: getElementDetailPadding(map.getContainer()),
+    });
     const key = getQuakeKey(earthquake);
     if (key === search.quake) return;
     void navigate({ search: (prev) => ({ ...prev, quake: key }) });
@@ -258,6 +279,10 @@ export default function GlobeMap({
   }, [hovered, hide]);
 
   useEffect(() => {
+    if (!isSelected) releaseDetailRef.current();
+  }, [isSelected]);
+
+  useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
     const element: HTMLElement = container;
@@ -266,7 +291,7 @@ export default function GlobeMap({
     const map = new MapLibreMap({
       container: element,
       style: MAP_STYLE_URL,
-      transformStyle: (_previous, next) => getStreetMapStyle(next, FONT_URLS),
+      transformStyle: (_previous, next) => getQuakeMapStyle(next, MAP_FONT_URLS),
       maxPitch: 0,
       dragRotate: false,
       pitchWithRotate: false,
@@ -299,6 +324,16 @@ export default function GlobeMap({
       if (globe) globe.style.opacity = String(1 - opacity);
     }
 
+    function getHandoverPadding(): MapPadding {
+      const frame = getGlobeFrame(element.clientWidth, element.clientHeight);
+      return {
+        top: getMapPaddingTop(element.clientHeight, frame.cy),
+        bottom: 0,
+        left: 0,
+        right: 0,
+      };
+    }
+
     function setInput(isMapInput: boolean) {
       if (layer) {
         layer.inert = !isMapInput;
@@ -310,8 +345,7 @@ export default function GlobeMap({
     function sync(view: GlobeView) {
       if (isActive) return;
       const { lat, lon } = getViewCamera(view);
-      const frame = getGlobeFrame(element.clientWidth, element.clientHeight);
-      map.setPadding({ top: getMapPaddingTop(element.clientHeight, frame.cy) });
+      map.setPadding(getHandoverPadding());
       map.jumpTo({
         center: [getWrappedLongitude(lon), lat],
         zoom: getMapZoom(getRadius(view.zoom), lat),
@@ -335,31 +369,43 @@ export default function GlobeMap({
       isSwallowingTouch = false;
       updateZoomRange();
       if (urlZoom !== undefined) map.jumpTo({ zoom: getMapZoomFromUrl(urlZoom, getMinZoom()) });
+      if (selectedRef.current && urlZoom !== undefined) {
+        map.setPadding(getElementDetailPadding(element));
+      } else if (selectedRef.current) {
+        map.easeTo({ padding: getElementDetailPadding(element) });
+      }
       setInput(true);
       setOpacity(controls.viewRef.current);
       return true;
     }
 
     function centre({ latitude, longitude }: Earthquake) {
-      map.easeTo({ center: [longitude, latitude] });
+      map.easeTo({ center: [longitude, latitude], padding: getElementDetailPadding(element) });
+    }
+
+    function getFocusZoom(earthquake: Earthquake, padding: MapPadding): number {
+      const { latitude, longitude } = earthquake;
+      const reachKm = getFeltReachKm(earthquake);
+      if (!(reachKm > 0)) return getMapZoomFromUrl(FOCUS_URL_ZOOM, getMinZoom());
+      const { outline, hasPole } = getFeltRing(latitude, longitude, reachKm);
+      if (hasPole) return getMinZoom();
+      const camera = map.cameraForBounds(getFeltRingBounds(outline), {
+        padding: getFocusPadding(padding),
+      });
+      return camera?.zoom ?? getMinZoom();
     }
 
     function focus(earthquake: Earthquake) {
-      const { latitude, longitude } = earthquake;
-      const reachKm = getFeltReachKm(earthquake);
-      if (!(reachKm > 0)) {
-        map.easeTo({
-          center: [longitude, latitude],
-          zoom: getMapZoomFromUrl(FOCUS_URL_ZOOM, getMinZoom()),
-        });
-        return;
-      }
-      const { outline, hasPole } = getFeltRing(latitude, longitude, reachKm);
-      if (hasPole) {
-        map.easeTo({ center: [longitude, latitude], zoom: getMinZoom() });
-        return;
-      }
-      map.fitBounds(getFeltRingBounds(outline), { padding: FOCUS_PADDING_PX });
+      const padding = getElementDetailPadding(element);
+      map.easeTo({
+        center: [earthquake.longitude, earthquake.latitude],
+        zoom: getFocusZoom(earthquake, padding),
+        padding,
+      });
+    }
+
+    function releaseDetail() {
+      if (isActive) map.easeTo({ padding: getHandoverPadding() });
     }
 
     function exit() {
@@ -378,6 +424,7 @@ export default function GlobeMap({
 
     function handleStyleLoad() {
       isStyleLoaded = true;
+      addMapImages(map);
       map.setProjection(
         getMapProjection(getMapZoom(getRadius(ZOOM_RANGE[1]), 0)) as ProjectionSpecification,
       );
@@ -386,6 +433,7 @@ export default function GlobeMap({
       map.once('idle', () => {
         isReady = true;
         setOpacity(controls.viewRef.current);
+        setReadyMap(map);
         callbacksRef.current.onReady();
       });
     }
@@ -470,6 +518,7 @@ export default function GlobeMap({
     sync(controls.viewRef.current);
     controls.setFrameListener(sync);
     handoverRef.current = { activate, centre, focus, exit };
+    releaseDetailRef.current = releaseDetail;
     map.once('style.load', handleStyleLoad);
     map.on('movestart', handleMoveStart);
     map.on('moveend', handleMoveEnd);
@@ -485,6 +534,7 @@ export default function GlobeMap({
     return () => {
       controls.setFrameListener(null);
       handoverRef.current = null;
+      releaseDetailRef.current = () => {};
       setInput(false);
       if (globe) globe.style.opacity = '';
       element.removeEventListener('wheel', handleWheel, { capture: true });
@@ -494,6 +544,7 @@ export default function GlobeMap({
       element.removeEventListener('keydown', handleKeyDown, { capture: true });
       if (window.__globeMap === map) delete window.__globeMap;
       mapRef.current = null;
+      setReadyMap(null);
       map.remove();
     };
   }, [controls, globeRef, layerRef, handoverRef]);
@@ -505,6 +556,7 @@ export default function GlobeMap({
         className="size-full"
         style={{ backgroundColor: MAP_COLORS.background }}
       />
+      {readyMap && <MapOverlay map={readyMap} />}
       {hovered && (
         <QuakeTooltip
           id={tooltipId}

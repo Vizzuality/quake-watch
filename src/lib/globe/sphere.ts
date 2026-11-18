@@ -39,3 +39,41 @@ export function getRotatedVector([x, y, z]: Vector3, lon: number, lat: number): 
   const z1 = x * sa + z * ca;
   return [x1, y * cb - z1 * sb, y * sb + z1 * cb];
 }
+
+const COAST_UNITS_PER_DEGREE = 10;
+
+export function getCoastSegments(lines: readonly (readonly number[])[]): {
+  position: Float32Array;
+  other: Float32Array;
+} {
+  const segmentCount = lines.reduce((count, line) => count + Math.max(0, line.length / 2 - 1), 0);
+  const position = new Float32Array(segmentCount * 6);
+  const other = new Float32Array(segmentCount * 6);
+  let offset = 0;
+  for (const line of lines) {
+    for (let point = 2; point < line.length; point += 2) {
+      const from = getLatLonVector(
+        line[point - 1] / COAST_UNITS_PER_DEGREE,
+        line[point - 2] / COAST_UNITS_PER_DEGREE,
+      );
+      const to = getLatLonVector(
+        line[point + 1] / COAST_UNITS_PER_DEGREE,
+        line[point] / COAST_UNITS_PER_DEGREE,
+      );
+      position.set(from, offset);
+      position.set(to, offset + 3);
+      other.set(to, offset);
+      other.set(from, offset + 3);
+      offset += 6;
+    }
+  }
+  return { position, other };
+}
+
+export async function getRetried<T>(load: () => Promise<T>): Promise<T> {
+  try {
+    return await load();
+  } catch {
+    return load();
+  }
+}

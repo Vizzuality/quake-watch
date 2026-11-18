@@ -70,8 +70,20 @@ describe('depth legend', () => {
     expectWithinPixel(scaleRect?.bottom, 760);
     expectWithinPixel(bar.left, 1363.5);
     expect(bar.width).toBe(1.5);
-    expect(bar.height).toBe(140);
-    expect(getComputedStyle(screen.getByTestId('depth-legend').element()).fontSize).toBe('10px');
+    expectWithinPixel(bar.top, 613);
+    expect(bar.height).toBe(147);
+    const shallowest = screen.getByText('0 km', { exact: true }).element();
+    const deepest = screen.getByText('700 km', { exact: true }).element();
+    const shallowestRect = shallowest.getBoundingClientRect();
+    const deepestRect = deepest.getBoundingClientRect();
+    expectWithinPixel(shallowestRect.right, 1354);
+    expectWithinPixel(shallowestRect.top, 613);
+    expectWithinPixel(deepestRect.right, 1354);
+    expectWithinPixel(deepestRect.top, 749);
+    const label = getComputedStyle(shallowest);
+    expect(label.fontSize).toBe('9px');
+    expect(label.fontWeight).toBe('500');
+    expect(label.letterSpacing).toBe('1.62px');
   });
 
   it('hides when an Earthquake is selected and returns when it is cleared', async () => {

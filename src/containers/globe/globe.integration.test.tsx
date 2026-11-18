@@ -27,11 +27,12 @@ import {
   FELT_RING_LOOK,
   getFeltRingAngle,
   getMinRingRadiusPx,
-  getWaveFronts,
-  getWaveLifeSeconds,
+  GLOBE_RING_LOOK,
+  getReplaySeconds,
 } from '@/lib/globe/felt-rings';
 import { getGlobeFrame } from '@/lib/globe/frame';
 import { getFramedLongitude } from '@/lib/globe/framing';
+import { GLOBE_LOOK } from '@/lib/globe/look';
 import {
   FLY_DURATION_MS,
   type GlobeView,
@@ -41,6 +42,7 @@ import {
   getFlyView,
   getWheelFactor,
   getZoomedView,
+  IDLE_DELAY_MS,
 } from '@/lib/globe/motion';
 import { QUAKE_MARKER_LOOK, getEpicentreRadiusPx, getHypocentreRadius } from '@/lib/globe/quakes';
 import { getLatLonVector, getRotatedVector } from '@/lib/globe/sphere';
@@ -67,6 +69,7 @@ const FRAME = 1 / 60;
 const IDLE_FRAMES = 180;
 const LIST_PATH = '/fdsnws/event/1/query';
 const PAINT_THRESHOLD = 8;
+const AGE_FADE_LEVELS = 40;
 const DEEPEST_RGB = [0x4f, 0x7b, 0xff];
 const VIEW_LAT = (INITIAL_VIEW.lat * 180) / Math.PI;
 const VIEW_LON = (INITIAL_VIEW.lon * 180) / Math.PI;
@@ -76,7 +79,6 @@ const SHALLOW_QUAKE: TestQuake = { lat: -30, lon: 175, depth: 10, mag: 6 };
 const STRONG_QUAKE: TestQuake = { lat: 25, lon: VIEW_LON + 20, depth: 300, mag: 6 };
 const LIGHT_QUAKE: TestQuake = { lat: 25, lon: VIEW_LON - 20, depth: 300, mag: 3 };
 const DEEPEST_QUAKE: TestQuake = { lat: 25, lon: -175, depth: 700, mag: 6 };
-const FAR_SIDE_QUAKE: TestQuake = { lat: -VIEW_LAT, lon: VIEW_LON - 180, depth: 300, mag: 6 };
 const PAST_LIMB_QUAKE: TestQuake = {
   lat: VIEW_LAT,
   lon: VIEW_LON + 101.5 - 360,
@@ -248,6 +250,14 @@ function getChangedPixelCount(before: Snapshot, after: Snapshot): number {
   return count;
 }
 
+function getMaxChannelDiff(before: Snapshot, after: Snapshot): number {
+  let max = 0;
+  for (let index = 0; index < before.data.length; index++) {
+    max = Math.max(max, Math.abs(before.data[index] - after.data[index]));
+  }
+  return max;
+}
+
 function getRayPoints(from: Point, min: number, max: number): { distance: number; point: Point }[] {
   const points = [];
   for (let distance = Math.floor(min) + 0.5; distance <= max; distance += 1) {
@@ -410,6 +420,10 @@ async function renderGlobe(
     await expect.poll(() => fetchMock.mock.calls.length).toBeGreaterThan(0);
     await expect.poll(() => queryClient.isFetching()).toBe(0);
     await vi.waitFor(getCanvas);
+    await Promise.all([
+      import('@/lib/globe/land-mask'),
+      import('@/lib/globe/coastlines-110m.json'),
+    ]);
     await waitFrames(10);
   }
 
@@ -442,10 +456,13 @@ async function renderQuakes(quakes: TestQuake[]) {
   };
 }
 
-async function renderRings(quakes: TestQuake[], { zoom = 1 } = {}) {
-  stubReducedMotion(true);
+async function renderRings(
+  quakes: TestQuake[],
+  { zoom = 1, reducedMotion = true, path = BOARD_VIEW_PATH } = {},
+) {
+  stubReducedMotion(reducedMotion);
   stubPreservedDrawingBuffer();
-  const globe = await renderGlobe({ 3: quakes });
+  const globe = await renderGlobe({ 3: quakes }, { initialEntries: [path] });
   const container = globe.screen.getByRole('img').element();
   if (zoom > 1) {
     for (let i = 0; i < 20; i++) {
@@ -501,7 +518,7 @@ async function renderControls(options?: GlobeControlsOptions) {
   }
 
   function step(frames: number) {
-    for (let i = 0; i < frames; i++) controls.advance(FRAME, i * FRAME * 1000);
+    for (let i = 0; i < frames; i++) controls.advance(FRAME);
     return controls.viewRef.current;
   }
 
@@ -535,7 +552,7 @@ describe('globe', () => {
     expect(consoleError).not.toHaveBeenCalled();
   });
 
-  it('leaves the canvas transparent around the globe and paints dots on it', async () => {
+  it('leaves the canvas transparent past the halo and paints the halo and dots', async () => {
     stubPreservedDrawingBuffer();
     const { screen } = await renderGlobe();
 
@@ -543,7 +560,8 @@ describe('globe', () => {
     await waitFrames(10);
     const canvas = screen.container.querySelector('canvas') as HTMLCanvasElement;
     expect(getPixelAlpha(canvas, 1, 1)).toBe(0);
-    expect(getPaintedPixelCount(canvas, CX + RADIUS * 1.05, CY, 16)).toBe(0);
+    expect(getPaintedPixelCount(canvas, CX + RADIUS * GLOBE_LOOK.haloTo + 2, CY, 16)).toBe(0);
+    expect(getPixelAlpha(canvas, CX + RADIUS * 1.05, CY)).toBeGreaterThan(0);
     expect(getPaintedPixelCount(canvas, CX - 8, CY - 8, 16)).toBeGreaterThan(0);
   });
 
@@ -600,21 +618,23 @@ describe('globe', () => {
     expect(getPaintedCount(midpoint, 3)).toBeGreaterThanOrEqual(1);
   });
 
-  it('hides Earthquakes on the far side of the globe', async () => {
-    const { getPaintedCount } = await renderQuakes([FAR_SIDE_QUAKE, PAST_LIMB_QUAKE, DEEP_QUAKE]);
+  it('draws far-side Earthquakes greyed and dimmed behind the veil', async () => {
+    const { getPaintedCount, getDiff } = await renderQuakes([PAST_LIMB_QUAKE, DEEP_QUAKE]);
 
-    expect(getPaintedCount(getQuakePoints(DEEP_QUAKE).hypocentre, 6)).toBeGreaterThan(0);
+    const front = getQuakePoints(DEEP_QUAKE).hypocentre;
     const [, , pastLimbZ] = getRotatedVector(
       getLatLonVector(PAST_LIMB_QUAKE.lat, PAST_LIMB_QUAKE.lon),
       INITIAL_VIEW.lon,
       INITIAL_VIEW.lat,
     );
     expect(pastLimbZ).toBeCloseTo(-0.2, 1);
-    for (const quake of [FAR_SIDE_QUAKE, PAST_LIMB_QUAKE]) {
-      const { epicentre, hypocentre } = getQuakePoints(quake);
-      expect(getPaintedCount(epicentre, 16)).toBe(0);
-      expect(getPaintedCount(hypocentre, 16)).toBe(0);
-    }
+    const back = getQuakePoints(PAST_LIMB_QUAKE).hypocentre;
+    expect(getPaintedCount(back, 8)).toBeGreaterThan(0);
+    const getLevel = (point: Point) =>
+      Math.max(
+        ...getPixelsAround(point, (_, d) => d <= 3).map((pixel) => Math.max(...getDiff(pixel))),
+      );
+    expect(getLevel(back)).toBeLessThan(getLevel(front) / 2);
   });
 
   it('redraws the Earthquakes on a filter change without remounting the canvas', async () => {
@@ -721,43 +741,30 @@ describe('globe', () => {
     expect(getChangedPixelCount(first, second)).toBe(0);
   });
 
-  it('grows the S front to the Felt reach with the P front ahead, then rests', async () => {
-    const { empty, rest, snapshot } = await renderRings([WAVE_M7]);
+  it('replays a wave that grows the Felt ring, ripples the dots, then rests as before', async () => {
     const clock = freezeClock();
-    const life = getWaveLifeSeconds(7);
-    const fronts = getWaveFronts({
-      progress: 0.5,
-      reachKm: getFeltReachKm({ magnitude: 7, depthKm: 10 }),
-      depthKm: 10,
+    const { empty, rest, snapshot } = await renderRings([WAVE_M7], {
+      reducedMotion: false,
+      path: HELD_VIEW_PATH,
     });
+    const replayMs = getReplaySeconds(7) * 1000;
+    const feltPx = RADIUS * HELD_ZOOM * Math.sin(getFeltRingAngle(7, 10));
 
     await waitFrames(2);
-    stubReducedMotion(false);
     playWaves();
     await waitFrames(2);
-    clock.advance(life * 500);
+    clock.advance(replayMs * 0.2);
     await waitFrames(2);
-    const mid = snapshot();
-    clock.advance(life * 1000);
+    const early = snapshot();
+    clock.advance(replayMs);
     await waitFrames(2);
     const after = snapshot();
     clock.restore();
 
-    expect(life).toBe(4);
-    const sFront = RADIUS * Math.sin(fronts.sAngle);
-    expect(sFront).toBeCloseTo(37, 0);
-    const s = getPeakDistance(rest, mid, CENTRE, [28, 50]);
-    expect(Math.abs(s - sFront)).toBeLessThanOrEqual(sFront * 0.05);
-    expect(getDiffLevel(rest, mid, { x: CX + s, y: CY })).toBeGreaterThan(PAINT_THRESHOLD);
-    expect(fronts.pAngle).not.toBeNull();
-    const pFront = RADIUS * Math.sin(fronts.pAngle ?? 0);
-    const p = getPeakDistance(rest, mid, CENTRE, [50, 62]);
-    expect(Math.abs(p - pFront)).toBeLessThanOrEqual(pFront * 0.05);
-    expect(getDiffLevel(rest, mid, { x: CX + p, y: CY })).toBeGreaterThan(PAINT_THRESHOLD);
-    const ringEdge = getPeakDistance(empty, rest, CENTRE, [60, 90]);
-    expect(ringEdge).toBeCloseTo(RADIUS * Math.sin(getFeltRingAngle(7, 10)), -0.5);
-    expect(getDiffLevel(empty, mid, { x: CX + ringEdge, y: CY })).toBeLessThanOrEqual(
-      PAINT_THRESHOLD,
+    expect(0.2 * GLOBE_RING_LOOK.growRate).toBeLessThan(1);
+    expect(getChangedPixelCount(rest, early)).toBeGreaterThan(0);
+    expect(getDiffLevel(empty, early, { x: CX + feltPx, y: CY })).toBeLessThan(
+      getDiffLevel(empty, rest, { x: CX + feltPx, y: CY }),
     );
     expect(getChangedPixelCount(rest, after)).toBe(0);
   });
@@ -772,7 +779,7 @@ describe('globe', () => {
     invalidate();
     expect(await getRendersOver(2)).toBeGreaterThanOrEqual(1);
     const played = snapshot();
-    clock.advance(getWaveLifeSeconds(7) * 500);
+    clock.advance(getReplaySeconds(7) * 500);
     invalidate();
     expect(await getRendersOver(2)).toBeGreaterThanOrEqual(1);
     const later = snapshot();
@@ -786,7 +793,13 @@ describe('globe', () => {
 
     expect(getRotatedZ(ANTIPODE_M8)).toBeCloseTo(-1, 6);
     expect(getFeltRingAngle(8, 10)).toBeGreaterThan(0.5);
-    expect(getPaintedDiffCount(empty, rest, CENTRE, 40)).toBe(0);
+    const aroundAntipode = getPixelGrid({ x: CX - 40, y: CY - 40 }, { x: CX + 40, y: CY + 40 });
+    expect(
+      aroundAntipode.filter(
+        (pixel) =>
+          getDistance(pixel, CENTRE) > 8 && getDiffLevel(empty, rest, pixel) > PAINT_THRESHOLD,
+      ),
+    ).toEqual([]);
 
     const limb = getQuakePoints(LIMB_M7).epicentre;
     expect(getRotatedZ(LIMB_M7)).toBeCloseTo(0.18, 1);
@@ -812,14 +825,15 @@ describe('globe', () => {
     expect(screen.container.querySelector('canvas')).toBeNull();
   });
 
-  it('falls back to the same line when the renderer cannot start', async () => {
+  it('offers a reload instead of blaming the browser when the renderer cannot start', async () => {
     vi.spyOn(console, 'error').mockImplementation(() => {});
     stubWebGL(1);
     const { screen } = await renderGlobe();
 
     await expect
-      .element(screen.getByRole('status'))
-      .toHaveTextContent("Your browser can't draw the globe.");
+      .element(screen.getByRole('alert'))
+      .toHaveTextContent("The globe couldn't load. Reloading the page usually fixes it.");
+    await expect.element(screen.getByRole('button', { name: 'Reload' })).toBeVisible();
   });
 
   it('speaks Spanish without WebGL', async () => {
@@ -872,6 +886,8 @@ const BEHIND_ALONE: TestQuake = {
 };
 const PICK_OFFSET_PX = 11.9;
 const BOARD_VIEW_PATH = '/?lat=6.88&lon=150&zoom=1';
+const HELD_ZOOM = 1.3;
+const HELD_VIEW_PATH = `/?lat=6.88&lon=150&zoom=${HELD_ZOOM}`;
 const FRAME_QUAKES: TestQuake[] = [-41, -33, -30, -26, -19, 150].map((lon) => ({
   lat: 10,
   lon,
@@ -1656,13 +1672,18 @@ describe('globe render on demand', { timeout: 30_000 }, () => {
     vi.restoreAllMocks();
   });
 
-  it('draws nothing while a touched globe holds still and draws a wheel zoom', async () => {
+  it('draws a wheel zoom, nothing for the next 4 s, then the drift', async () => {
     const globe = await renderTooltipGlobe([TOOLTIP_M5], { reducedMotion: false });
-    const { getRendersOver } = spyOnRenders();
+    const { getRendersOver, getRendersDuring } = spyOnRenders();
 
-    expect(await getRendersOver(IDLE_FRAMES)).toBe(0);
     globe.wheel(-100);
     expect(await getRendersOver(1)).toBeGreaterThanOrEqual(1);
+    await waitFrames(2);
+    expect(await getRendersDuring(waitMs(IDLE_DELAY_MS - 1000))).toBe(0);
+    await waitMs(1100);
+    const zoomed = getGlobeView();
+    expect(await getRendersOver(30)).toBeGreaterThanOrEqual(29);
+    expect(getGlobeView().lon).toBeGreaterThan(zoomed.lon);
   });
 
   it('draws every frame while drifting and nothing while a hover holds the drift', async () => {
@@ -1675,12 +1696,12 @@ describe('globe render on demand', { timeout: 30_000 }, () => {
 
     expect(await getRendersOver(60)).toBeGreaterThanOrEqual(59);
     await globe.hover(globe.getLivePoint('emsc:test_0'));
-    await waitFrames(2);
+    await waitFrames(10);
     expect(await getRendersOver(IDLE_FRAMES)).toBe(0);
   });
 
   it.each(['pointerup', 'pointercancel'])(
-    'resumes drawing the drift when a press ends without moving on %s',
+    'resumes drawing the drift 4 s after a press ends without moving on %s',
     async (type) => {
       const globe = await renderTooltipGlobe([TOOLTIP_M5], {
         initialEntries: ['/'],
@@ -1695,6 +1716,8 @@ describe('globe render on demand', { timeout: 30_000 }, () => {
       globe.pointer(type, point);
       await waitFrames(2);
       const pressed = getGlobeView();
+      expect(await getRendersOver(30)).toBe(0);
+      await waitMs(IDLE_DELAY_MS);
       expect(await getRendersOver(60)).toBeGreaterThanOrEqual(59);
       expect(getGlobeView().lon).not.toBe(pressed.lon);
     },
@@ -1718,7 +1741,10 @@ describe('globe render on demand', { timeout: 30_000 }, () => {
   });
 
   it('draws each drag move on a still globe, the inertia after it, then nothing', async () => {
-    const globe = await renderTooltipGlobe([TOOLTIP_M5], { reducedMotion: false });
+    const globe = await renderTooltipGlobe([TOOLTIP_M5], {
+      initialEntries: [HELD_VIEW_PATH],
+      reducedMotion: false,
+    });
     const { getRendersOver } = spyOnRenders();
 
     expect(await getRendersOver(10)).toBe(0);
@@ -1759,14 +1785,17 @@ describe('globe render on demand', { timeout: 30_000 }, () => {
   });
 
   it('draws played waves on a still globe until the last one ends, then nothing', async () => {
-    await renderTooltipGlobe([WAVE_M7], { reducedMotion: false });
+    await renderTooltipGlobe([WAVE_M7], {
+      initialEntries: [HELD_VIEW_PATH],
+      reducedMotion: false,
+    });
     const { getRendersOver } = spyOnRenders();
     const clock = freezeClock();
 
     expect(await getRendersOver(10)).toBe(0);
     playWaves();
     expect(await getRendersOver(30)).toBeGreaterThanOrEqual(29);
-    clock.advance(getWaveLifeSeconds(7) * 1000 - 50);
+    clock.advance(getReplaySeconds(7) * 1000 - 50);
     expect(await getRendersOver(30)).toBeGreaterThanOrEqual(29);
     clock.advance(100);
     await waitFrames(2);
@@ -1833,9 +1862,8 @@ describe('globe render on demand', { timeout: 30_000 }, () => {
     );
     expect(await renders).toBeGreaterThanOrEqual(1);
     expect(getPaintedPixelCount(canvas, resized.cx - 8, resized.cy - 8, 16)).toBeGreaterThan(0);
-    expect(getPaintedPixelCount(canvas, resized.cx + resized.radius * 1.05, resized.cy, 16)).toBe(
-      0,
-    );
+    const pastHalo = resized.cx + resized.radius * GLOBE_LOOK.haloTo + 2;
+    expect(getPaintedPixelCount(canvas, pastHalo, resized.cy, 16)).toBe(0);
   });
 
   it('redraws a still globe once its WebGL context is restored', async () => {
@@ -1862,8 +1890,8 @@ describe('globe controls', () => {
   it('drifts while idle and caps a long frame at 0.1 s', async () => {
     const { controls } = await renderControls();
 
-    const capped = controls.advance(5, 0).lon - INITIAL_VIEW.lon;
-    expect(capped).toBeCloseTo(0.1 * 0.0133, 6);
+    const capped = controls.advance(5).lon - INITIAL_VIEW.lon;
+    expect(capped).toBeCloseTo(0.1 * 0.03, 6);
   });
 
   it('ignores moves under the 4 px drag threshold', async () => {
@@ -1968,8 +1996,8 @@ describe('globe controls', () => {
     const from = controls.viewRef.current;
 
     controls.flyTo(FLY_TARGET);
-    expect(controls.advance(0.45, 0)).toEqual(getFlyView(from, FLY_TARGET, 0.5));
-    expect(controls.advance(0.5, 0)).toEqual(FLY_TARGET);
+    expect(controls.advance(0.45)).toEqual(getFlyView(from, FLY_TARGET, 0.5));
+    expect(controls.advance(0.5)).toEqual(FLY_TARGET);
     controls.setHeld(true);
     expect(step(60)).toEqual(FLY_TARGET);
   });
@@ -1978,7 +2006,7 @@ describe('globe controls', () => {
     const { controls } = await renderControls();
 
     controls.flyTo(FLY_TARGET);
-    expect(controls.advance(0.9, 0)).toEqual(FLY_TARGET);
+    expect(controls.advance(0.9)).toEqual(FLY_TARGET);
   });
 
   it('jumps to the fly target under reduced motion', async () => {
@@ -1993,7 +2021,7 @@ describe('globe controls', () => {
     const { controls, pointer, step } = await renderControls();
 
     controls.flyTo(FLY_TARGET);
-    controls.advance(0.3, 0);
+    controls.advance(0.3);
     const interrupted = controls.viewRef.current;
     pointer('pointerdown', 100);
     pointer('pointerup', 100);
@@ -2004,7 +2032,7 @@ describe('globe controls', () => {
     const { controls, wheel, step } = await renderControls();
 
     controls.flyTo(FLY_TARGET);
-    controls.advance(0.3, 0);
+    controls.advance(0.3);
     wheel(-200);
     const zoomed = controls.viewRef.current;
     expect(step(60)).toEqual(zoomed);
@@ -2016,7 +2044,7 @@ describe('globe controls', () => {
 
     controls.flyTo(FLY_TARGET);
     controls.setHeld(true);
-    controls.advance(1, 0);
+    controls.advance(1);
     controls.setHeld(false);
     expect(step(60)).toEqual(FLY_TARGET);
   });
@@ -2081,10 +2109,10 @@ describe('globe controls', () => {
 
     controls.flyTo(FLY_TARGET);
     expect(onHover).toHaveBeenLastCalledWith(null, IMMEDIATE_HOVER);
-    controls.advance(0.3, 0);
+    controls.advance(0.3);
     pointer('pointermove', 300, { y: 200 });
     expect(onHover).toHaveBeenLastCalledWith(null, IMMEDIATE_HOVER);
-    controls.advance(1, 0);
+    controls.advance(1);
     pointer('pointermove', 300, { y: 200 });
     expect(onHover.mock.lastCall?.[0]).not.toBeNull();
   });
@@ -2143,9 +2171,9 @@ describe('globe controls', () => {
     const { controls, step } = await renderControls({ onSettle });
 
     controls.flyTo(FLY_TARGET);
-    controls.advance(0.45, 0);
+    controls.advance(0.45);
     expect(onSettle).not.toHaveBeenCalled();
-    controls.advance(0.5, 0);
+    controls.advance(0.5);
     expect(onSettle).toHaveBeenCalledTimes(1);
     expect(onSettle).toHaveBeenCalledWith(FLY_TARGET);
     step(60);
@@ -2265,7 +2293,7 @@ describe('globe controls', () => {
     expect(onSettle).toHaveBeenLastCalledWith(coasting);
     pointer('pointerup', 100);
     controls.flyTo(FLY_TARGET);
-    controls.advance(0.3, 0);
+    controls.advance(0.3);
     const flying = controls.viewRef.current;
     pointer('pointerdown', 100);
     expect(onSettle).toHaveBeenCalledTimes(2);
@@ -2287,11 +2315,12 @@ describe('globe controls', () => {
     const onSettle = vi.fn<NonNullable<GlobeControlsOptions['onSettle']>>();
     const { controls, step } = await renderControls({ onSettle });
     const from = controls.viewRef.current;
+    const framed = { ...FLY_TARGET, zoom: ZOOM_RANGE[0] };
 
-    controls.frameTo(FLY_TARGET);
-    expect(controls.advance(0.45, 0)).toEqual(getFlyView(from, FLY_TARGET, 0.5));
-    expect(controls.advance(0.5, 0)).toEqual(FLY_TARGET);
-    expect(step(1).lon).not.toBe(FLY_TARGET.lon);
+    controls.frameTo(framed);
+    expect(controls.advance(0.45)).toEqual(getFlyView(from, framed, 0.5));
+    expect(controls.advance(0.5)).toEqual(framed);
+    expect(step(1).lon).not.toBe(framed.lon);
     step(60);
     expect(onSettle).not.toHaveBeenCalled();
   });
@@ -2312,13 +2341,13 @@ describe('globe controls', () => {
     pointer('pointerdown', 100);
     controls.frameTo(FLY_TARGET);
     pointer('pointerup', 100);
-    expect(controls.advance(1, 0)).not.toEqual(FLY_TARGET);
+    expect(controls.advance(1)).not.toEqual(FLY_TARGET);
     pointer('pointerdown', 100);
     pointer('pointermove', 200, { time: 0 });
     pointer('pointerup', 200, { time: 80 });
     const dragged = controls.viewRef.current;
     controls.frameTo(FLY_TARGET);
-    expect(controls.advance(1, 0)).toEqual(dragged);
+    expect(controls.advance(1)).toEqual(dragged);
   });
 
   it('stops for good when a press interrupts the framing fly', async () => {
@@ -2326,13 +2355,13 @@ describe('globe controls', () => {
     const { controls, pointer, step } = await renderControls({ onSettle });
 
     controls.frameTo(FLY_TARGET);
-    controls.advance(0.3, 0);
+    controls.advance(0.3);
     const interrupted = controls.viewRef.current;
     pointer('pointerdown', 100);
     pointer('pointerup', 100);
     expect(step(60)).toEqual(interrupted);
     controls.frameTo(FLY_TARGET);
-    expect(controls.advance(1, 0)).toEqual(interrupted);
+    expect(controls.advance(1)).toEqual(interrupted);
     expect(onSettle).not.toHaveBeenCalled();
   });
 
@@ -2343,7 +2372,113 @@ describe('globe controls', () => {
     expect(controls.viewRef.current).toEqual(initialView);
     expect(step(60)).toEqual(initialView);
     controls.frameTo(FLY_TARGET);
-    expect(controls.advance(1, 0)).toEqual(initialView);
+    expect(controls.advance(1)).toEqual(initialView);
+  });
+});
+
+describe('globe live arrival', { timeout: 30_000 }, () => {
+  const OLD_QUAKE: TestQuake = {
+    lat: VIEW_LAT,
+    lon: VIEW_LON - 25,
+    depth: 500,
+    mag: 4,
+    time: '2026-11-18T10:00:00.000Z',
+  };
+  const EARLIER_ARRIVAL: TestQuake = {
+    ...OLD_QUAKE,
+    lon: VIEW_LON,
+    time: '2026-11-18T11:00:00.000Z',
+  };
+  const NEWEST_ARRIVAL: TestQuake = {
+    ...OLD_QUAKE,
+    lon: VIEW_LON + 25,
+    time: '2026-11-18T12:00:00.000Z',
+  };
+
+  afterEach(() => {
+    playbackClock.setRange(null);
+    vi.restoreAllMocks();
+  });
+
+  function isPink([r, g, b]: number[]): boolean {
+    return r > 180 && g < 150 && b > g;
+  }
+
+  function getPinkCount(snapshot: Snapshot, quake: TestQuake): number {
+    const { epicentre } = getQuakePoints(quake);
+    return getPixelsAround(epicentre, (_, distance) => distance >= 5 && distance <= 7).filter(
+      (pixel) => isPink(getRgb(snapshot, pixel)),
+    ).length;
+  }
+
+  async function renderArrivals(
+    quakesByMinMagnitude: Partial<Record<MinMagnitude, TestQuake[]>>,
+    { reducedMotion = false } = {},
+  ) {
+    stubReducedMotion(reducedMotion);
+    stubPreservedDrawingBuffer();
+    const globe = await renderGlobe(quakesByMinMagnitude, { initialEntries: [BOARD_VIEW_PATH] });
+    await globe.showMinMagnitude(3);
+    async function refetch(): Promise<Snapshot> {
+      const loaded = waitForQueryData(globe.queryClient);
+      await globe.queryClient.refetchQueries();
+      await loaded;
+      await waitFrames(3);
+      return getSnapshot(globe.getCanvas());
+    }
+    return { globe, refetch };
+  }
+
+  it('pulses only the newest Earthquake of a live refetch, never on the first load', async () => {
+    const quakes = [OLD_QUAKE];
+    const { globe, refetch } = await renderArrivals({ 3: quakes });
+    const clock = freezeClock();
+
+    const loaded = getSnapshot(globe.getCanvas());
+    quakes.push(EARLIER_ARRIVAL, NEWEST_ARRIVAL);
+    const refreshed = await refetch();
+    clock.restore();
+
+    expect(getPinkCount(loaded, OLD_QUAKE)).toBe(0);
+    expect(getPinkCount(refreshed, NEWEST_ARRIVAL)).toBeGreaterThan(10);
+    expect(getPinkCount(refreshed, EARLIER_ARRIVAL)).toBe(0);
+    expect(getPinkCount(refreshed, OLD_QUAKE)).toBe(0);
+  });
+
+  it('does not pulse new Earthquakes brought by a filter change', async () => {
+    const { globe } = await renderArrivals({ 3: [OLD_QUAKE], 4: [OLD_QUAKE, NEWEST_ARRIVAL] });
+    const clock = freezeClock();
+
+    const filtered = await globe.showMinMagnitude(4);
+    clock.restore();
+
+    expect(getPinkCount(filtered, NEWEST_ARRIVAL)).toBe(0);
+  });
+
+  it('does not pulse a refetch while the playhead is paused', async () => {
+    const quakes = [OLD_QUAKE];
+    const { refetch } = await renderArrivals({ 3: quakes });
+    const end = Date.parse(NEWEST_ARRIVAL.time ?? '') + 3_600_000;
+    playbackClock.setRange({ start: end - 86_400_000, end });
+    playbackClock.seek(end - 60_000);
+    const clock = freezeClock();
+
+    quakes.push(NEWEST_ARRIVAL);
+    const refreshed = await refetch();
+    clock.restore();
+
+    expect(playbackClock.getPlayhead()).not.toBeNull();
+    expect(getPinkCount(refreshed, NEWEST_ARRIVAL)).toBe(0);
+  });
+
+  it('does not pulse under reduced motion', async () => {
+    const quakes = [OLD_QUAKE];
+    const { refetch } = await renderArrivals({ 3: quakes }, { reducedMotion: true });
+
+    quakes.push(NEWEST_ARRIVAL);
+    const refreshed = await refetch();
+
+    expect(getPinkCount(refreshed, NEWEST_ARRIVAL)).toBe(0);
   });
 });
 
@@ -2409,6 +2544,22 @@ describe('globe playback', { timeout: 30_000 }, () => {
     expect(getChangedPixelCount(live, passed)).toBeGreaterThan(0);
   });
 
+  it('freezes the wave phase at a paused playhead and moves it with a scrub', async () => {
+    const wave = { ...WAVE_M7, time: early };
+    const { snapshot } = await renderPlayback([wave], { reducedMotion: false });
+
+    playbackClock.seek(Date.parse(early) + 15 * 60_000);
+    const paused = await snapshot();
+    await waitMs(500);
+    invalidate();
+    const later = await snapshot();
+    playbackClock.seek(Date.parse(early) + 30 * 60_000);
+    const scrubbed = await snapshot();
+
+    expect(getChangedPixelCount(paused, later)).toBe(0);
+    expect(getMaxChannelDiff(paused, scrubbed)).toBeGreaterThan(AGE_FADE_LEVELS);
+  });
+
   it('starts the wave of an Earthquake passed in the last frame before the end', async () => {
     const wave = { ...WAVE_M7, time: early };
     const end = Date.parse(early) + 30_000;
@@ -2424,7 +2575,6 @@ describe('globe playback', { timeout: 30_000 }, () => {
     clock.advance(48_000);
     await waitFrames(3);
     expect(playbackClock.getSnapshot()).toMatchObject({ isPlaying: false, playhead: null });
-    clock.advance(getWaveLifeSeconds(7) * 500);
     invalidate();
     const passed = await snapshot();
     clock.restore();
@@ -2447,6 +2597,6 @@ describe('globe playback', { timeout: 30_000 }, () => {
     const passed = await snapshot();
     playbackClock.pause();
 
-    expect(getChangedPixelCount(live, passed)).toBe(0);
+    expect(getMaxChannelDiff(live, passed)).toBeLessThanOrEqual(AGE_FADE_LEVELS);
   });
 });
