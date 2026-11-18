@@ -57,15 +57,15 @@ describe('getLoopRings', () => {
 });
 
 describe('getDetailPadding', () => {
-  it('puts the camera centre at (1000, 392) on the 1440 × 900 board, right of the panel', () => {
-    expect(getDetailPadding(1440, 900)).toEqual({ top: 0, bottom: 116, left: 560, right: 0 });
+  it('puts the camera centre in the middle of the space right of the panel, at y 392 on the 1440 × 900 board', () => {
+    expect(getDetailPadding(1440, 900)).toEqual({ top: 0, bottom: 116, left: 476, right: 0 });
   });
 
-  it('scales the offset with the viewport', () => {
+  it('keeps the earthquake in the middle of the space right of the panel on wider screens', () => {
     expect(getDetailPadding(1920, 1080)).toEqual({
       top: 0,
       bottom: Math.round(1080 - (2 * 1080 * 392) / 900),
-      left: Math.round((2 * 1920 * 1000) / 1440 - 1920),
+      left: 476,
       right: 0,
     });
   });

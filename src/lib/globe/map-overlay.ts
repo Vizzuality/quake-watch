@@ -24,7 +24,9 @@ export const RING_LABEL_LOOK = {
 } as const;
 
 const BOARD = { width: 1440, height: 900, radiusPx: 330 } as const;
-const DETAIL_FOCUS = { x: 1000, y: 392 } as const;
+const DETAIL_FOCUS_Y = 392;
+// The earthquake panel's right edge: md:left-14 + md:w-105 in earthquake-panel.tsx.
+const DETAIL_PANEL_RIGHT_PX = 476;
 const DETAIL_MIN_WIDTH_PX = 768;
 const FADE_SOLID_PX = 286;
 const FADE_END_PX = 520;
@@ -72,9 +74,8 @@ function getEdgePadding(focus: number, size: number): [number, number] {
 
 export function getDetailPadding(width: number, height: number): MapPadding {
   if (width < DETAIL_MIN_WIDTH_PX) return { top: 0, bottom: 0, left: 0, right: 0 };
-  const [left, right] = getEdgePadding((width * DETAIL_FOCUS.x) / BOARD.width, width);
-  const [top, bottom] = getEdgePadding((height * DETAIL_FOCUS.y) / BOARD.height, height);
-  return { top, bottom, left, right };
+  const [top, bottom] = getEdgePadding((height * DETAIL_FOCUS_Y) / BOARD.height, height);
+  return { top, bottom, left: DETAIL_PANEL_RIGHT_PX, right: 0 };
 }
 
 export function getMapFadeMask(width: number, height: number, centre: ScreenPoint): string {
