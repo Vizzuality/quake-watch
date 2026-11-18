@@ -59,7 +59,7 @@ function getLargestValue(largest: Earthquake | null, locale: Locale): string {
 
 function getSummaryClassName(isHidden: boolean): string {
   return cn(
-    'absolute top-[143px] left-14 z-10 w-[250px] backdrop-blur-[50px] [transition:opacity_450ms_ease-out,translate_600ms_ease-out,visibility_600ms] motion-reduce:transition-none',
+    'absolute top-[143px] left-14 z-10 w-[250px] [transition:opacity_450ms_ease-out,translate_600ms_ease-out,visibility_600ms] motion-reduce:transition-none',
     isHidden && 'pointer-events-none invisible -translate-x-6 opacity-0',
   );
 }
