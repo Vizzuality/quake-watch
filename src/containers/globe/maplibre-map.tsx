@@ -414,7 +414,8 @@ export default function GlobeMap({
       isActive = false;
       map.setMinZoom(null);
       setInput(false);
-      const { lat, lng } = map.getCenter();
+      const frame = getGlobeFrame(element.clientWidth, element.clientHeight);
+      const { lat, lng } = map.unproject([frame.cx, frame.cy]);
       callbacksRef.current.onExit({ lat, lon: lng });
     }
 
