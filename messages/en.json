@@ -117,5 +117,12 @@
   "summary_earthquakes_7d_other": "earthquakes this week.",
   "summary_likely_felt": "Likely felt",
   "summary_largest": "Largest",
-  "summary_largest_at": "Largest · {place}"
+  "summary_largest_at": "Largest · {place}",
+  "summary_in_view": "In view · {place}",
+  "summary_largest_here": "Largest here",
+  "summary_area_empty": "No earthquakes here in this interval. Try a longer interval or zoom out.",
+  "search_label": "Search a place",
+  "search_suggestions": "Places with earthquakes",
+  "search_clear": "Clear search",
+  "search_empty": "No earthquakes near a place with that name. Try a country or region."
 }
