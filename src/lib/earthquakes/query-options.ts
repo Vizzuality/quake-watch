@@ -1,7 +1,7 @@
 import { queryOptions } from '@tanstack/react-query';
 
 import { getEarthquakeFilters } from './search-schema';
-import type { EarthquakeFilters, EarthquakeSource } from './search-schema';
+import type { EarthquakeFilters, EarthquakeSource, Interval } from './search-schema';
 import { emscAdapter } from './sources/emsc';
 import { getFeatures } from './sources/feature-collection';
 import type { SourceAdapter } from './sources/feature-collection';
@@ -44,6 +44,10 @@ export async function getEarthquakes(
   return { earthquakes, isTruncated: features.length >= EARTHQUAKE_LIMIT, fetchedAt };
 }
 
+export function getEarthquakesStaleMs(interval: Interval): number {
+  return interval === '24h' ? LIVE_STALE_MS : ARCHIVE_STALE_MS;
+}
+
 export function earthquakesQueryOptions(search: EarthquakeFilters) {
   const filters = getEarthquakeFilters(search);
   const isLive = filters.interval === '24h';
@@ -51,6 +55,6 @@ export function earthquakesQueryOptions(search: EarthquakeFilters) {
     queryKey: getEarthquakesQueryKey(filters),
     queryFn: ({ signal }) => getEarthquakes(filters, signal),
     refetchInterval: isLive ? LIVE_REFETCH_MS : false,
-    staleTime: isLive ? LIVE_STALE_MS : ARCHIVE_STALE_MS,
+    staleTime: getEarthquakesStaleMs(filters.interval),
   });
 }
