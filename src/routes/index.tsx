@@ -13,6 +13,7 @@ import { Timeline } from '@/containers/timeline/timeline';
 import { getShareEarthquake } from '@/lib/earthquakes/details/share-earthquake';
 import { earthquakesQueryOptions } from '@/lib/earthquakes/query-options';
 import { EARTHQUAKE_SEARCH_ROUTE, getEarthquakeFilters } from '@/lib/earthquakes/search-schema';
+import { prefetchServerEarthquakes } from '@/lib/earthquakes/server-earthquakes';
 import { getDetailMeta } from '@/lib/seo/detail-meta';
 import { m } from '@/paraglide/messages';
 import { getLocale, isServer } from '@/paraglide/runtime';
@@ -27,7 +28,11 @@ export const Route = createFileRoute('/')({
     if (!preload && !isServer) {
       void context.queryClient.prefetchQuery(earthquakesQueryOptions(deps.filters));
     }
-    return { earthquake: await getShareEarthquake(context.queryClient, deps.quake) };
+    const [earthquake] = await Promise.all([
+      getShareEarthquake(context.queryClient, deps.quake),
+      prefetchServerEarthquakes(context.queryClient, deps.filters),
+    ]);
+    return { earthquake };
   },
   head: ({ match, loaderData }) => ({
     meta: getDetailMeta({

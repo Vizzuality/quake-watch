@@ -137,17 +137,6 @@ describe('globe search params', () => {
   });
 });
 
-describe('earthquake list prefetch', () => {
-  it('renders the globe without fetching or embedding the list on the server', async () => {
-    for (const pathname of ['/en', '/en?interval=24h&depth=deep&source=usgs']) {
-      const { status, html } = await getPage(pathname);
-      expect(status).toBe(200);
-      expect(html).not.toContain('smokelistsentinel');
-    }
-    expect(readFileSync(server?.upstreamLog ?? '', 'utf8')).toBe('');
-  });
-});
-
 describe('site indexing flag', () => {
   it.each(['/en', '/es'])(
     '%s carries the robots tag that VITE_SITE_INDEXABLE asks for',
