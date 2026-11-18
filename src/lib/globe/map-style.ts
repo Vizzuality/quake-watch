@@ -13,7 +13,7 @@ import { QUAKE_MARKER_LOOK } from './quakes';
 export const MAP_STYLE_URL = 'https://tiles.openfreemap.org/styles/dark';
 export const MAP_SOURCE_ID = 'openmaptiles';
 export const MAP_LOW_SOURCE_ID = 'openmaptiles-low';
-export const MAP_LOW_MAXZOOM = 0;
+export const MAP_LOW_MAXZOOM = 3;
 export const QUAKE_SOURCE_ID = 'quakes';
 export const QUAKE_LAYER_ID = 'quakes';
 export const FELT_SOURCE_ID = 'felt-rings';

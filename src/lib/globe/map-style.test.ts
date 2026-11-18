@@ -164,11 +164,11 @@ describe('getQuakeMapStyle', () => {
     });
   });
 
-  it('keeps coarse water under the map while zoomed out so fast pans never show empty tiles', () => {
+  it('keeps z3 coarse water under the map while zoomed out so fast moves show coasts, not straight-edged wedges', () => {
     expect(style.sources['openmaptiles-low']).toEqual({
       type: 'vector',
       url: 'https://tiles.openfreemap.org/planet',
-      maxzoom: 0,
+      maxzoom: 3,
     });
     expect(getLayer('water-low')).toMatchObject({
       source: 'openmaptiles-low',
