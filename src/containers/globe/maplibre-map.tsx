@@ -301,6 +301,8 @@ export default function GlobeMap({
       attributionControl: { compact: true, customAttribution: MAP_ATTRIBUTION },
     });
     mapRef.current = map;
+    // MapLibre paints the background layer only on tiles it can draw, so rows still loading stay transparent.
+    map.getCanvas().style.backgroundColor = MAP_COLORS.land;
     map.touchZoomRotate.disableRotation();
     map.setVerticalFieldOfView(MAP_FIELD_OF_VIEW);
     let isStyleLoaded = false;
