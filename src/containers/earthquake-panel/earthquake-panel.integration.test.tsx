@@ -167,12 +167,13 @@ describe('earthquake panel', () => {
     await expect.element(opener).toHaveFocus();
   });
 
-  it('closes from the back button', async () => {
-    const { screen, router } = await renderPanel(`/?quake=emsc:${LATE_ID}`);
+  it('closes from the back button and returns to the Map view', async () => {
+    const { screen, router } = await renderPanel(`/?quake=emsc:${LATE_ID}&view=section`);
 
     await screen.getByRole('button', { name: 'Back to globe' }).click();
 
     await expect.poll(() => router.state.location.search.quake).toBeUndefined();
+    expect(router.state.location.search.view).not.toBe('section');
   });
 
   it('says inline that an unknown Earthquake was not found', async () => {
@@ -305,5 +306,40 @@ describe('earthquake panel', () => {
     const { screen } = await renderPanel('/?quake=usgs:us6000u18k');
 
     await expect.element(screen.getByRole('button', { name: 'Replay wave' })).toBeDisabled();
+  });
+
+  it('explains each data label from an Info button and Escape closes the tip before the panel', async () => {
+    const { screen, router } = await renderPanel('/?quake=usgs:us6000u18k');
+    await expect.element(screen.getByText('1,805')).toBeVisible();
+
+    for (const [name, info] of [
+      ['Magnitude', /size of the earthquake/],
+      ['Depth', /rupture began/],
+      ['Likely felt', /from the epicentre/],
+      ['Felt reports', /Did You Feel It/],
+      ['Type', /measure the magnitude/],
+      ['Source', /official event page/],
+    ] as const) {
+      await expect
+        .element(screen.getByRole('button', { name: `More about ${name}` }))
+        .toHaveAccessibleDescription(info);
+    }
+
+    screen.getByRole('button', { name: 'More about Depth' }).element().focus();
+    await expect.element(screen.getByRole('tooltip')).toBeVisible();
+    await userEvent.keyboard('{Escape}');
+    await expect.element(screen.getByText(/rupture began/)).not.toBeVisible();
+    expect(router.state.location.search.quake).toBe('usgs:us6000u18k');
+  });
+
+  it('drops the depth class caption and starts the depth bar in a fixed column as D2', async () => {
+    const { screen } = await renderPanel('/?quake=usgs:us6000u18k');
+    await expect.element(screen.getByText('1,805')).toBeVisible();
+
+    expect(screen.container.textContent).not.toContain('Shallow');
+    const bar = screen.getByTestId('depth-scale').element().getBoundingClientRect();
+    const column = screen.getByTestId('depth-row').element().getBoundingClientRect();
+    expect(bar.left - column.left).toBe(110);
+    expect(bar.width).toBe(310);
   });
 });

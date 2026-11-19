@@ -3,7 +3,10 @@ import { describe, expect, it } from 'vitest';
 import { getDepthRgb } from '../earthquakes/depth-color';
 import type { Earthquake } from '../earthquakes/types';
 import {
+  getAgeFade,
+  getEmberMs,
   getEpicentreRadiusPx,
+  getMarkerAlpha,
   getHypocentreRadius,
   getHypocentreRadiusPx,
   getQuakeAmplitude,
@@ -132,5 +135,29 @@ describe('getQuakeMarkerAttributes', () => {
     const empty = getQuakeMarkerAttributes([]);
     expect(empty.markers.direction).toHaveLength(0);
     expect(empty.needles.radius).toHaveLength(0);
+  });
+});
+
+describe('age fade', () => {
+  const HOUR_MS = 3_600_000;
+
+  it('fades over 29 % of the time window, never under 6 hours', () => {
+    expect(getEmberMs(7 * 24 * HOUR_MS)).toBeCloseTo(0.29 * 168 * HOUR_MS, 3);
+    expect(getEmberMs(12 * HOUR_MS)).toBe(6 * HOUR_MS);
+  });
+
+  it.each([
+    [0, 1],
+    [3, 0.5],
+    [6, 0.3],
+    [60, 0.3],
+  ])('fades a quake %i h old to %f, floored at 0.3', (hours, fade) => {
+    expect(getAgeFade(hours * HOUR_MS, 6 * HOUR_MS)).toBeCloseTo(fade, 9);
+  });
+
+  it('scales marker alpha from 0.35 to 1 and dims the far side to 0.75', () => {
+    expect(getMarkerAlpha(1, false)).toBe(1);
+    expect(getMarkerAlpha(0.3, false)).toBeCloseTo(0.545, 9);
+    expect(getMarkerAlpha(1, true)).toBe(0.75);
   });
 });

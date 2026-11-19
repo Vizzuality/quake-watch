@@ -1,34 +1,45 @@
 import type {
   ExpressionSpecification,
+  FilterSpecification,
   FontFacesSpecification,
   LayerSpecification,
   StyleSpecification,
 } from 'maplibre-gl';
 
 import { FELT_RING_LOOK } from './felt-rings';
+import { TOWN_ICON_ID } from './map-images';
 import { QUAKE_MARKER_LOOK } from './quakes';
 
 export const MAP_STYLE_URL = 'https://tiles.openfreemap.org/styles/dark';
 export const MAP_SOURCE_ID = 'openmaptiles';
 export const MAP_LOW_SOURCE_ID = 'openmaptiles-low';
-export const MAP_LOW_MAXZOOM = 0;
+export const MAP_LOW_MAXZOOM = 3;
 export const QUAKE_SOURCE_ID = 'quakes';
 export const QUAKE_LAYER_ID = 'quakes';
 export const FELT_SOURCE_ID = 'felt-rings';
 export const FELT_FILL_LAYER_ID = 'felt-rings-fill';
 export const FELT_LINE_LAYER_ID = 'felt-rings-line';
 export const QUAKE_RING_LAYER_ID = 'quake-rings';
-export const MAP_FONT = 'Space Grotesk Regular';
+export const AREA_SOURCE_ID = 'area-ring';
+export const AREA_LAYER_ID = 'area-ring';
+export const SELECTED_LAYER_ID = 'selected-quake';
+export const SELECTED_RING_LAYER_ID = 'selected-quake-ring';
+export const MAP_FONTS = {
+  regular: 'Space Grotesk Regular',
+  medium: 'Space Grotesk Medium',
+  light: 'Space Grotesk Light',
+} as const;
 export const MAP_ATTRIBUTION =
   '<a href="https://openfreemap.org" target="_blank">OpenFreeMap</a> <a href="https://www.openmaptiles.org/" target="_blank">&copy; OpenMapTiles</a> Data from <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a>';
 
 export const MAP_COLORS = {
-  background: '#05050B',
-  road: '#23253F',
-  boundary: '#FFFFFF',
-  label: '#9A9CC0',
+  background: 'transparent',
+  ocean: '#282B60',
+  primary: '#E6E4F5',
+  muted: '#A09DC1',
+  accent: '#EB598E',
+  land: '#3C3B67',
 };
-export const BOUNDARY_OPACITY = 0.25;
 export const QUAKE_ZOOM_SCALES = [
   [4, 1],
   [8, 2],
@@ -36,6 +47,29 @@ export const QUAKE_ZOOM_SCALES = [
   [16, 6],
 ] as const;
 export const QUAKE_EDGE_PX = 0.5;
+
+const MAP_LOOK = {
+  coastlinePx: 0.6,
+  coarseWaterMaxZoom: 8,
+  areaDash: [2, 4],
+  labelPx: 10,
+  townPx: 11,
+  townGapPx: 7,
+  townOpacity: 0.85,
+  countrySpacingEm: 0.32,
+  seaSpacingEm: 0.3,
+  countryMaxZoom: 8,
+  labelHaloPx: 1.5,
+  neighbourhoodMinZoom: 11,
+  neighbourhoodPx: 9,
+  neighbourhoodSpacingEm: 0.18,
+  neighbourhoodOpacity: 0.7,
+  streetLabelMinZoom: 13,
+  streetLabelOpacity: 0.75,
+  selectedDotPx: 7.6,
+  selectedRingPx: 14,
+  selectedRingStrokePx: 1,
+} as const;
 const EMPTY_COLLECTION = { type: 'FeatureCollection' as const, features: [] };
 const NAME: ExpressionSpecification = [
   'coalesce',
@@ -43,15 +77,29 @@ const NAME: ExpressionSpecification = [
   ['get', 'name:latin'],
   ['get', 'name'],
 ];
+const POINT_FILTER: FilterSpecification = ['==', ['geometry-type'], 'Point'];
+const LINE_FILTER: FilterSpecification = ['==', ['geometry-type'], 'LineString'];
 
-export type MapFontUrls = { latin: string; latinExt: string };
+type MapFontFiles = { latin: string; latinExt: string };
+export type MapFontUrls = Record<keyof typeof MAP_FONTS, MapFontFiles>;
+export type FeltRingPaint = {
+  lineColor: ExpressionSpecification | string;
+  lineOpacity: number;
+  fillOpacity: number;
+};
 
-function getFontFaces({ latin, latinExt }: MapFontUrls): FontFacesSpecification {
+function getFontFace({ latin, latinExt }: MapFontFiles) {
+  return [
+    { url: latin, 'unicode-range': ['U+0-FF', 'U+131', 'U+152-153', 'U+2000-206F'] },
+    { url: latinExt, 'unicode-range': ['U+100-24F', 'U+1E00-1EFF', 'U+20A0-20CF'] },
+  ];
+}
+
+function getFontFaces(fontUrls: MapFontUrls): FontFacesSpecification {
   return {
-    [MAP_FONT]: [
-      { url: latin, 'unicode-range': ['U+0-FF', 'U+131', 'U+152-153', 'U+2000-206F'] },
-      { url: latinExt, 'unicode-range': ['U+100-24F', 'U+1E00-1EFF', 'U+20A0-20CF'] },
-    ],
+    [MAP_FONTS.regular]: getFontFace(fontUrls.regular),
+    [MAP_FONTS.medium]: getFontFace(fontUrls.medium),
+    [MAP_FONTS.light]: getFontFace(fontUrls.light),
   };
 }
 
@@ -70,119 +118,335 @@ function getZoomedRadius(
   return ['interpolate', ['linear'], ['zoom'], ...stops] as ExpressionSpecification;
 }
 
-function getTextField(textField: unknown) {
-  return JSON.stringify(textField).includes('"name') ? NAME : textField;
+export function getSelectedQuakeFilter(key: string | null): FilterSpecification {
+  return ['==', ['get', 'key'], key ?? ''];
 }
 
-function getStreetLayer(layer: LayerSpecification): LayerSpecification {
-  if (layer.type === 'background') {
-    return { ...layer, paint: { ...layer.paint, 'background-color': MAP_COLORS.background } };
-  }
-  if (layer.type === 'line' && layer['source-layer'] === 'transportation') {
-    return { ...layer, paint: { ...layer.paint, 'line-color': MAP_COLORS.road } };
-  }
-  if (layer.type === 'line' && layer['source-layer'] === 'boundary') {
-    return {
-      ...layer,
-      paint: {
-        ...layer.paint,
-        'line-color': MAP_COLORS.boundary,
-        'line-opacity': BOUNDARY_OPACITY,
-      },
-    };
-  }
-  if (layer.type !== 'symbol' || layer.layout?.['text-field'] === undefined) return layer;
+export function getFeltRingPaint(isSelected: boolean): FeltRingPaint {
+  if (isSelected) return { lineColor: MAP_COLORS.accent, lineOpacity: 1, fillOpacity: 0 };
   return {
-    ...layer,
-    layout: {
-      ...layer.layout,
-      'text-field': getTextField(layer.layout['text-field']) as ExpressionSpecification,
-      'text-font': [MAP_FONT],
-    },
-    paint: {
-      ...layer.paint,
-      'text-color': MAP_COLORS.label,
-      'text-halo-color': MAP_COLORS.background,
-    },
+    lineColor: ['get', 'color'],
+    lineOpacity: FELT_RING_LOOK.strokeA,
+    fillOpacity: FELT_RING_LOOK.fillA,
   };
 }
 
-function getLowResolutionLayers(layers: LayerSpecification[]): LayerSpecification[] {
-  return layers.flatMap((layer) =>
-    layer.type === 'fill' && layer['source-layer'] === 'water'
-      ? [{ ...layer, id: `${layer.id}-low`, source: MAP_LOW_SOURCE_ID }]
-      : [],
-  );
+const ROAD_LOOK = [
+  {
+    id: 'road-minor',
+    classes: ['minor', 'service'],
+    minzoom: 12,
+    opacity: 0.16,
+    widths: [12, 0.5, 14, 1, 16, 3, 18, 6],
+  },
+  {
+    id: 'road-secondary',
+    classes: ['secondary', 'tertiary'],
+    minzoom: 9,
+    opacity: 0.24,
+    widths: [9, 0.4, 12, 1, 16, 4],
+  },
+  {
+    id: 'road-primary',
+    classes: ['primary', 'trunk'],
+    minzoom: 6,
+    opacity: 0.32,
+    widths: [6, 0.4, 10, 1, 16, 5],
+  },
+  {
+    id: 'road-motorway',
+    classes: ['motorway'],
+    minzoom: 5,
+    opacity: 0.4,
+    widths: [5, 0.5, 10, 1.2, 16, 6],
+  },
+] as const;
+const BOUNDARY_LOOK = [
+  { id: 'boundary-state', adminLevel: 4, minzoom: 4, opacity: 0.18, widthPx: 0.6, dash: [3, 3] },
+  { id: 'boundary-country', adminLevel: 2, minzoom: 0, opacity: 0.35, widthPx: 0.8, dash: null },
+] as const;
+
+function getRoadFilter(classes: readonly string[]): FilterSpecification {
+  return [
+    'all',
+    ['==', ['geometry-type'], 'LineString'],
+    ['match', ['get', 'class'], [...classes], true, false],
+  ];
 }
 
-export function getStreetMapStyle(
-  dark: StyleSpecification,
-  fontUrls: MapFontUrls,
-): StyleSpecification {
-  const streetLayers = dark.layers.map(getStreetLayer);
-  const [background, ...rest] = streetLayers;
-  const layers = [background, ...getLowResolutionLayers(rest), ...rest];
-  const quakesIndex = layers.findLastIndex((layer) => layer.type !== 'symbol') + 1;
-  const quakes: LayerSpecification = {
-    id: QUAKE_LAYER_ID,
-    type: 'circle',
-    source: QUAKE_SOURCE_ID,
-    paint: {
-      'circle-color': ['get', 'color'],
-      'circle-radius': getZoomedRadius(getScaledRadius),
-      'circle-opacity': QUAKE_MARKER_LOOK.epicentreA,
-    },
+function getLandHaloPaint(textColor: string) {
+  return {
+    'text-color': textColor,
+    'text-halo-color': MAP_COLORS.land,
+    'text-halo-width': MAP_LOOK.labelHaloPx,
   };
-  const quakeRings: LayerSpecification = {
-    id: QUAKE_RING_LAYER_ID,
-    type: 'circle',
-    source: QUAKE_SOURCE_ID,
-    filter: ['!', ['get', 'isFelt']],
+}
+
+function getRoadLayers(): LayerSpecification[] {
+  return ROAD_LOOK.map(({ id, classes, minzoom, opacity, widths }) => ({
+    id,
+    type: 'line',
+    source: MAP_SOURCE_ID,
+    'source-layer': 'transportation',
+    minzoom,
+    filter: getRoadFilter(classes),
+    layout: { 'line-cap': 'round', 'line-join': 'round' },
     paint: {
-      'circle-radius': getZoomedRadius(getScaledRingRadius),
-      'circle-opacity': 0,
-      'circle-stroke-color': ['get', 'color'],
-      'circle-stroke-width': FELT_RING_LOOK.strokePx,
-      'circle-stroke-opacity': FELT_RING_LOOK.hollowA,
+      'line-color': MAP_COLORS.primary,
+      'line-opacity': opacity,
+      'line-width': ['interpolate', ['linear'], ['zoom'], ...widths] as ExpressionSpecification,
     },
-  };
-  const feltRings: LayerSpecification[] = [
+  }));
+}
+
+function getBoundaryLayers(): LayerSpecification[] {
+  return BOUNDARY_LOOK.map(({ id, adminLevel, minzoom, opacity, widthPx, dash }) => ({
+    id,
+    type: 'line',
+    source: MAP_SOURCE_ID,
+    'source-layer': 'boundary',
+    minzoom,
+    filter: ['all', ['==', ['get', 'admin_level'], adminLevel], ['!=', ['get', 'maritime'], 1]],
+    paint: {
+      'line-color': MAP_COLORS.primary,
+      'line-opacity': opacity,
+      'line-width': widthPx,
+      ...(dash ? { 'line-dasharray': [...dash] } : {}),
+    },
+  }));
+}
+
+function getBaseLayers(): LayerSpecification[] {
+  return [
+    { id: 'background', type: 'background', paint: { 'background-color': MAP_COLORS.land } },
+    {
+      id: 'water-low',
+      type: 'fill',
+      source: MAP_LOW_SOURCE_ID,
+      'source-layer': 'water',
+      maxzoom: MAP_LOOK.coarseWaterMaxZoom,
+      paint: { 'fill-color': MAP_COLORS.ocean, 'fill-antialias': false },
+    },
+    {
+      id: 'water',
+      type: 'fill',
+      source: MAP_SOURCE_ID,
+      'source-layer': 'water',
+      paint: { 'fill-color': MAP_COLORS.ocean, 'fill-antialias': false },
+    },
+    {
+      id: 'coastline',
+      type: 'line',
+      source: MAP_SOURCE_ID,
+      'source-layer': 'water',
+      paint: { 'line-color': MAP_COLORS.primary, 'line-width': MAP_LOOK.coastlinePx },
+    },
+    ...getBoundaryLayers(),
+    ...getRoadLayers(),
+  ];
+}
+
+function getQuakeLayers(): LayerSpecification[] {
+  const feltPaint = getFeltRingPaint(false);
+  return [
+    {
+      id: AREA_LAYER_ID,
+      type: 'line',
+      source: AREA_SOURCE_ID,
+      paint: {
+        'line-color': MAP_COLORS.muted,
+        'line-width': 1,
+        'line-dasharray': [...MAP_LOOK.areaDash],
+      },
+    },
     {
       id: FELT_FILL_LAYER_ID,
       type: 'fill',
       source: FELT_SOURCE_ID,
       filter: ['==', ['geometry-type'], 'Polygon'],
-      paint: { 'fill-color': ['get', 'color'], 'fill-opacity': FELT_RING_LOOK.fillA },
+      paint: { 'fill-color': ['get', 'color'], 'fill-opacity': feltPaint.fillOpacity },
     },
     {
       id: FELT_LINE_LAYER_ID,
       type: 'line',
       source: FELT_SOURCE_ID,
-      filter: ['==', ['geometry-type'], 'LineString'],
+      filter: LINE_FILTER,
       paint: {
-        'line-color': ['get', 'color'],
-        'line-opacity': FELT_RING_LOOK.strokeA,
+        'line-color': feltPaint.lineColor,
+        'line-opacity': feltPaint.lineOpacity,
         'line-width': FELT_RING_LOOK.strokePx,
       },
     },
+    {
+      id: QUAKE_RING_LAYER_ID,
+      type: 'circle',
+      source: QUAKE_SOURCE_ID,
+      filter: ['!', ['get', 'isFelt']],
+      paint: {
+        'circle-radius': getZoomedRadius(getScaledRingRadius),
+        'circle-opacity': 0,
+        'circle-stroke-color': ['get', 'color'],
+        'circle-stroke-width': FELT_RING_LOOK.strokePx,
+        'circle-stroke-opacity': FELT_RING_LOOK.hollowA,
+      },
+    },
+    {
+      id: QUAKE_LAYER_ID,
+      type: 'circle',
+      source: QUAKE_SOURCE_ID,
+      paint: {
+        'circle-color': ['get', 'color'],
+        'circle-radius': getZoomedRadius(getScaledRadius),
+        'circle-opacity': QUAKE_MARKER_LOOK.epicentreA,
+      },
+    },
+    {
+      id: SELECTED_RING_LAYER_ID,
+      type: 'circle',
+      source: QUAKE_SOURCE_ID,
+      filter: getSelectedQuakeFilter(null),
+      paint: {
+        'circle-radius': MAP_LOOK.selectedRingPx - MAP_LOOK.selectedRingStrokePx / 2,
+        'circle-opacity': 0,
+        'circle-stroke-color': MAP_COLORS.primary,
+        'circle-stroke-width': MAP_LOOK.selectedRingStrokePx,
+      },
+    },
+    {
+      id: SELECTED_LAYER_ID,
+      type: 'circle',
+      source: QUAKE_SOURCE_ID,
+      filter: getSelectedQuakeFilter(null),
+      paint: { 'circle-color': MAP_COLORS.accent, 'circle-radius': MAP_LOOK.selectedDotPx },
+    },
   ];
-  const { glyphs: _glyphs, ...style } = dark;
+}
+
+function getSeaLayout(fontSize: number) {
+  return {
+    'text-field': NAME,
+    'text-font': [MAP_FONTS.light],
+    'text-size': fontSize,
+    'text-letter-spacing': MAP_LOOK.seaSpacingEm,
+    'text-transform': 'uppercase' as const,
+  };
+}
+
+function getLabelLayers(): LayerSpecification[] {
+  const seaPaint = {
+    'text-color': MAP_COLORS.muted,
+    'text-halo-color': MAP_COLORS.ocean,
+    'text-halo-width': MAP_LOOK.labelHaloPx,
+  };
+  return [
+    {
+      id: 'label-road',
+      type: 'symbol',
+      source: MAP_SOURCE_ID,
+      'source-layer': 'transportation_name',
+      minzoom: MAP_LOOK.streetLabelMinZoom,
+      filter: LINE_FILTER,
+      layout: {
+        'symbol-placement': 'line',
+        'text-field': NAME,
+        'text-font': [MAP_FONTS.regular],
+        'text-size': ['interpolate', ['linear'], ['zoom'], 13, 10, 16, 12],
+      },
+      paint: {
+        ...getLandHaloPaint(MAP_COLORS.primary),
+        'text-opacity': MAP_LOOK.streetLabelOpacity,
+      },
+    },
+    {
+      id: 'label-sea-line',
+      type: 'symbol',
+      source: MAP_SOURCE_ID,
+      'source-layer': 'water_name',
+      filter: LINE_FILTER,
+      layout: { ...getSeaLayout(MAP_LOOK.labelPx), 'symbol-placement': 'line' },
+      paint: seaPaint,
+    },
+    {
+      id: 'label-sea',
+      type: 'symbol',
+      source: MAP_SOURCE_ID,
+      'source-layer': 'water_name',
+      filter: POINT_FILTER,
+      layout: getSeaLayout(MAP_LOOK.labelPx),
+      paint: seaPaint,
+    },
+    {
+      id: 'label-neighbourhood',
+      type: 'symbol',
+      source: MAP_SOURCE_ID,
+      'source-layer': 'place',
+      minzoom: MAP_LOOK.neighbourhoodMinZoom,
+      filter: ['match', ['get', 'class'], ['suburb', 'quarter', 'neighbourhood'], true, false],
+      layout: {
+        'text-field': NAME,
+        'text-font': [MAP_FONTS.medium],
+        'text-size': MAP_LOOK.neighbourhoodPx,
+        'text-letter-spacing': MAP_LOOK.neighbourhoodSpacingEm,
+        'text-transform': 'uppercase',
+      },
+      paint: {
+        ...getLandHaloPaint(MAP_COLORS.primary),
+        'text-opacity': MAP_LOOK.neighbourhoodOpacity,
+      },
+    },
+    {
+      id: 'label-town',
+      type: 'symbol',
+      source: MAP_SOURCE_ID,
+      'source-layer': 'place',
+      filter: ['match', ['get', 'class'], ['city', 'town', 'village', 'hamlet'], true, false],
+      layout: {
+        'symbol-sort-key': ['get', 'rank'],
+        'icon-image': TOWN_ICON_ID,
+        'text-field': NAME,
+        'text-font': [MAP_FONTS.regular],
+        'text-size': MAP_LOOK.townPx,
+        'text-anchor': 'left',
+        'text-justify': 'left',
+        'text-offset': [MAP_LOOK.townGapPx / MAP_LOOK.townPx, 0],
+      },
+      paint: { ...getLandHaloPaint(MAP_COLORS.primary), 'text-opacity': MAP_LOOK.townOpacity },
+    },
+    {
+      id: 'label-country',
+      type: 'symbol',
+      source: MAP_SOURCE_ID,
+      'source-layer': 'place',
+      maxzoom: MAP_LOOK.countryMaxZoom,
+      filter: ['==', ['get', 'class'], 'country'],
+      layout: {
+        'symbol-sort-key': ['get', 'rank'],
+        'text-field': NAME,
+        'text-font': [MAP_FONTS.medium],
+        'text-size': MAP_LOOK.labelPx,
+        'text-letter-spacing': MAP_LOOK.countrySpacingEm,
+        'text-transform': 'uppercase',
+      },
+      paint: getLandHaloPaint(MAP_COLORS.primary),
+    },
+  ];
+}
+
+export function getQuakeMapStyle(
+  dark: StyleSpecification,
+  fontUrls: MapFontUrls,
+): StyleSpecification {
   const source = dark.sources[MAP_SOURCE_ID];
   return {
-    ...style,
+    version: 8,
     'font-faces': getFontFaces(fontUrls),
     sources: {
       [MAP_SOURCE_ID]: source,
       [MAP_LOW_SOURCE_ID]: { ...source, maxzoom: MAP_LOW_MAXZOOM } as typeof source,
+      [AREA_SOURCE_ID]: { type: 'geojson', data: EMPTY_COLLECTION },
       [FELT_SOURCE_ID]: { type: 'geojson', data: EMPTY_COLLECTION },
       [QUAKE_SOURCE_ID]: { type: 'geojson', data: EMPTY_COLLECTION },
     },
-    layers: [
-      ...layers.slice(0, quakesIndex),
-      ...feltRings,
-      quakeRings,
-      quakes,
-      ...layers.slice(quakesIndex),
-    ],
+    layers: [...getBaseLayers(), ...getQuakeLayers(), ...getLabelLayers()],
   };
 }

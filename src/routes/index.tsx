@@ -2,11 +2,10 @@ import { useQuery } from '@tanstack/react-query';
 import { ClientOnly, createFileRoute } from '@tanstack/react-router';
 import { Suspense, lazy } from 'react';
 
-import { Wordmark } from '@/components/brand/wordmark';
 import { DepthLegend } from '@/containers/depth-legend/depth-legend';
 import { FiltersPanel } from '@/containers/filters/filters-panel';
 import { GlobeSlot } from '@/containers/globe/globe-slot';
-import { LanguageSwitch } from '@/containers/language-switch/language-switch';
+import { Header } from '@/containers/header/header';
 import { PlaceSearch } from '@/containers/search/place-search';
 import { SummaryPanel } from '@/containers/summary/summary-panel';
 import { Timeline } from '@/containers/timeline/timeline';
@@ -64,12 +63,7 @@ function Home() {
       </div>
       <Timeline />
       <h1 className="sr-only">{m.app_title()}</h1>
-      <header className="pointer-events-none relative z-10 px-10 py-4">
-        <div className="flex h-10 items-center justify-between">
-          <Wordmark />
-          <LanguageSwitch />
-        </div>
-      </header>
+      <Header />
       <SummaryPanel />
       <PlaceSearch />
       {quake !== undefined && (

@@ -41,8 +41,8 @@ _Spanish_: Lugar de interés
 _Português_: Lugar de interesse
 
 **Shaking wave**:
-A ring that spreads from the Epicenter out to its Felt reach and fades as the estimated Intensity drops. Its fronts travel at real P and S wave speeds from the rupture start, Depth included, with each Earthquake's real seconds squeezed into the same few seconds on screen. The S front reaches the Felt reach as the ring ends.
-_Avoid_: Ripple, shockwave
+A ripple that runs through the globe's dots outward from the Epicenter: behind its front the dots rise and sink, take the Earthquake's Depth colour and brighten, a few crests apart, fading with distance and time. Its reach and strength grow with Magnitude and reach well past the Felt reach, which shows as a disc that grows while the wave runs. It follows the playhead, so it freezes when playback pauses and moves back and forth while scrubbing. It is a picture of the shaking spreading, not a simulation of real wave speeds.
+_Avoid_: Shockwave, P/S fronts
 _Spanish_: Onda sísmica
 _Português_: Onda sísmica
 

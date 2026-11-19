@@ -58,24 +58,28 @@ export function FiltersPanel() {
     >
       <FilterGroup
         label={m.filter_time()}
+        info={m.info_filter_time()}
         options={getIntervalOptions()}
         value={interval}
         onChange={(next) => setSearch({ interval: next })}
       />
       <FilterGroup
         label={m.filter_magnitude()}
+        info={m.info_filter_magnitude()}
         options={getMagnitudeOptions()}
         value={minmag}
         onChange={(next) => setSearch({ minmag: next })}
       />
       <FilterGroup
         label={m.filter_depth()}
+        info={m.info_filter_depth()}
         options={getDepthOptions()}
         value={depth}
         onChange={(next) => setSearch({ depth: next })}
       />
       <FilterGroup
         label={m.filter_source()}
+        info={m.info_filter_source()}
         options={getSourceOptions()}
         value={source}
         onChange={(next) => setSearch({ source: next })}

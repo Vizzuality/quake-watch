@@ -5,6 +5,7 @@ import { getGlobeFrame } from '@/lib/globe/frame';
 import {
   FLY_DURATION_MS,
   type GlobeVelocity,
+  IDLE_DELAY_MS,
   type GlobeView,
   INITIAL_VIEW,
   STOPPED,
@@ -16,6 +17,7 @@ import {
   getWheelFactor,
   ZOOM_RANGE,
   getZoomedView,
+  isIdleDriftDue,
 } from '@/lib/globe/motion';
 
 const DRAG_THRESHOLD_PX = 4;
@@ -48,13 +50,14 @@ const IMMEDIATE: HoverOptions = { immediate: true };
 
 export type GlobeControls = {
   viewRef: RefObject<GlobeView>;
-  advance: (dtSeconds: number, elapsedMs: number) => GlobeView;
+  advance: (dtSeconds: number) => GlobeView;
   flyTo: (target: GlobeView) => void;
   frameTo: (target: GlobeView) => void;
   jumpTo: (target: GlobeView) => void;
   setHeld: (held: boolean) => void;
   setFrameListener: (listener: ((view: GlobeView) => void) | null) => void;
   isAnimating: () => boolean;
+  isReducedMotion: () => boolean;
 };
 
 function hasVelocity(velocity: GlobeVelocity): boolean {
@@ -83,6 +86,18 @@ function getRelativePoint(element: HTMLElement, event: PointerEvent): Point {
   return { x: event.clientX - rect.left, y: event.clientY - rect.top };
 }
 
+type IdleClock = {
+  interactedAtRef: RefObject<number>;
+  timer: { id?: ReturnType<typeof setTimeout> };
+  wake: () => void;
+};
+
+function markInteraction({ interactedAtRef, timer, wake }: IdleClock) {
+  interactedAtRef.current = performance.now();
+  clearTimeout(timer.id);
+  timer.id = setTimeout(wake, IDLE_DELAY_MS);
+}
+
 function advanceFly(fly: Fly, dtSeconds: number): { view: GlobeView; done: boolean } {
   fly.elapsedSeconds += dtSeconds;
   const progress = (fly.elapsedSeconds * 1000) / FLY_DURATION_MS;
@@ -97,6 +112,7 @@ export function useGlobeControls(
   const viewRef = useRef<GlobeView>({ ...(options.initialView ?? INITIAL_VIEW) });
   const velocityRef = useRef<GlobeVelocity>(STOPPED);
   const isTouchedRef = useRef(options.initialView !== undefined);
+  const interactedAtRef = useRef(-Infinity);
   const isHeldRef = useRef(false);
   const isReducedMotionRef = useRef(false);
   const gestureRef = useRef<Gesture | null>(null);
@@ -104,8 +120,21 @@ export function useGlobeControls(
   const optionsRef = useRef(options);
   const frameListenerRef = useRef<((view: GlobeView) => void) | null>(null);
 
-  const controls = useMemo<GlobeControls>(() => {
-    function getNextView(dtSeconds: number, elapsedMs: number): GlobeView {
+  const [controls, idle] = useMemo<[GlobeControls, IdleClock]>(() => {
+    function isDriftDue(): boolean {
+      if (gestureRef.current || isHeldRef.current || isReducedMotionRef.current) return false;
+      return isIdleDriftDue(performance.now() - interactedAtRef.current, viewRef.current.zoom);
+    }
+
+    const idleClock: IdleClock = {
+      interactedAtRef,
+      timer: {},
+      wake: () => {
+        if (isDriftDue()) invalidate();
+      },
+    };
+
+    function getNextView(dtSeconds: number): GlobeView {
       const fly = flyRef.current;
       if (fly) {
         const next = advanceFly(fly, dtSeconds);
@@ -127,13 +156,13 @@ export function useGlobeControls(
         viewRef.current = next.view;
         velocityRef.current = next.velocity;
         if (!hasVelocity(next.velocity)) optionsRef.current.onSettle?.(next.view);
-      } else if (!isTouchedRef.current && !isHeldRef.current) {
-        viewRef.current = { ...view, lon: getIdleDriftLon(view.lon, dt, elapsedMs) };
+      } else if (isDriftDue()) {
+        viewRef.current = { ...view, lon: getIdleDriftLon(view.lon, dt) };
       }
       return viewRef.current;
     }
 
-    return {
+    const globeControls: GlobeControls = {
       viewRef,
       flyTo: (target) => {
         optionsRef.current.onHover?.(null, IMMEDIATE);
@@ -163,6 +192,7 @@ export function useGlobeControls(
       },
       jumpTo: (target) => {
         isTouchedRef.current = true;
+        markInteraction(idleClock);
         velocityRef.current = STOPPED;
         flyRef.current = null;
         viewRef.current = target;
@@ -174,20 +204,19 @@ export function useGlobeControls(
         isHeldRef.current = held;
         if (wasHeld && !held) invalidate();
       },
-      isAnimating: () => {
-        if (flyRef.current || hasVelocity(velocityRef.current)) return true;
-        if (gestureRef.current || isTouchedRef.current || isHeldRef.current) return false;
-        return !isReducedMotionRef.current;
-      },
+      isReducedMotion: () => isReducedMotionRef.current,
+      isAnimating: () =>
+        Boolean(flyRef.current) || hasVelocity(velocityRef.current) || isDriftDue(),
       setFrameListener: (listener) => {
         frameListenerRef.current = listener;
       },
-      advance: (dtSeconds, elapsedMs) => {
-        const view = getNextView(dtSeconds, elapsedMs);
+      advance: (dtSeconds) => {
+        const view = getNextView(dtSeconds);
         frameListenerRef.current?.(view);
         return view;
       },
     };
+    return [globeControls, idleClock];
   }, []);
 
   useLayoutEffect(() => {
@@ -203,6 +232,7 @@ export function useGlobeControls(
     let isTapCandidate = false;
     const reducedMotion = window.matchMedia(REDUCED_MOTION_QUERY);
     isReducedMotionRef.current = reducedMotion.matches;
+    if (isTouchedRef.current) markInteraction(idle);
 
     function startDrag(origin: Point, moved = false) {
       samples = [];
@@ -227,6 +257,7 @@ export function useGlobeControls(
 
     function handlePointerDown(event: PointerEvent) {
       if (pointers.size >= 2) return;
+      markInteraction(idle);
       optionsRef.current.onHover?.(null, IMMEDIATE);
       pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
       const fly = flyRef.current;
@@ -242,6 +273,7 @@ export function useGlobeControls(
     }
 
     function handlePointerMove(event: PointerEvent) {
+      markInteraction(idle);
       const gesture = gestureRef.current;
       if (!gesture && (flyRef.current || hasVelocity(velocityRef.current))) {
         optionsRef.current.onHover?.(null, IMMEDIATE);
@@ -290,6 +322,7 @@ export function useGlobeControls(
 
     function handlePointerEnd(event: PointerEvent) {
       if (!pointers.delete(event.pointerId)) return;
+      markInteraction(idle);
       const gesture = gestureRef.current;
       element.style.cursor = '';
       invalidate();
@@ -322,6 +355,7 @@ export function useGlobeControls(
 
     function handleWheel(event: WheelEvent) {
       event.preventDefault();
+      markInteraction(idle);
       optionsRef.current.onHover?.(null, IMMEDIATE);
       flyRef.current = null;
       if (event.deltaY < 0 && viewRef.current.zoom >= ZOOM_RANGE[1]) {
@@ -357,8 +391,9 @@ export function useGlobeControls(
       element.removeEventListener('pointerleave', handlePointerLeave);
       element.removeEventListener('wheel', handleWheel);
       reducedMotion.removeEventListener('change', handleReducedMotionChange);
+      clearTimeout(idle.timer.id);
     };
-  }, [targetRef]);
+  }, [targetRef, idle]);
 
   return controls;
 }

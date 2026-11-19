@@ -11,7 +11,7 @@ import {
 import { Profiler } from 'react';
 import { afterEach, describe, expect, it } from 'vitest';
 import { render } from 'vitest-browser-react';
-import { page } from 'vitest/browser';
+import { page, userEvent } from 'vitest/browser';
 
 import { SummaryPanel } from '@/containers/summary/summary-panel';
 import { playbackClock } from '@/lib/earthquakes/playback-clock';
@@ -100,11 +100,18 @@ describe('summary panel', () => {
     const { screen } = await renderSummary();
 
     await expect.element(screen.getByText('earthquakes this week.')).toBeVisible();
-    await expect.element(screen.getByRole('term').nth(0)).toHaveTextContent('Likely felt');
+    await expect
+      .element(screen.getByRole('term').nth(0).getByText('Likely felt', { exact: true }))
+      .toBeVisible();
     await expect.element(screen.getByRole('definition').nth(0)).toHaveTextContent('2');
     await expect
-      .element(screen.getByRole('term').nth(1))
-      .toHaveTextContent('Largest · Easter Island Region');
+      .element(
+        screen
+          .getByRole('term')
+          .nth(1)
+          .getByText('Largest · Easter Island Region', { exact: true }),
+      )
+      .toBeVisible();
     await expect.element(screen.getByRole('definition').nth(1)).toHaveTextContent('6.4');
   });
 
@@ -144,7 +151,7 @@ describe('summary panel', () => {
     const summary = screen.getByTestId('summary').element();
     const count = screen.getByTestId('summary-count').element();
     const stats = summary.querySelectorAll('dl > div');
-    const label = summary.querySelector('dt > span');
+    const label = summary.querySelector('dt > span > span');
     const rect = summary.getBoundingClientRect();
 
     expectWithinPixel(rect.left, 56);
@@ -158,6 +165,21 @@ describe('summary panel', () => {
     expect(getComputedStyle(count).fontWeight).toBe('300');
     expect(getComputedStyle(label as Element).fontSize).toBe('10px');
     expect(getComputedStyle(label as Element).color).toBe('rgb(160, 157, 193)');
+  });
+
+  it('explains each stat from an Info button next to its label', async () => {
+    const { screen } = await renderSummary();
+    const likelyFelt = screen.getByRole('button', { name: 'More about Likely felt' });
+    const largest = screen.getByRole('button', {
+      name: 'More about Largest · Easter Island Region',
+    });
+
+    await expect
+      .element(likelyFelt)
+      .toHaveAccessibleDescription(/estimate from magnitude and depth/);
+    await expect.element(largest).toHaveAccessibleDescription(/strongest earthquake/);
+    await userEvent.hover(likelyFelt);
+    await expect.element(screen.getByRole('tooltip')).toBeVisible();
   });
 
   it('hides when an Earthquake is selected and returns when it is cleared', async () => {

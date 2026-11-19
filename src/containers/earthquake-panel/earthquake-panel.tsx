@@ -3,6 +3,8 @@ import { getRouteApi } from '@tanstack/react-router';
 import {
   type ReactNode,
   type Ref,
+  Suspense,
+  lazy,
   useEffect,
   useEffectEvent,
   useId,
@@ -12,13 +14,14 @@ import {
   useState,
 } from 'react';
 
+import { InfoLabel } from '@/components/info-button/info-button';
 import { getQuakeKey, getSelectedEarthquake } from '@/containers/globe/use-hovered-quake';
 import { requestWaveReplay } from '@/containers/globe/wave-replay';
+import { ViewToggle } from '@/containers/section-view/view-toggle';
 import { getDepthColor } from '@/lib/earthquakes/depth-color';
 import {
   type EarthquakePosition,
   DEPTH_SCALE_KM,
-  getDepthClassLabel,
   getDepthScaleFraction,
   getDetailsDate,
   getEarthquakePosition,
@@ -57,6 +60,7 @@ type PanelState = 'loading' | 'not-found' | 'error' | 'ready';
 type QueryFlags = { isListPending: boolean; isDetailPending: boolean; isDetailError: boolean };
 
 const homeRoute = getRouteApi('/');
+const SectionView = lazy(() => import('@/containers/section-view/section-view'));
 const EMPTY_EARTHQUAKES: readonly Earthquake[] = [];
 const PILL_CLASS_NAME =
   'pointer-events-auto flex cursor-pointer items-center gap-2 rounded-pill border border-muted text-[9.5px] leading-[1.2] font-medium tracking-[0.2em] text-foreground uppercase hover:border-accent disabled:cursor-default disabled:opacity-40 disabled:hover:border-muted';
@@ -125,18 +129,24 @@ function ArrowSquareOutIcon() {
   );
 }
 
+const DATA_LABEL_CLASS_NAME = 'text-label text-muted uppercase';
+
 function DataCell({
   label,
+  info,
   value,
   caption,
 }: {
   label: string;
+  info: string;
   value: ReactNode;
   caption?: string;
 }) {
   return (
     <div className="flex flex-col gap-1 border-t border-line pt-3.5">
-      <dt className="text-label text-muted uppercase">{label}</dt>
+      <dt className="flex">
+        <InfoLabel label={label} info={info} className={DATA_LABEL_CLASS_NAME} />
+      </dt>
       <dd className="text-value whitespace-nowrap">{value}</dd>
       {caption && <dd className="text-body-s text-muted">{caption}</dd>}
     </div>
@@ -147,7 +157,7 @@ function DepthScale({ depthKm, locale }: { depthKm: number; locale: Locale }) {
   const percent = getDepthScaleFraction(depthKm) * 100;
 
   return (
-    <div aria-hidden="true" className="flex min-w-0 flex-1 flex-col gap-2.25">
+    <div aria-hidden="true" data-testid="depth-scale" className="flex min-w-0 flex-col gap-2.25">
       <div className="relative h-6">
         <div className="absolute inset-x-0 top-2.5 h-[1.5px] bg-line-tick" />
         <div
@@ -186,9 +196,13 @@ function EarthquakeFacts({
   return (
     <div className="flex flex-col gap-5.5">
       <div className="relative">
-        <p className="absolute top-0 left-0 text-label text-muted uppercase">
-          {m.details_magnitude()}
-        </p>
+        <div className="absolute top-0 left-0">
+          <InfoLabel
+            label={m.details_magnitude()}
+            info={m.info_details_magnitude()}
+            className={DATA_LABEL_CLASS_NAME}
+          />
+        </div>
         <p className="text-numeral-xl">{magnitudeLabel}</p>
       </div>
       <div className="flex flex-col gap-2.5">
@@ -202,22 +216,29 @@ function EarthquakeFacts({
       </div>
       <dl className="flex flex-col gap-4">
         <div className="flex flex-col gap-1 border-t border-line pt-3.5">
-          <dt className="text-label text-muted uppercase">{m.col_depth()}</dt>
-          <dd className="flex items-start gap-6">
+          <dt className="flex">
+            <InfoLabel
+              label={m.col_depth()}
+              info={m.info_details_depth()}
+              className={DATA_LABEL_CLASS_NAME}
+            />
+          </dt>
+          <dd data-testid="depth-row" className="grid grid-cols-[86px_minmax(0,310px)] gap-6">
             <span className="text-value whitespace-nowrap">{getKmLabel(depthKm, locale)}</span>
             <DepthScale depthKm={depthKm} locale={locale} />
           </dd>
-          <dd className="text-body-s text-muted">{getDepthClassLabel(depthKm, locale)}</dd>
         </div>
         <div className="grid grid-cols-2 gap-x-8 gap-y-4">
           <DataCell
             label={m.tooltip_likely_felt()}
+            info={m.info_details_likely_felt()}
             value={getTooltipFelt(magnitude, depthKm, locale)}
             caption={getFeltCaption(earthquake)}
           />
           {feltReports !== null && (
             <DataCell
               label={m.details_felt_reports()}
+              info={m.info_details_felt_reports()}
               value={getDecimalLabel(feltReports, locale)}
               caption={m.details_felt_reports_caption()}
             />
@@ -225,12 +246,14 @@ function EarthquakeFacts({
           {magnitudeType && (
             <DataCell
               label={m.details_type()}
+              info={m.info_details_type()}
               value={magnitudeType.toUpperCase()}
               caption={getMagnitudeTypeCaption(magnitudeType, locale)}
             />
           )}
           <DataCell
             label={m.details_source()}
+            info={m.info_details_source()}
             value={
               <a
                 href={url}
@@ -403,7 +426,7 @@ export default function EarthquakePanel({ quake }: { quake: string }) {
   const [returnFocusTarget] = useState(getFocusedElement);
 
   function close() {
-    void navigate({ search: (prev) => ({ ...prev, quake: undefined }) });
+    void navigate({ search: (prev) => ({ ...prev, quake: undefined, view: undefined }) });
     if (returnFocusTarget?.isConnected) returnFocusTarget.focus();
   }
 
@@ -430,18 +453,24 @@ export default function EarthquakePanel({ quake }: { quake: string }) {
 
   return (
     <section aria-labelledby={headingId} className="pointer-events-none absolute inset-0 z-10">
+      {earthquake && search.view === 'section' && (
+        <Suspense fallback={null}>
+          <SectionView quake={quake} />
+        </Suspense>
+      )}
       <PanelNavigation position={position} locale={locale} onClose={close} onGoTo={goTo} />
       {earthquake && (
         <button
           type="button"
           disabled={position === null}
           onClick={() => requestWaveReplay(earthquake.id)}
-          className={`${PILL_CLASS_NAME} absolute top-29 right-4 px-4 py-2.5 md:right-14`}
+          className={`${PILL_CLASS_NAME} absolute top-29 right-4 px-4 py-2.5 md:right-auto md:left-139`}
         >
           <PlayIcon />
           {m.details_replay()}
         </button>
       )}
+      {earthquake && <ViewToggle />}
       <div className="pointer-events-auto absolute top-35 right-4 left-4 max-h-[calc(100%-156px)] overflow-y-auto md:right-auto md:left-14 md:w-105">
         {state === 'ready' && earthquake && (
           <EarthquakeFacts

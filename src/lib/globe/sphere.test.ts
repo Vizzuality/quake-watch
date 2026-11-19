@@ -1,6 +1,13 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
-import { getFibonacciPoints, getLatLonVector, getPointLatLon, getRotatedVector } from './sphere';
+import {
+  getCoastSegments,
+  getFibonacciPoints,
+  getLatLonVector,
+  getPointLatLon,
+  getRetried,
+  getRotatedVector,
+} from './sphere';
 
 describe('sphere', () => {
   it('builds unit Fibonacci points with the board formula', () => {
@@ -56,5 +63,51 @@ describe('sphere', () => {
     expected.forEach((value, index) =>
       expect(getRotatedVector([x, y, z], lon, lat)[index]).toBeCloseTo(value, 12),
     );
+  });
+});
+
+describe('getCoastSegments', () => {
+  it('splits tenth-of-a-degree polylines into segments, each vertex knowing its other end', () => {
+    const { position, other } = getCoastSegments([
+      [0, 0, 900, 0, 900, 450],
+      [-1800, 0, -1790, 0],
+    ]);
+    const vertices = [
+      [0, 0],
+      [0, 90],
+      [0, 90],
+      [45, 90],
+      [0, -180],
+      [0, -179],
+    ];
+    const partners = [1, 0, 3, 2, 5, 4];
+
+    expect(position).toHaveLength(18);
+    vertices.forEach(([lat, lon], vertex) => {
+      const expected = getLatLonVector(lat, lon);
+      const partner = vertices[partners[vertex]];
+      const expectedOther = getLatLonVector(partner[0], partner[1]);
+      for (let axis = 0; axis < 3; axis++) {
+        expect(position[vertex * 3 + axis]).toBeCloseTo(expected[axis], 6);
+        expect(other[vertex * 3 + axis]).toBeCloseTo(expectedOther[axis], 6);
+      }
+    });
+  });
+});
+
+describe('getRetried', () => {
+  it('retries a failed load once', async () => {
+    const load = vi.fn<() => Promise<string>>();
+    load.mockRejectedValueOnce(new Error('chunk')).mockResolvedValueOnce('land');
+
+    await expect(getRetried(load)).resolves.toBe('land');
+    expect(load).toHaveBeenCalledTimes(2);
+  });
+
+  it('gives up after the second failure', async () => {
+    const load = vi.fn<() => Promise<string>>().mockRejectedValue(new Error('chunk'));
+
+    await expect(getRetried(load)).rejects.toThrow('chunk');
+    expect(load).toHaveBeenCalledTimes(2);
   });
 });

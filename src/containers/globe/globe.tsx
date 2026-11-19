@@ -1,9 +1,19 @@
 import { useQuery } from '@tanstack/react-query';
 import { getRouteApi } from '@tanstack/react-router';
-import { Suspense, lazy, useEffect, useId, useMemo, useRef, useState } from 'react';
+import {
+  Suspense,
+  lazy,
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from 'react';
 
 import { type Camera, getWrappedLongitude, useCameraSearch } from '@/hooks/use-camera-search';
-import { playbackClock } from '@/lib/earthquakes/playback-clock';
+import { getArrivedIds, getNewestArrivedId } from '@/lib/earthquakes/arrivals';
+import { getLiveSnapshot, playbackClock } from '@/lib/earthquakes/playback-clock';
 import { earthquakesQueryOptions } from '@/lib/earthquakes/query-options';
 import { getRegionEarthquakes } from '@/lib/earthquakes/regions';
 import { type EarthquakeSearch, getEarthquakeFilters } from '@/lib/earthquakes/search-schema';
@@ -88,6 +98,22 @@ function isPlaceFound(earthquakes: readonly Earthquake[], place: string | undefi
   return place !== undefined && getRegionEarthquakes(earthquakes, place).length > 0;
 }
 
+type Refresh = { key: string; ids: ReadonlySet<string> };
+
+function getRefreshKey(search: EarthquakeSearch): string {
+  return JSON.stringify(getEarthquakeFilters(search));
+}
+
+function getArrivedId(
+  previous: Refresh | null,
+  key: string,
+  earthquakes: readonly Earthquake[],
+): string | undefined {
+  const ids = earthquakes.map(({ id }) => id);
+  const arrived = getArrivedIds(previous?.key === key ? previous.ids : null, ids);
+  return getNewestArrivedId(arrived, earthquakes);
+}
+
 function getCursorClassName(isOverQuake: boolean): string {
   return isOverQuake ? 'cursor-pointer' : 'cursor-grab';
 }
@@ -161,7 +187,15 @@ function GlobeCanvas() {
     [earthquakes, quake],
   );
   const variant = selectedEarthquake === undefined ? 'full' : 'compact';
-  const [waves] = useState(createGlobeWaves);
+  const playback = useSyncExternalStore(
+    playbackClock.subscribe,
+    playbackClock.getSnapshot,
+    getLiveSnapshot,
+  );
+  const isPaused = playback.playhead !== null && !playback.isPlaying;
+  const refreshKey = getRefreshKey(search);
+  const refreshRef = useRef<Refresh | null>(null);
+  const [waves] = useState(() => createGlobeWaves(controls.isReducedMotion));
   const lastFlownRef = useRef<string | undefined>(undefined);
   const lastPlaceRef = useRef(initialView === undefined ? undefined : place);
   const isFramingDecidedRef = useRef(false);
@@ -274,6 +308,13 @@ function GlobeCanvas() {
   useEffect(() => subscribeWaveReplay((id) => waves.play([id])), [waves]);
 
   useEffect(() => {
+    if (data === undefined) return;
+    const arrivedId = getArrivedId(refreshRef.current, refreshKey, data.earthquakes);
+    refreshRef.current = { key: refreshKey, ids: new Set(data.earthquakes.map(({ id }) => id)) };
+    if (arrivedId !== undefined && playbackClock.getPlayhead() === null) waves.pulse(arrivedId);
+  }, [data, refreshKey, waves]);
+
+  useEffect(() => {
     if (!import.meta.env.DEV) return;
     window.__globeQuakePoints = () => {
       const container = containerRef.current;
@@ -351,8 +392,10 @@ function GlobeCanvas() {
   }, [quake, selectedEarthquake, controls, hideHover, isMapActive]);
 
   useEffect(() => {
-    controls.setHeld(hovered !== null || selectedEarthquake !== undefined);
-  }, [controls, hovered, selectedEarthquake]);
+    controls.setHeld(
+      hovered !== null || selectedEarthquake !== undefined || place !== undefined || isPaused,
+    );
+  }, [controls, hovered, selectedEarthquake, place, isPaused]);
 
   useEffect(() => {
     if (!hovered) return;
@@ -375,6 +418,7 @@ function GlobeCanvas() {
             controls={controls}
             earthquakes={earthquakes}
             selectedEarthquake={selectedEarthquake}
+            hoveredEarthquake={hovered?.earthquake}
             waves={waves}
           />
           <Suspense fallback={null}>

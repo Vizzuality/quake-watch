@@ -21,23 +21,23 @@ export function DepthLegend() {
       inert={isQuakeSelected}
       data-testid="depth-legend"
       className={cn(
-        'pointer-events-none absolute right-[65px] bottom-[140px] z-10 m-0 flex flex-col items-end gap-1 text-caption text-muted uppercase transition-[opacity,translate,visibility] duration-300 ease-out motion-reduce:transition-none',
+        'pointer-events-none absolute right-[65px] bottom-[140px] z-10 m-0 flex flex-col items-end gap-1 text-muted uppercase transition-[opacity,translate,visibility] duration-300 ease-out motion-reduce:transition-none',
         isQuakeSelected && 'invisible translate-x-6 opacity-0',
       )}
     >
       <figcaption className="sr-only">{m.depth_legend_label({ shallowest, deepest })}</figcaption>
-      <div aria-hidden className="flex w-[17px] justify-center">
+      <div aria-hidden className="flex w-[17px] justify-center text-label">
         <span className="rotate-180 [writing-mode:vertical-rl]">{m.col_depth()}</span>
       </div>
       <div aria-hidden className="flex h-[147px]">
-        <div className="flex flex-col items-end justify-between">
+        <div className="flex flex-col items-end justify-between text-label-s">
           <span>{shallowest}</span>
           <span>{deepest}</span>
         </div>
         <div className="relative w-[21px]">
           <div
             data-testid="depth-legend-bar"
-            className="absolute top-[3.5px] left-[9.5px] h-[140px] w-[1.5px]"
+            className="absolute top-0 left-[9.5px] h-[147px] w-[1.5px]"
             style={{ backgroundImage: DEPTH_BAR_GRADIENT }}
           />
         </div>

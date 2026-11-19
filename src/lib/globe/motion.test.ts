@@ -14,6 +14,7 @@ import {
   getWheelFactor,
   getZoomedView,
   INITIAL_VIEW,
+  isIdleDriftDue,
   LAT_LIMIT,
   SELECT_MIN_ZOOM,
   ZOOM_RANGE,
@@ -65,9 +66,14 @@ describe('motion', () => {
     expect(view.lat).toBe(1.45);
   });
 
-  it('drifts longitude with the board Live formula', () => {
-    expect(getIdleDriftLon(1, 0.5, 0)).toBeCloseTo(1 + 0.5 * 0.0133);
-    expect(getIdleDriftLon(1, 0.5, 9000 * Math.PI)).toBeCloseTo(1 - 0.5 * 0.0133);
+  it('drifts east at a steady 0.03 rad/s', () => {
+    expect(getIdleDriftLon(1, 0.5)).toBeCloseTo(1.015, 9);
+  });
+
+  it('drifts only after 4 s idle below zoom 1.3', () => {
+    expect(isIdleDriftDue(4_000, 1)).toBe(true);
+    expect(isIdleDriftDue(3_999, 1)).toBe(false);
+    expect(isIdleDriftDue(10_000, 1.3)).toBe(false);
   });
 });
 
