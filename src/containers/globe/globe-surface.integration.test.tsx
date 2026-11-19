@@ -81,12 +81,14 @@ describe('globe surface', () => {
   });
 
   it('retries the land mask once, says so, and still draws the dots without land', async () => {
-    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const firstError = new Promise<unknown[]>((resolve) => {
+      vi.spyOn(console, 'error').mockImplementation((...args: unknown[]) => resolve(args));
+    });
     const screen = await renderGlobe();
     const { cx, cy } = getGlobeFrame(WIDTH, HEIGHT);
 
-    await vi.waitFor(() => expect(consoleError).toHaveBeenCalled());
-    expect(String(consoleError.mock.calls[0][0])).toContain('land mask');
+    const [message] = await firstError;
+    expect(String(message)).toContain('land mask');
     const canvas = screen.container.querySelector('canvas') as HTMLCanvasElement;
     await vi.waitFor(() =>
       expect(getPaintedPixelCount(canvas, cx - 8, cy - 8, 16)).toBeGreaterThan(0),

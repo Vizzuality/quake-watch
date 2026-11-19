@@ -19,8 +19,10 @@ import { playbackClock } from '@/lib/earthquakes/playback-clock';
 import { EARTHQUAKE_SEARCH_ROUTE } from '@/lib/earthquakes/search-schema';
 import { TIME_RING_LOOK, getRingAngle, getRingPoint } from '@/lib/earthquakes/time-ring';
 import { getGlobeFrame } from '@/lib/globe/frame';
+import { setHomeSheetOpen } from '@/lib/layout/home-sheet-store';
 import { overwriteGetLocale } from '@/paraglide/runtime';
 import { getEmscFeature, getFeatureCollection } from '@/test/fixtures/earthquakes';
+import { setViewport } from '@/test/set-viewport';
 import { stubFetch } from '@/test/stub-fetch';
 
 const WIDTH = 1280;
@@ -132,11 +134,13 @@ async function renderTimeline() {
 }
 
 describe('timeline', () => {
-  afterEach(() => {
+  afterEach(async () => {
+    setHomeSheetOpen(false);
     playbackClock.setRange(null);
     vi.useRealTimers();
     vi.restoreAllMocks();
     overwriteGetLocale(() => 'en');
+    await setViewport(1280, 800);
   });
 
   it('starts at the end of the interval without autoplay', async () => {
@@ -299,5 +303,36 @@ describe('timeline', () => {
 
     await expect.element(screen.getByRole('slider')).not.toBeInTheDocument();
     await expect.element(screen.getByRole('button', { name: 'Play' })).not.toBeInTheDocument();
+  });
+
+  it('fades the ring out on phones while the home sheet is expanded', async () => {
+    await setViewport(390, 844);
+    const { screen } = await renderTimeline();
+    const ring = screen.container.querySelector('svg')?.parentElement as HTMLElement;
+    async function settleFade(isHidden: boolean) {
+      await expect.poll(() => ring.classList.contains('opacity-0')).toBe(isHidden);
+      await Promise.all(ring.getAnimations().map(({ finished }) => finished));
+    }
+
+    setHomeSheetOpen(true);
+    await settleFade(true);
+    expect(getComputedStyle(ring).opacity).toBe('0');
+    expect(getComputedStyle(ring).visibility).toBe('hidden');
+
+    setHomeSheetOpen(false);
+    await settleFade(false);
+    expect(getComputedStyle(ring).opacity).toBe('1');
+    expect(getComputedStyle(ring).visibility).toBe('visible');
+  });
+
+  it('keeps the ring on desktop whatever the home sheet state', async () => {
+    const { screen } = await renderTimeline();
+    const ring = screen.container.querySelector('svg')?.parentElement as HTMLElement;
+
+    setHomeSheetOpen(true);
+    await new Promise((resolve) => setTimeout(resolve, 400));
+    expect(getComputedStyle(ring).opacity).toBe('1');
+    expect(getComputedStyle(ring).visibility).toBe('visible');
+    setHomeSheetOpen(false);
   });
 });

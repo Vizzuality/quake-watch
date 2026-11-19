@@ -2,10 +2,11 @@ import { describe, expect, it } from 'vitest';
 
 import {
   getArrivedIds,
-  getNewestArrivedId,
+  getNewestArrival,
   getPulseGlowAlpha,
   getPulseRingAlpha,
   getPulseRingRadiusPx,
+  isNoteworthyArrival,
 } from './arrivals';
 
 describe('getArrivedIds', () => {
@@ -22,19 +23,25 @@ describe('getArrivedIds', () => {
   });
 });
 
-describe('getNewestArrivedId', () => {
-  const earthquakes = [
-    { id: 'a', time: 30 },
-    { id: 'b', time: 20 },
-    { id: 'c', time: 10 },
-  ];
-
+describe('getNewestArrival', () => {
   it('picks the latest Earthquake among the arrivals', () => {
-    expect(getNewestArrivedId(new Set(['b', 'c']), earthquakes)).toBe('b');
+    const latest = { id: 'b', time: 20 };
+    expect(getNewestArrival([{ id: 'c', time: 10 }, latest, { id: 'd', time: 15 }])).toBe(latest);
   });
 
   it('has none without arrivals', () => {
-    expect(getNewestArrivedId(new Set(), earthquakes)).toBeUndefined();
+    expect(getNewestArrival([])).toBeUndefined();
+  });
+});
+
+describe('isNoteworthyArrival', () => {
+  it.each([
+    { magnitude: 4.5, depthKm: 600, expected: true },
+    { magnitude: 4.4, depthKm: 600, expected: false },
+    { magnitude: 3.5, depthKm: 5, expected: true },
+    { magnitude: 2, depthKm: 10, expected: false },
+  ])('is $expected for M$magnitude at $depthKm km', ({ magnitude, depthKm, expected }) => {
+    expect(isNoteworthyArrival({ magnitude, depthKm })).toBe(expected);
   });
 });
 

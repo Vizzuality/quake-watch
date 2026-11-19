@@ -14,10 +14,12 @@ import {
   useState,
 } from 'react';
 
+import { BottomSheet } from '@/components/bottom-sheet/bottom-sheet';
 import { InfoLabel } from '@/components/info-button/info-button';
 import { getQuakeKey, getSelectedEarthquake } from '@/containers/globe/use-hovered-quake';
 import { requestWaveReplay } from '@/containers/globe/wave-replay';
 import { ViewToggle } from '@/containers/section-view/view-toggle';
+import { usePhoneLayout } from '@/hooks/use-phone-layout';
 import { getDepthColor } from '@/lib/earthquakes/depth-color';
 import {
   type EarthquakePosition,
@@ -53,6 +55,8 @@ import {
 } from '@/lib/earthquakes/tooltip';
 import type { Earthquake } from '@/lib/earthquakes/types';
 import { getDecimalLabel, getKmLabel } from '@/lib/format';
+import { getDetailSheetOpenTop } from '@/lib/layout/phone-detail';
+import { cn } from '@/lib/utils';
 import { m } from '@/paraglide/messages';
 import { type Locale, getLocale } from '@/paraglide/runtime';
 
@@ -61,9 +65,22 @@ type QueryFlags = { isListPending: boolean; isDetailPending: boolean; isDetailEr
 
 const homeRoute = getRouteApi('/');
 const SectionView = lazy(() => import('@/containers/section-view/section-view'));
+const SectionNote = lazy(() =>
+  import('@/containers/section-view/section-view').then(({ SectionNote }) => ({
+    default: SectionNote,
+  })),
+);
 const EMPTY_EARTHQUAKES: readonly Earthquake[] = [];
-const PILL_CLASS_NAME =
-  'pointer-events-auto flex cursor-pointer items-center gap-2 rounded-pill border border-muted text-[9.5px] leading-[1.2] font-medium tracking-[0.2em] text-foreground uppercase hover:border-accent disabled:cursor-default disabled:opacity-40 disabled:hover:border-muted';
+const PILL_BASE_CLASS_NAME =
+  'pointer-events-auto flex cursor-pointer items-center gap-2 rounded-pill border leading-[1.2] font-medium tracking-[0.2em] text-foreground uppercase hover:border-accent disabled:cursor-default disabled:opacity-40 disabled:hover:border-muted';
+const PILL_CLASS_NAME = `${PILL_BASE_CLASS_NAME} border-muted text-[9.5px]`;
+const CIRCLE_HIT_CLASS_NAME =
+  'relative before:absolute before:-inset-[6px] md:static md:before:hidden';
+const PREVIOUS_HIT_CLASS_NAME =
+  'relative before:absolute before:-inset-y-[6px] before:-right-[3px] before:-left-[9px] md:static md:before:hidden';
+const ROW_HIT_CLASS_NAME =
+  'before:absolute before:inset-x-0 before:-inset-y-[7px] md:before:hidden';
+const DETAIL_GRID_CLASS_NAME = 'grid-cols-2 gap-x-5 gap-y-3 md:grid md:gap-x-8 md:gap-y-4';
 const DEPTH_GRADIENT = `linear-gradient(90deg, var(--color-depth-0) 0%, var(--color-depth-70) ${(70 / DEPTH_SCALE_KM) * 100}%, var(--color-depth-300) ${(300 / DEPTH_SCALE_KM) * 100}%, var(--color-depth-700) 100%)`;
 
 function getFocusedElement(): HTMLElement | null {
@@ -82,6 +99,18 @@ function getPanelState(
   if (isDetailError) return 'error';
   if (isDetailPending || isListPending) return 'loading';
   return 'not-found';
+}
+
+function getDetailGridClassName(isExpanded: boolean): string {
+  return cn(DETAIL_GRID_CLASS_NAME, isExpanded ? 'grid' : 'hidden');
+}
+
+function getSequenceClassName(isExpanded: boolean): string {
+  return isExpanded ? 'md:contents' : 'hidden md:contents';
+}
+
+function getMoreDetailsLabel(isExpanded: boolean): string {
+  return isExpanded ? m.details_less() : m.details_more();
 }
 
 function getFeltCaption(earthquake: Earthquake): string | undefined {
@@ -143,11 +172,15 @@ function DataCell({
   caption?: string;
 }) {
   return (
-    <div className="flex flex-col gap-1 border-t border-line pt-3.5">
+    <div className="flex flex-col gap-1 border-t border-line pt-3 md:pt-3.5">
       <dt className="flex">
-        <InfoLabel label={label} info={info} className={DATA_LABEL_CLASS_NAME} />
+        <InfoLabel
+          label={label}
+          info={info}
+          className={`${DATA_LABEL_CLASS_NAME} max-md:line-clamp-2 max-md:whitespace-normal`}
+        />
       </dt>
-      <dd className="text-value whitespace-nowrap">{value}</dd>
+      <dd className="text-value-s whitespace-nowrap md:text-value">{value}</dd>
       {caption && <dd className="text-body-s text-muted">{caption}</dd>}
     </div>
   );
@@ -183,52 +216,78 @@ function EarthquakeFacts({
   headingId,
   headingRef,
   locale,
+  isExpanded,
+  onExpandedChange,
 }: {
   earthquake: Earthquake;
   feltReports: number | null;
   headingId: string;
   headingRef: Ref<HTMLHeadingElement>;
   locale: Locale;
+  isExpanded: boolean;
+  onExpandedChange: (isExpanded: boolean) => void;
 }) {
   const { magnitude, magnitudeType, depthKm, place, time, source, url } = earthquake;
   const magnitudeLabel = getMagnitudeValueLabel(magnitude, locale);
 
   return (
-    <div className="flex flex-col gap-5.5">
-      <div className="relative">
-        <div className="absolute top-0 left-0">
-          <InfoLabel
-            label={m.details_magnitude()}
-            info={m.info_details_magnitude()}
-            className={DATA_LABEL_CLASS_NAME}
-          />
-        </div>
-        <p className="text-numeral-xl">{magnitudeLabel}</p>
-      </div>
-      <div className="flex flex-col gap-2.5">
-        <h2 ref={headingRef} id={headingId} tabIndex={-1} className="text-title outline-none">
-          <span className="sr-only">
-            {m.details_heading_prefix({ magnitude: magnitudeLabel })}{' '}
-          </span>
-          {place ?? m.place_unknown()}
-        </h2>
-        <p className="text-label text-muted uppercase">{getDetailsDate(time, locale)}</p>
-      </div>
-      <dl className="flex flex-col gap-4">
-        <div className="flex flex-col gap-1 border-t border-line pt-3.5">
-          <dt className="flex">
+    <div className="flex flex-col gap-3.5 md:gap-5.5">
+      <div className="flex items-end gap-4 md:contents">
+        <div className="shrink-0 md:relative md:shrink">
+          <div className="md:absolute md:top-0 md:left-0">
             <InfoLabel
-              label={m.col_depth()}
-              info={m.info_details_depth()}
+              label={m.details_magnitude()}
+              info={m.info_details_magnitude()}
               className={DATA_LABEL_CLASS_NAME}
             />
-          </dt>
-          <dd data-testid="depth-row" className="grid grid-cols-[86px_minmax(0,310px)] gap-6">
-            <span className="text-value whitespace-nowrap">{getKmLabel(depthKm, locale)}</span>
-            <DepthScale depthKm={depthKm} locale={locale} />
-          </dd>
+          </div>
+          <p className="mt-0.5 text-numeral-m md:mt-0 md:text-numeral-xl">{magnitudeLabel}</p>
         </div>
-        <div className="grid grid-cols-2 gap-x-8 gap-y-4">
+        <div className="flex min-w-0 flex-1 flex-col gap-1.5 pb-1.5 md:min-w-auto md:flex-initial md:gap-2.5 md:pb-0">
+          <h2
+            ref={headingRef}
+            id={headingId}
+            tabIndex={-1}
+            className="text-place-l outline-none md:text-title"
+          >
+            <span className="sr-only">
+              {m.details_heading_prefix({ magnitude: magnitudeLabel })}{' '}
+            </span>
+            {place ?? m.place_unknown()}
+          </h2>
+          <p className="text-caption text-muted uppercase md:text-label">
+            {getDetailsDate(time, locale)}
+          </p>
+        </div>
+      </div>
+      <div className="flex flex-col gap-3 md:gap-4">
+        <dl>
+          <div className="flex flex-col gap-1 border-t border-line pt-3 md:pt-3.5">
+            <dt className="flex">
+              <InfoLabel
+                label={m.col_depth()}
+                info={m.info_details_depth()}
+                className={DATA_LABEL_CLASS_NAME}
+              />
+            </dt>
+            <dd
+              data-testid="depth-row"
+              className="grid grid-cols-[96px_minmax(0,1fr)] gap-[18px] md:grid-cols-[86px_minmax(0,310px)] md:gap-6"
+            >
+              <span className="text-value whitespace-nowrap">{getKmLabel(depthKm, locale)}</span>
+              <DepthScale depthKm={depthKm} locale={locale} />
+            </dd>
+          </div>
+        </dl>
+        <button
+          type="button"
+          aria-expanded={isExpanded}
+          onClick={() => onExpandedChange(!isExpanded)}
+          className="-my-3 flex h-11 cursor-pointer items-center self-start text-caption text-muted uppercase transition-colors hover:text-foreground md:hidden"
+        >
+          {getMoreDetailsLabel(isExpanded)}
+        </button>
+        <dl className={getDetailGridClassName(isExpanded)}>
           <DataCell
             label={m.tooltip_likely_felt()}
             info={m.info_details_likely_felt()}
@@ -267,8 +326,8 @@ function EarthquakeFacts({
               </a>
             }
           />
-        </div>
-      </dl>
+        </dl>
+      </div>
     </div>
   );
 }
@@ -363,23 +422,29 @@ function PanelNavigation({
   }, [isAtStart, isAtEnd]);
 
   return (
-    <div className="absolute top-13.5 right-4 left-4 flex items-center gap-7 md:right-14 md:left-79">
-      <button type="button" onClick={onClose} className={`${PILL_CLASS_NAME} px-4 py-2.5`}>
+    <div className="absolute top-[50px] right-4 left-4 flex items-center gap-2 md:top-13.5 md:right-14 md:left-79 md:gap-7">
+      <button
+        type="button"
+        onClick={onClose}
+        className={`${PILL_CLASS_NAME} ${CIRCLE_HIT_CLASS_NAME} size-control shrink-0 justify-center md:size-auto md:shrink md:justify-normal md:px-4 md:py-2.5`}
+      >
         <ArrowLeftIcon />
-        {m.details_close()}
+        <span className="sr-only md:not-sr-only">{m.details_close()}</span>
       </button>
-      <div className="ml-auto flex items-center gap-7">
+      <div className="flex min-w-0 flex-1 items-center gap-2 md:ml-auto md:min-w-auto md:flex-initial md:gap-7">
         {position && (
-          <p className="text-label text-muted uppercase">{getPositionLabel(position, locale)}</p>
+          <p className="min-w-0 flex-1 text-center text-caption text-muted uppercase md:min-w-auto md:flex-initial md:text-start md:text-label">
+            {getPositionLabel(position, locale)}
+          </p>
         )}
-        <div className="flex items-center gap-2">
+        <div className="ml-auto flex items-center gap-2 md:ml-0">
           <button
             ref={previousRef}
             type="button"
             aria-label={m.details_previous()}
             disabled={previous === null}
             onClick={goPrevious}
-            className={`${PILL_CLASS_NAME} size-control justify-center`}
+            className={`${PILL_CLASS_NAME} ${PREVIOUS_HIT_CLASS_NAME} size-control justify-center`}
           >
             <CaretLeftIcon />
           </button>
@@ -389,7 +454,7 @@ function PanelNavigation({
             aria-label={m.details_next()}
             disabled={next === null}
             onClick={goNext}
-            className={`${PILL_CLASS_NAME} size-control justify-center`}
+            className={`${PILL_CLASS_NAME} ${CIRCLE_HIT_CLASS_NAME} size-control justify-center`}
           >
             <CaretRightIcon />
           </button>
@@ -412,7 +477,9 @@ export default function EarthquakePanel({ quake }: { quake: string }) {
     isFetching: isDetailFetching,
     refetch: refetchDetail,
   } = useQuery(earthquakeDetailQueryOptions(quake));
+  const layout = usePhoneLayout();
   const headingRef = useRef<HTMLHeadingElement>(null);
+  const sheetBodyRef = useRef<HTMLDivElement>(null);
   const hasFocusedRef = useRef(false);
   const headingId = useId();
   const locale = getLocale();
@@ -424,6 +491,7 @@ export default function EarthquakePanel({ quake }: { quake: string }) {
   const earthquake = listed ?? getDetailEarthquake(detail ?? null);
   const state = getPanelState(earthquake, { isListPending, isDetailPending, isDetailError });
   const [returnFocusTarget] = useState(getFocusedElement);
+  const [isSheetOpen, setIsSheetOpen] = useState(false);
 
   function close() {
     void navigate({ search: (prev) => ({ ...prev, quake: undefined, view: undefined }) });
@@ -451,6 +519,10 @@ export default function EarthquakePanel({ quake }: { quake: string }) {
     headingRef.current?.focus();
   }, [state]);
 
+  useEffect(() => {
+    sheetBodyRef.current?.scrollTo({ top: 0 });
+  }, [quake]);
+
   return (
     <section aria-labelledby={headingId} className="pointer-events-none absolute inset-0 z-10">
       {earthquake && search.view === 'section' && (
@@ -464,57 +536,79 @@ export default function EarthquakePanel({ quake }: { quake: string }) {
           type="button"
           disabled={position === null}
           onClick={() => requestWaveReplay(earthquake.id)}
-          className={`${PILL_CLASS_NAME} absolute top-29 right-4 px-4 py-2.5 md:right-auto md:left-139`}
+          className={`${PILL_BASE_CLASS_NAME} ${ROW_HIT_CLASS_NAME} absolute top-24 left-4 h-8 border-foreground px-3 text-button md:top-29 md:left-139 md:h-auto md:border-muted md:px-4 md:py-2.5 md:text-[9.5px]`}
         >
           <PlayIcon />
-          {m.details_replay()}
+          <span aria-hidden="true" className="md:hidden">
+            {m.details_replay_short()}
+          </span>
+          <span className="sr-only md:not-sr-only">{m.details_replay()}</span>
         </button>
       )}
       {earthquake && <ViewToggle />}
-      <div className="pointer-events-auto absolute top-35 right-4 left-4 max-h-[calc(100%-156px)] overflow-y-auto md:right-auto md:left-14 md:w-105">
-        {state === 'ready' && earthquake && (
-          <EarthquakeFacts
-            earthquake={earthquake}
-            feltReports={getFeltReports(detail)}
-            headingId={headingId}
-            headingRef={headingRef}
-            locale={locale}
-          />
-        )}
-        {state === 'ready' && listed && (
-          <RelatedEarthquakes
-            sequence={getSequenceOf(sequences, listed)}
-            selected={listed}
-            locale={locale}
-            onGoTo={goTo}
-          />
-        )}
-        {state === 'not-found' && (
-          <h2 ref={headingRef} id={headingId} tabIndex={-1} className="text-title outline-none">
-            {m.details_not_found()}
-          </h2>
-        )}
-        {state === 'error' && (
-          <div role="alert" className="flex flex-col items-start gap-4">
+      <BottomSheet
+        isOpen={isSheetOpen}
+        onOpenChange={setIsSheetOpen}
+        collapsedTop={layout?.detailSheetTop}
+        expandedTop={layout ? getDetailSheetOpenTop(layout) : undefined}
+        handleLabels={{ open: m.details_more(), close: m.details_less() }}
+        bodyRef={sheetBodyRef}
+        className="pointer-events-auto"
+      >
+        <div className="pointer-events-auto md:absolute md:top-35 md:left-14 md:max-h-[calc(100%-156px)] md:w-105 md:overflow-y-auto">
+          {state === 'ready' && earthquake && (
+            <EarthquakeFacts
+              earthquake={earthquake}
+              feltReports={getFeltReports(detail)}
+              headingId={headingId}
+              headingRef={headingRef}
+              locale={locale}
+              isExpanded={isSheetOpen}
+              onExpandedChange={setIsSheetOpen}
+            />
+          )}
+          {state === 'ready' && listed && (
+            <div className={getSequenceClassName(isSheetOpen)}>
+              <RelatedEarthquakes
+                sequence={getSequenceOf(sequences, listed)}
+                selected={listed}
+                locale={locale}
+                onGoTo={goTo}
+              />
+            </div>
+          )}
+          {state === 'ready' && earthquake && search.view === 'section' && (
+            <Suspense fallback={null}>
+              <SectionNote quake={quake} isExpanded={isSheetOpen} />
+            </Suspense>
+          )}
+          {state === 'not-found' && (
             <h2 ref={headingRef} id={headingId} tabIndex={-1} className="text-title outline-none">
-              {m.details_error()}
+              {m.details_not_found()}
             </h2>
-            <button
-              type="button"
-              disabled={isDetailFetching}
-              onClick={() => void refetchDetail()}
-              className={`${PILL_CLASS_NAME} px-4 py-2.5`}
-            >
-              {m.details_retry()}
-            </button>
-          </div>
-        )}
-        {state === 'loading' && (
-          <h2 id={headingId} className="sr-only">
-            {m.details_loading()}
-          </h2>
-        )}
-      </div>
+          )}
+          {state === 'error' && (
+            <div role="alert" className="flex flex-col items-start gap-4">
+              <h2 ref={headingRef} id={headingId} tabIndex={-1} className="text-title outline-none">
+                {m.details_error()}
+              </h2>
+              <button
+                type="button"
+                disabled={isDetailFetching}
+                onClick={() => void refetchDetail()}
+                className={`${PILL_CLASS_NAME} px-4 py-2.5`}
+              >
+                {m.details_retry()}
+              </button>
+            </div>
+          )}
+          {state === 'loading' && (
+            <h2 id={headingId} className="sr-only">
+              {m.details_loading()}
+            </h2>
+          )}
+        </div>
+      </BottomSheet>
     </section>
   );
 }

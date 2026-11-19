@@ -15,6 +15,7 @@ import { addMapImages } from '@/containers/detail-map/add-map-images';
 import { MAP_FONT_URLS } from '@/containers/detail-map/map-fonts';
 import { MapOverlay } from '@/containers/detail-map/map-overlay';
 import { getWrappedLongitude, useCameraSearch } from '@/hooks/use-camera-search';
+import { usePhoneLayout } from '@/hooks/use-phone-layout';
 import { getDepthColor } from '@/lib/earthquakes/depth-color';
 import { getFeltReachKm } from '@/lib/earthquakes/intensity';
 import { earthquakesQueryOptions } from '@/lib/earthquakes/query-options';
@@ -27,7 +28,7 @@ import {
   MAP_FIELD_OF_VIEW,
   MAP_ZOOM_SPAN,
   getMapFade,
-  getMapPaddingTop,
+  getMapVerticalPadding,
   getMapProjection,
   getMapZoom,
   getMapZoomFromUrl,
@@ -46,7 +47,9 @@ import {
 import { type GlobeView, ZOOM_RANGE, getViewCamera } from '@/lib/globe/motion';
 import { PICK_TOLERANCE_PX, getPickedQuakeIndex } from '@/lib/globe/picking';
 import { getEpicentreRadiusPx } from '@/lib/globe/quakes';
+import { getMapSheetTopStyle } from '@/lib/layout/phone-detail';
 
+import { watchAttributionCollapse } from './attribution-collapse';
 import { QuakeTooltip } from './quake-tooltip';
 import type { GlobeControls } from './use-globe-controls';
 import {
@@ -209,6 +212,7 @@ export default function GlobeMap({
   const navigate = homeRoute.useNavigate();
   const { data } = useQuery(earthquakesQueryOptions(getEarthquakeFilters(search)));
   const setCamera = useCameraSearch();
+  const phoneLayout = usePhoneLayout();
   const { hovered, show, scheduleHide, hide, enterTooltip, leaveTooltip } = useHoveredQuake();
   const tooltipId = useId();
   const containerRef = useRef<HTMLDivElement>(null);
@@ -301,6 +305,7 @@ export default function GlobeMap({
       attributionControl: { compact: true, customAttribution: MAP_ATTRIBUTION },
     });
     mapRef.current = map;
+    const attribution = watchAttributionCollapse(map);
     // MapLibre paints the background layer only on tiles it can draw, so rows still loading stay transparent.
     map.getCanvas().style.backgroundColor = MAP_COLORS.land;
     map.touchZoomRotate.disableRotation();
@@ -322,6 +327,7 @@ export default function GlobeMap({
 
     function setOpacity(view: GlobeView) {
       const opacity = getMapOpacity(isReady, isActive, view.zoom);
+      if (opacity > 0) attribution.onMapShown();
       if (layer) layer.style.opacity = String(opacity);
       if (globe) globe.style.opacity = String(1 - opacity);
     }
@@ -329,8 +335,7 @@ export default function GlobeMap({
     function getHandoverPadding(): MapPadding {
       const frame = getGlobeFrame(element.clientWidth, element.clientHeight);
       return {
-        top: getMapPaddingTop(element.clientHeight, frame.cy),
-        bottom: 0,
+        ...getMapVerticalPadding(element.clientHeight, frame.cy),
         left: 0,
         right: 0,
       };
@@ -548,6 +553,7 @@ export default function GlobeMap({
       if (window.__globeMap === map) delete window.__globeMap;
       mapRef.current = null;
       setReadyMap(null);
+      attribution.dispose();
       map.remove();
     };
   }, [controls, globeRef, layerRef, handoverRef]);
@@ -556,8 +562,11 @@ export default function GlobeMap({
     <>
       <div
         ref={containerRef}
-        className="size-full"
-        style={{ backgroundColor: MAP_COLORS.background }}
+        className="size-full [&_.maplibregl-ctrl-bottom-right]:bottom-[calc(100%-var(--map-sheet-top))]! md:[&_.maplibregl-ctrl-bottom-right]:bottom-0!"
+        style={{
+          backgroundColor: MAP_COLORS.background,
+          ...getMapSheetTopStyle(phoneLayout, search.quake !== undefined),
+        }}
       />
       {readyMap && <MapOverlay map={readyMap} />}
       {hovered && (

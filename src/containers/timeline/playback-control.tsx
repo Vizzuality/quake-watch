@@ -6,7 +6,7 @@ import { getTooltipDate } from '@/lib/earthquakes/tooltip';
 import { m } from '@/paraglide/messages';
 import { getLocale } from '@/paraglide/runtime';
 
-function PlayIcon() {
+export function PlayIcon() {
   return (
     <svg aria-hidden="true" width="12" height="12" viewBox="0 0 12 12" fill="currentColor">
       <path d="M3 1.5L10 6L3 10.5V1.5Z" />
@@ -14,7 +14,7 @@ function PlayIcon() {
   );
 }
 
-function PauseIcon() {
+export function PauseIcon() {
   return (
     <svg aria-hidden="true" width="12" height="12" viewBox="0 0 12 12" fill="currentColor">
       <path d="M4.9 1.5H2.5V10.5H4.9V1.5Z" />
@@ -52,7 +52,7 @@ export function PlaybackControl() {
 
   if (!range) return null;
   return (
-    <div className="pointer-events-auto absolute right-[65px] bottom-14 flex items-center gap-4">
+    <div className="pointer-events-auto absolute right-[65px] bottom-14 hidden items-center gap-4 md:flex">
       <div className="flex flex-col items-end gap-1.5 whitespace-nowrap uppercase">
         <p ref={timeRef} className="text-label text-foreground" />
         <p className="text-label-s text-muted">

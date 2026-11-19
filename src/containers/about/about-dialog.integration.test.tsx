@@ -1,9 +1,10 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-react';
-import { page, userEvent } from 'vitest/browser';
+import { userEvent } from 'vitest/browser';
 
 import { AboutDialog } from '@/containers/about/about-dialog';
 import { overwriteGetLocale } from '@/paraglide/runtime';
+import { setViewport } from '@/test/set-viewport';
 
 async function renderAbout() {
   const onDocumentEscape = vi.fn<() => void>();
@@ -31,7 +32,7 @@ describe('AboutDialog', () => {
   afterEach(async () => {
     cleanup();
     overwriteGetLocale(() => 'en');
-    await page.viewport(1280, 800);
+    await setViewport(1280, 800);
   });
 
   it('opens a modal dialog named by its title with the data sources as links', async () => {
@@ -106,7 +107,7 @@ describe('AboutDialog', () => {
   });
 
   it('matches the D4 card geometry at 1440×900', async () => {
-    await page.viewport(1440, 900);
+    await setViewport(1440, 900);
     const rendered = await renderAbout();
     cleanup = rendered.cleanup;
     const { screen } = rendered;
@@ -127,6 +128,67 @@ describe('AboutDialog', () => {
     expect(close.height).toBe(34);
     expect(close.right).toBe(rect.right - 41);
     expect(getComputedStyle(title).fontSize).toBe('30px');
+  });
+
+  it('lays out the M8 phone panel at 390×844', async () => {
+    await setViewport(390, 844);
+    const rendered = await renderAbout();
+    cleanup = rendered.cleanup;
+    const { screen } = rendered;
+    await userEvent.click(screen.getByRole('button', { name: 'About' }));
+    const dialog = screen.getByRole('dialog').element();
+    const rect = dialog.getBoundingClientRect();
+    const style = getComputedStyle(dialog);
+    const close = screen.getByRole('button', { name: 'Close' }).element();
+    const closeRect = close.getBoundingClientRect();
+
+    expect(rect.width).toBe(358);
+    expect(rect.left).toBe(16);
+    expect(Math.abs(rect.top - 45)).toBeLessThanOrEqual(1);
+    expect(style.paddingTop).toBe('0px');
+    expect(style.borderTopLeftRadius).toBe('6px');
+    expect(style.backdropFilter).toBe('blur(100px)');
+    expect(getComputedStyle(dialog, '::backdrop').backdropFilter).toBe('blur(6px)');
+    const content = dialog.firstElementChild as HTMLElement;
+    expect(getComputedStyle(content).paddingTop).toBe('28px');
+    expect(getComputedStyle(content).paddingLeft).toBe('22px');
+    expect(closeRect.width).toBe(34);
+    expect(closeRect.top - rect.top).toBe(18);
+    expect(rect.right - closeRect.right).toBe(18);
+    for (const [dx, dy] of [
+      [-5, -5],
+      [38, 38],
+    ]) {
+      const hit = document.elementFromPoint(closeRect.left + dx, closeRect.top + dy);
+      expect(close.contains(hit)).toBe(true);
+    }
+  });
+
+  it('scrolls the phone panel when its content is taller than the viewport', async () => {
+    await setViewport(320, 640);
+    const rendered = await renderAbout();
+    cleanup = rendered.cleanup;
+    await userEvent.click(rendered.screen.getByRole('button', { name: 'About' }));
+    const dialog = rendered.screen.getByRole('dialog').element();
+
+    expect(getComputedStyle(dialog).overflowY).toBe('auto');
+    expect(dialog.getBoundingClientRect().bottom).toBeLessThanOrEqual(640);
+    expect(dialog.scrollHeight).toBeGreaterThan(dialog.clientHeight);
+  });
+
+  it('closes on a phone from a tap on the scrim and returns focus', async () => {
+    await setViewport(390, 844);
+    const rendered = await renderAbout();
+    cleanup = rendered.cleanup;
+    const trigger = rendered.screen.getByRole('button', { name: 'About' });
+    await userEvent.click(trigger);
+
+    await userEvent.click(document.body, { position: { x: 5, y: 20 } });
+
+    await expect
+      .element(rendered.screen.getByRole('dialog', { includeHidden: true }))
+      .not.toBeVisible();
+    await expect.element(trigger).toHaveFocus();
   });
 
   it('renders in Portuguese', async () => {

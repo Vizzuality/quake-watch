@@ -70,7 +70,7 @@ export function ViewToggle() {
   return (
     <fieldset
       data-testid="view-toggle"
-      className="pointer-events-auto absolute top-29 right-14 hidden h-control items-center rounded-pill border border-line-control p-[3px] lg:flex"
+      className="pointer-events-auto absolute top-24 right-4 flex h-8 items-center gap-0.5 rounded-pill border border-line-control p-0.5 md:top-29 md:right-14 md:hidden md:h-control md:gap-0 md:p-[3px] lg:flex"
     >
       <legend className="sr-only">{m.section_view_label()}</legend>
       {DETAIL_VIEWS.map((option) => {
@@ -78,7 +78,7 @@ export function ViewToggle() {
         return (
           <label
             key={option}
-            className={`flex h-full cursor-pointer items-center gap-1.5 rounded-pill px-3 text-button uppercase ${getSegmentClassName(isSelected)} ${getSectionRingClassName(isSelected && option === 'section')}`}
+            className={`relative flex h-full cursor-pointer items-center gap-1.5 rounded-pill px-2.5 text-button uppercase before:absolute before:inset-x-0 before:-inset-y-[9px] md:static md:px-3 md:before:hidden ${getSegmentClassName(isSelected)} ${getSectionRingClassName(isSelected && option === 'section')}`}
           >
             <input
               type="radio"

@@ -1,3 +1,7 @@
+import { getFeltReachKm } from './intensity';
+
+const NOTEWORTHY_MIN_MAGNITUDE = 4.5;
+
 export const ARRIVAL_PULSE = {
   rgb: [235, 89, 142],
   waveMs: 4_500,
@@ -17,16 +21,16 @@ export function getArrivedIds(previous: ReadonlySet<string> | null, current: rea
   return new Set(current.filter((id) => !previous.has(id)));
 }
 
-export function getNewestArrivedId(
-  arrived: ReadonlySet<string>,
-  earthquakes: readonly { id: string; time: number }[],
-): string | undefined {
-  let newest: { id: string; time: number } | undefined;
-  for (const earthquake of earthquakes) {
-    if (arrived.has(earthquake.id) && (!newest || earthquake.time > newest.time))
-      newest = earthquake;
+export function getNewestArrival<T extends { time: number }>(arrived: readonly T[]): T | undefined {
+  let newest: T | undefined;
+  for (const earthquake of arrived) {
+    if (!newest || earthquake.time > newest.time) newest = earthquake;
   }
-  return newest?.id;
+  return newest;
+}
+
+export function isNoteworthyArrival(earthquake: { magnitude: number; depthKm: number }): boolean {
+  return earthquake.magnitude >= NOTEWORTHY_MIN_MAGNITUDE || getFeltReachKm(earthquake) > 0;
 }
 
 function getPulseFade(elapsedMs: number): number {

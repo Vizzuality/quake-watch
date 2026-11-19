@@ -120,11 +120,11 @@ export function AboutDialog() {
         onKeyDown={handleKeyDown}
         onClick={handleClick}
         onClose={() => triggerRef.current?.focus()}
-        className="pointer-events-auto m-auto w-[620px] max-w-[calc(100%-32px)] rounded-modal border border-line-sheet bg-glass-modal text-foreground backdrop-blur-[50px] backdrop:bg-scrim backdrop:backdrop-blur-[3px]"
+        className="pointer-events-auto mx-auto mt-[5.33dvh] max-h-[90dvh] w-[calc(100%-32px)] max-w-none overflow-y-auto rounded-modal border border-line-sheet bg-glass-modal text-foreground backdrop-blur-[100px] backdrop:bg-scrim backdrop:backdrop-blur-[6px] md:m-auto md:max-h-[calc(100%-2em-6px)] md:w-[620px] md:max-w-[calc(100%-32px)] md:backdrop-blur-[50px] md:backdrop:backdrop-blur-[3px]"
       >
-        <div className="flex flex-col gap-5.5 px-6 py-8 sm:px-10 sm:py-9">
+        <div className="flex flex-col gap-5.5 px-5.5 py-7 md:px-10 md:py-9">
           <div className="flex items-start">
-            <div className="flex min-w-0 flex-1 flex-col gap-2">
+            <div className="flex min-w-0 flex-1 flex-col gap-2 pr-10 md:pr-0">
               <p className="text-caption text-accent uppercase">{m.about_link()}</p>
               <h2 id={titleId} className="text-title-m">
                 {m.app_title()}
@@ -135,7 +135,7 @@ export function AboutDialog() {
               type="button"
               aria-label={m.about_close()}
               onClick={close}
-              className="flex size-control shrink-0 cursor-pointer items-center justify-center rounded-full border border-line-control transition-colors hover:border-muted"
+              className="absolute top-[17px] right-[17px] flex size-control shrink-0 cursor-pointer items-center justify-center rounded-full border border-line-control transition-colors before:absolute before:-inset-[6px] hover:border-muted md:static md:before:hidden"
             >
               <CloseIcon />
             </button>

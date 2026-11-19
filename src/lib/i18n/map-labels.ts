@@ -50,6 +50,13 @@ export function getFeltRingLabel(reachKm: number, locale: Locale): string {
   );
 }
 
+export function getFeltRingShortLabel(reachKm: number, locale: Locale): string {
+  return m.map_likely_felt_short(
+    { distance: getKmLabel(getRoundedReachKm(reachKm), locale) },
+    { locale },
+  );
+}
+
 export function getStripTickLabel(
   { time, kind }: Pick<StripTick, 'time' | 'kind'>,
   locale: Locale,

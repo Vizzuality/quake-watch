@@ -2,12 +2,10 @@ import { useQuery } from '@tanstack/react-query';
 import { ClientOnly, createFileRoute } from '@tanstack/react-router';
 import { Suspense, lazy } from 'react';
 
-import { DepthLegend } from '@/containers/depth-legend/depth-legend';
-import { FiltersPanel } from '@/containers/filters/filters-panel';
 import { GlobeSlot } from '@/containers/globe/globe-slot';
 import { Header } from '@/containers/header/header';
-import { PlaceSearch } from '@/containers/search/place-search';
-import { SummaryPanel } from '@/containers/summary/summary-panel';
+import { HomeSheet } from '@/containers/home-sheet/home-sheet';
+import { LiveBanner } from '@/containers/live-banner/live-banner';
 import { Timeline } from '@/containers/timeline/timeline';
 import { getShareEarthquake } from '@/lib/earthquakes/details/share-earthquake';
 import { earthquakesQueryOptions } from '@/lib/earthquakes/query-options';
@@ -64,8 +62,8 @@ function Home() {
       <Timeline />
       <h1 className="sr-only">{m.app_title()}</h1>
       <Header />
-      <SummaryPanel />
-      <PlaceSearch />
+      <LiveBanner />
+      <HomeSheet />
       {quake !== undefined && (
         <ClientOnly>
           <Suspense fallback={null}>
@@ -73,8 +71,6 @@ function Home() {
           </Suspense>
         </ClientOnly>
       )}
-      <FiltersPanel />
-      <DepthLegend />
     </main>
   );
 }

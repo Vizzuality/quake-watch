@@ -1,9 +1,11 @@
 import { type RefObject, useEffect, useRef } from 'react';
 
+import { usePhoneLayout } from '@/hooks/use-phone-layout';
 import { getLandMask } from '@/lib/globe/land-mask';
 import { GLOBE_DOT_COUNT } from '@/lib/globe/look';
 import { MINI_GLOBE_LOOK, getMiniGlobeDots } from '@/lib/globe/map-locator';
 import { getFibonacciPoints } from '@/lib/globe/sphere';
+import { getPhoneDetailOverlayStyle } from '@/lib/layout/phone-detail';
 
 const MINI_GLOBE_COLORS = {
   disc: 'rgba(24, 26, 54, 0.92)',
@@ -64,6 +66,7 @@ type MiniGlobeProps = {
 };
 
 export function MiniGlobe({ latitude, longitude, rectRef }: MiniGlobeProps) {
+  const layout = usePhoneLayout();
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
@@ -73,8 +76,8 @@ export function MiniGlobe({ latitude, longitude, rectRef }: MiniGlobeProps) {
   return (
     <div
       data-testid="mini-globe"
-      className="pointer-events-none absolute right-[54px] bottom-[302px] hidden md:block"
-      style={{ width: SIZE_PX, height: SIZE_PX }}
+      className="pointer-events-none absolute top-(--mini-globe-top) right-(--mini-globe-right) scale-(--mini-globe-scale) md:top-auto md:right-[54px] md:bottom-[302px] md:scale-none"
+      style={{ width: SIZE_PX, height: SIZE_PX, ...getPhoneDetailOverlayStyle(layout) }}
       aria-hidden="true"
     >
       <canvas ref={canvasRef} className="absolute inset-0 size-full" />

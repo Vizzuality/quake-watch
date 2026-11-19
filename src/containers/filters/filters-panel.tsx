@@ -54,7 +54,7 @@ export function FiltersPanel() {
   return (
     <section
       aria-label={m.filters_label()}
-      className="pointer-events-auto absolute top-[159px] right-14 z-10 w-[230px] border-b border-line"
+      className="pointer-events-auto mt-[18px] md:absolute md:top-[159px] md:right-14 md:z-10 md:mt-0 md:w-[230px] md:border-b md:border-line"
     >
       <FilterGroup
         label={m.filter_time()}

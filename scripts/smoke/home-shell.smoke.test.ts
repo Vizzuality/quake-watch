@@ -42,7 +42,9 @@ describe('server-rendered home shell', () => {
 
     expect(status).toBe(200);
     expectShell(html);
-    expect(html).toContain('data-testid="summary-count" class="text-numeral-l">2</span>');
+    expect(html).toContain(
+      'data-testid="summary-count" class="text-stat md:text-numeral-l">2</span>',
+    );
     expect(html).toContain('earthquakes this week.');
     expect(html).toContain('Likely felt');
     expect(html).toContain('Largest · Southern Spain');

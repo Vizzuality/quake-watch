@@ -4,6 +4,7 @@ import {
   Suspense,
   lazy,
   useEffect,
+  useEffectEvent,
   useId,
   useMemo,
   useRef,
@@ -11,8 +12,9 @@ import {
   useSyncExternalStore,
 } from 'react';
 
+import { useArrivals } from '@/hooks/use-arrivals';
 import { type Camera, getWrappedLongitude, useCameraSearch } from '@/hooks/use-camera-search';
-import { getArrivedIds, getNewestArrivedId } from '@/lib/earthquakes/arrivals';
+import { getNewestArrival, isNoteworthyArrival } from '@/lib/earthquakes/arrivals';
 import { getLiveSnapshot, playbackClock } from '@/lib/earthquakes/playback-clock';
 import { earthquakesQueryOptions } from '@/lib/earthquakes/query-options';
 import { getRegionEarthquakes } from '@/lib/earthquakes/regions';
@@ -34,9 +36,12 @@ import {
 import { getPickedQuakeIndex, getQuakeScreenPoints } from '@/lib/globe/picking';
 import { getPlaceFocus } from '@/lib/globe/place-focus';
 import { getLatLonVector, getRotatedVector } from '@/lib/globe/sphere';
+import { getIsHomeSheetOpen, subscribeHomeSheet } from '@/lib/layout/home-sheet-store';
 import { m } from '@/paraglide/messages';
 
+import { subscribeGlobeFlyTo } from './globe-fly-to';
 import { GlobeScene } from './globe-scene';
+import { subscribeGlobeSelect } from './globe-select';
 import { GlobeErrorBoundary, GlobeUnavailable } from './globe-unavailable';
 import { type GlobeWaves, createGlobeWaves } from './globe-waves';
 import type { MapCentre, MapHandover } from './maplibre-map';
@@ -98,20 +103,16 @@ function isPlaceFound(earthquakes: readonly Earthquake[], place: string | undefi
   return place !== undefined && getRegionEarthquakes(earthquakes, place).length > 0;
 }
 
-type Refresh = { key: string; ids: ReadonlySet<string> };
-
-function getRefreshKey(search: EarthquakeSearch): string {
-  return JSON.stringify(getEarthquakeFilters(search));
+function isPinningTap(
+  pointerType: string,
+  selected: Earthquake | undefined,
+  isPlaying: boolean,
+): boolean {
+  return (pointerType === 'touch' || pointerType === 'pen') && selected === undefined && !isPlaying;
 }
 
-function getArrivedId(
-  previous: Refresh | null,
-  key: string,
-  earthquakes: readonly Earthquake[],
-): string | undefined {
-  const ids = earthquakes.map(({ id }) => id);
-  const arrived = getArrivedIds(previous?.key === key ? previous.ids : null, ids);
-  return getNewestArrivedId(arrived, earthquakes);
+function isSameQuake(pinned: HoveredQuake | null, pointed: HoveredQuake): boolean {
+  return pinned !== null && getQuakeKey(pinned.earthquake) === getQuakeKey(pointed.earthquake);
 }
 
 function getCursorClassName(isOverQuake: boolean): string {
@@ -158,6 +159,7 @@ function GlobeCanvas() {
     initialView,
     onHover: handleHover,
     onTap: handleTap,
+    onDragStart: () => unpin(),
     onSettle: handleSettle,
     onZoomPastMax: () => activateMap(),
     onZoom: handleZoom,
@@ -172,12 +174,15 @@ function GlobeCanvas() {
   const pendingMapQuakeRef = useRef<Earthquake | null>(null);
   const {
     hovered,
+    pinned,
     isOverQuake,
     show: showHover,
     scheduleHide: scheduleHoverHide,
     hide: hideHover,
     enterTooltip,
     leaveTooltip,
+    pin,
+    unpin,
   } = useHoveredQuake();
   const tooltipId = useId();
   const earthquakes = data?.earthquakes ?? EMPTY_EARTHQUAKES;
@@ -187,14 +192,13 @@ function GlobeCanvas() {
     [earthquakes, quake],
   );
   const variant = selectedEarthquake === undefined ? 'full' : 'compact';
+  const card = pinned ?? hovered;
   const playback = useSyncExternalStore(
     playbackClock.subscribe,
     playbackClock.getSnapshot,
     getLiveSnapshot,
   );
   const isPaused = playback.playhead !== null && !playback.isPlaying;
-  const refreshKey = getRefreshKey(search);
-  const refreshRef = useRef<Refresh | null>(null);
   const [waves] = useState(() => createGlobeWaves(controls.isReducedMotion));
   const lastFlownRef = useRef<string | undefined>(undefined);
   const lastPlaceRef = useRef(initialView === undefined ? undefined : place);
@@ -210,6 +214,7 @@ function GlobeCanvas() {
   function selectQuake(earthquake: Earthquake) {
     const key = getQuakeKey(earthquake);
     hideHover();
+    unpin();
     pendingMapQuakeRef.current = earthquake;
     setIsMapMounted(true);
     controls.flyTo({
@@ -228,18 +233,28 @@ function GlobeCanvas() {
     else scheduleHoverHide();
   }
 
-  function handleTap(point: Point) {
+  function handlePinningTap(pointed: HoveredQuake | null) {
+    if (!pointed) unpin();
+    else if (isSameQuake(pinned, pointed)) selectQuake(pointed.earthquake);
+    else pin(pointed);
+  }
+
+  function handleTap(point: Point, pointerType: string) {
     const pointed = getPointedQuake(point);
-    if (pointed) selectQuake(pointed.earthquake);
+    if (isPinningTap(pointerType, selectedEarthquake, playback.isPlaying)) {
+      handlePinningTap(pointed);
+    } else if (pointed) selectQuake(pointed.earthquake);
   }
 
   function handleSettle(view: GlobeView) {
+    unpin();
     if (isMapActive) return;
     setCamera(getViewCamera(view));
     focusPendingQuake(view);
   }
 
   function handleZoom(view: GlobeView) {
+    unpin();
     if (isMapActive) return;
     initialMapZoomRef.current = undefined;
     pendingMapQuakeRef.current = null;
@@ -250,6 +265,7 @@ function GlobeCanvas() {
   function activateMap(urlZoom?: number): boolean {
     if (isMapActive || !mapHandoverRef.current?.activate(urlZoom)) return false;
     hideHover();
+    unpin();
     setIsMapActive(true);
     return true;
   }
@@ -285,6 +301,20 @@ function GlobeCanvas() {
     setIsMapActive(false);
   }
 
+  useArrivals((arrived) => {
+    const newest = getNewestArrival(arrived);
+    if (newest) waves.pulse(newest.id);
+    if (arrived.some(isNoteworthyArrival)) unpin();
+  });
+
+  const handleSelectRequest = useEffectEvent((earthquake: Earthquake) => {
+    if (!isMapActive) {
+      selectQuake(earthquake);
+      return;
+    }
+    void navigate({ search: (prev) => ({ ...prev, quake: getQuakeKey(earthquake) }) });
+  });
+
   useEffect(() => {
     if (!import.meta.env.DEV) return;
     window.__globeProject = (lat, lon) => {
@@ -307,12 +337,34 @@ function GlobeCanvas() {
 
   useEffect(() => subscribeWaveReplay((id) => waves.play([id])), [waves]);
 
+  useEffect(() => subscribeGlobeSelect(handleSelectRequest), []);
+
+  useEffect(
+    () =>
+      subscribeGlobeFlyTo((earthquake) => {
+        unpin();
+        waves.pulse(earthquake.id);
+        if (isMapActive) {
+          mapHandoverRef.current?.centre(earthquake);
+          return;
+        }
+        const { latitude, longitude } = earthquake;
+        controls.flyTo(getCenteredView(latitude, longitude, controls.viewRef.current));
+      }),
+    [controls, waves, unpin, isMapActive],
+  );
+
   useEffect(() => {
-    if (data === undefined) return;
-    const arrivedId = getArrivedId(refreshRef.current, refreshKey, data.earthquakes);
-    refreshRef.current = { key: refreshKey, ids: new Set(data.earthquakes.map(({ id }) => id)) };
-    if (arrivedId !== undefined && playbackClock.getPlayhead() === null) waves.pulse(arrivedId);
-  }, [data, refreshKey, waves]);
+    if (playback.isPlaying) unpin();
+  }, [playback.isPlaying, unpin]);
+
+  useEffect(
+    () =>
+      subscribeHomeSheet(() => {
+        if (getIsHomeSheetOpen()) unpin();
+      }),
+    [unpin],
+  );
 
   useEffect(() => {
     if (!import.meta.env.DEV) return;
@@ -383,24 +435,28 @@ function GlobeCanvas() {
     if (!selectedEarthquake || quake === lastFlownRef.current) return;
     lastFlownRef.current = quake;
     hideHover();
+    unpin();
     if (isMapActive) {
       mapHandoverRef.current?.centre(selectedEarthquake);
       return;
     }
     const { latitude, longitude } = selectedEarthquake;
     controls.flyTo(getCenteredView(latitude, longitude, controls.viewRef.current));
-  }, [quake, selectedEarthquake, controls, hideHover, isMapActive]);
+  }, [quake, selectedEarthquake, controls, hideHover, unpin, isMapActive]);
 
   useEffect(() => {
     controls.setHeld(
-      hovered !== null || selectedEarthquake !== undefined || place !== undefined || isPaused,
+      card !== null || selectedEarthquake !== undefined || place !== undefined || isPaused,
     );
-  }, [controls, hovered, selectedEarthquake, place, isPaused]);
+  }, [controls, card, selectedEarthquake, place, isPaused]);
 
   useEffect(() => {
-    if (!hovered) return;
-    return listenForTooltipEscape(hideHover);
-  }, [hovered, hideHover]);
+    if (!card) return;
+    return listenForTooltipEscape(() => {
+      hideHover();
+      unpin();
+    });
+  }, [card, hideHover, unpin]);
 
   return (
     <div className="absolute inset-0">
@@ -410,7 +466,7 @@ function GlobeCanvas() {
         role="img"
         aria-label={m.globe_label()}
         aria-hidden={isMapActive}
-        aria-describedby={hovered ? tooltipId : undefined}
+        aria-describedby={card ? tooltipId : undefined}
         className={`absolute inset-0 touch-none select-none ${getCursorClassName(isOverQuake)}`}
       >
         <SceneCanvas>
@@ -418,7 +474,7 @@ function GlobeCanvas() {
             controls={controls}
             earthquakes={earthquakes}
             selectedEarthquake={selectedEarthquake}
-            hoveredEarthquake={hovered?.earthquake}
+            hoveredEarthquake={card?.earthquake}
             waves={waves}
           />
           <Suspense fallback={null}>
@@ -446,15 +502,16 @@ function GlobeCanvas() {
           </GlobeErrorBoundary>
         </div>
       )}
-      {hovered && (
+      {card && (
         <QuakeTooltip
           id={tooltipId}
-          earthquake={hovered.earthquake}
-          now={hovered.now}
+          earthquake={card.earthquake}
+          now={card.now}
           variant={variant}
-          anchor={hovered.anchor}
-          containerSize={hovered.containerSize}
-          onOpen={() => selectQuake(hovered.earthquake)}
+          isPinned={card === pinned}
+          anchor={card.anchor}
+          containerSize={card.containerSize}
+          onOpen={() => selectQuake(card.earthquake)}
           getWheelTarget={() => containerRef.current}
           onPointerEnter={enterTooltip}
           onPointerLeave={leaveTooltip}

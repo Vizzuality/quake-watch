@@ -39,7 +39,8 @@ export type HoverOptions = { immediate?: boolean };
 
 export type GlobeControlsOptions = {
   initialView?: GlobeView;
-  onTap?: (point: Point) => void;
+  onTap?: (point: Point, pointerType: string) => void;
+  onDragStart?: () => void;
   onHover?: (point: Point | null, options?: HoverOptions) => void;
   onSettle?: (view: GlobeView) => void;
   onZoomPastMax?: (view: GlobeView) => void;
@@ -313,6 +314,7 @@ export function useGlobeControls(
         isTapCandidate = false;
         isTouchedRef.current = true;
         element.style.cursor = 'grabbing';
+        optionsRef.current.onDragStart?.();
       }
       viewRef.current = getDraggedView(gesture.start, dx, dy, gesture.radius);
       const { lon, lat } = viewRef.current;
@@ -339,7 +341,7 @@ export function useGlobeControls(
         return;
       }
       if (isTapCandidate && !gesture?.moved) {
-        optionsRef.current.onTap?.(getRelativePoint(element, event));
+        optionsRef.current.onTap?.(getRelativePoint(element, event), event.pointerType);
       }
       if (gesture?.moved && !isReducedMotionRef.current) {
         velocityRef.current = getReleaseVelocity(samples, event.timeStamp);

@@ -1,56 +1,42 @@
-import { useQuery } from '@tanstack/react-query';
-import { getRouteApi } from '@tanstack/react-router';
-import { useCallback, useId, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 
 import { AreaStrip } from '@/containers/detail-map/area-strip';
-import { getSelectedEarthquake } from '@/containers/globe/use-hovered-quake';
-import {
-  earthquakeDetailQueryOptions,
-  getDetailEarthquake,
-} from '@/lib/earthquakes/details/query-options';
-import { earthquakesQueryOptions } from '@/lib/earthquakes/query-options';
-import { getEarthquakeFilters } from '@/lib/earthquakes/search-schema';
+import { usePhoneLayout } from '@/hooks/use-phone-layout';
 import type { Earthquake } from '@/lib/earthquakes/types';
-import { type CrustGrid, getCrustColumn } from '@/lib/section/crust-layers';
+import { PHONE_MAX_WIDTH } from '@/lib/layout/phone';
 import {
-  crustLayersQueryOptions,
-  reliefQueryOptions,
-  slabGridsQueryOptions,
-} from '@/lib/section/query-options';
-import { getSectionAlt, getSectionBlurb } from '@/lib/section/section-labels';
-import { type SectionModel, getSectionModel } from '@/lib/section/section-model';
-import { type SlabGrid, getSlabDepthKm } from '@/lib/section/slab-depth';
+  getPhoneSectionBandStyle,
+  getPhoneSectionView,
+  getSectionContent,
+} from '@/lib/section/phone-section';
+import {
+  SECTION_LAYER_ORDER,
+  getLayerName,
+  getSectionAlt,
+  getSectionBlurb,
+  getSectionFootnote,
+  getUpperLabel,
+} from '@/lib/section/section-labels';
+import type { SectionModel } from '@/lib/section/section-model';
 import { m } from '@/paraglide/messages';
 import { type Locale, getLocale } from '@/paraglide/runtime';
 
-import { SectionFigure } from './section-figure';
+import { PatternDefs, SectionFigure } from './section-figure';
+import { useSectionData } from './use-section-data';
 import { useSectionWave } from './use-section-wave';
 
-const homeRoute = getRouteApi('/');
-const EMPTY_EARTHQUAKES: readonly Earthquake[] = [];
-const EMPTY_SLABS: readonly SlabGrid[] = [];
-const FIGURE_BOX_CLASS_NAME = 'absolute top-[200px] right-0 bottom-[170px] left-120';
-const STATUS_CLASS_NAME = `${FIGURE_BOX_CLASS_NAME} flex flex-col items-center justify-center gap-4 text-body-s text-muted`;
+const FIGURE_BOX_CLASS_NAME =
+  'absolute top-(--section-top) right-4 left-4 h-(--section-height) lg:top-[200px] lg:right-0 lg:bottom-[170px] lg:left-120 lg:h-auto';
+const STATUS_CLASS_NAME = `${FIGURE_BOX_CLASS_NAME} flex flex-col items-center justify-center gap-4 text-center text-body-s text-muted lg:text-start`;
 const RETRY_CLASS_NAME =
-  'cursor-pointer rounded-pill border border-muted px-4 py-2.5 text-[9.5px] leading-[1.2] font-medium tracking-[0.2em] text-foreground uppercase hover:border-accent disabled:cursor-default disabled:opacity-40';
+  'relative min-h-[34px] cursor-pointer rounded-pill border border-muted px-4 py-2.5 text-[11px] leading-[1.2] font-medium tracking-[0.2em] text-foreground uppercase before:absolute before:inset-x-0 before:-inset-y-[5px] hover:border-accent disabled:cursor-default disabled:opacity-40 lg:static lg:min-h-0 lg:text-[9.5px] lg:before:hidden';
+const SWATCH_STROKE = 'rgb(230 228 245 / 0.35)';
 
-type SectionData = {
-  earthquake: Earthquake;
-  elevationsM: Float32Array[];
-  crust: CrustGrid;
-  slabs: readonly SlabGrid[];
-  others: readonly Earthquake[];
-};
+type BoxSize = { width: number; height: number };
 
-function getModel({ earthquake, elevationsM, crust, slabs, others }: SectionData): SectionModel {
-  return getSectionModel({
-    earthquake,
-    elevationsM,
-    getCrust: (lon, lat) => getCrustColumn(crust, lat, lon),
-    getSlabDepthKm: (lon, lat) => getSlabDepthKm(slabs, lat, lon),
-    others,
-  });
+function getNoteClassName(isExpanded: boolean): string {
+  return isExpanded ? 'md:hidden' : 'hidden';
 }
 
 function SectionFigureBlock({
@@ -63,7 +49,9 @@ function SectionFigureBlock({
   locale: Locale;
 }) {
   const ringsRef = useRef<SVGGElement>(null);
+  const boxRef = useRef<HTMLDivElement>(null);
   const captionId = useId();
+  const content = useMemo(() => getSectionContent(model), [model]);
   const alt = getSectionAlt(
     {
       depthKm: earthquake.depthKm,
@@ -73,62 +61,129 @@ function SectionFigureBlock({
     },
     locale,
   );
+  const [box, setBox] = useState<BoxSize | null>(null);
+  const phone = useMemo(() => box && getPhoneSectionView(box, content), [box, content]);
 
   useSectionWave(ringsRef, earthquake.id);
 
+  useEffect(() => {
+    const element = boxRef.current;
+    if (!element) return;
+    function measure() {
+      if (!element) return;
+      const { width, height } = element.getBoundingClientRect();
+      const isPhone = window.innerWidth < PHONE_MAX_WIDTH && width > 0 && height > 0;
+      setBox((current) => {
+        if (!isPhone) return null;
+        if (current?.width === width && current.height === height) return current;
+        return { width, height };
+      });
+    }
+
+    const observer = new ResizeObserver(measure);
+    observer.observe(element);
+    window.addEventListener('resize', measure);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('resize', measure);
+    };
+  }, []);
+
   return (
-    <figure aria-labelledby={captionId} className={`${FIGURE_BOX_CLASS_NAME} m-0`}>
+    <figure
+      aria-labelledby={captionId}
+      className={`${FIGURE_BOX_CLASS_NAME} m-0 flex flex-col lg:block`}
+    >
       <figcaption id={captionId} className="sr-only">
         {alt}
       </figcaption>
-      <SectionFigure model={model} earthquake={earthquake} locale={locale} ringsRef={ringsRef} />
+      <p aria-hidden="true" className="mb-2 text-caption text-muted lg:hidden">
+        {getSectionFootnote(model.scale.stretch, locale)}
+      </p>
+      <div ref={boxRef} className="min-h-0 flex-1 lg:size-full">
+        <SectionFigure
+          model={model}
+          earthquake={earthquake}
+          locale={locale}
+          ringsRef={ringsRef}
+          phone={phone}
+        />
+      </div>
     </figure>
   );
 }
 
-export default function SectionView({ quake }: { quake: string }) {
-  const search = homeRoute.useSearch();
+export function SectionNote({ quake, isExpanded = true }: { quake: string; isExpanded?: boolean }) {
+  const { earthquake, model } = useSectionData(quake);
   const locale = getLocale();
-  const { data: list } = useQuery(earthquakesQueryOptions(getEarthquakeFilters(search)));
-  const { data: detail } = useQuery(earthquakeDetailQueryOptions(quake));
-  const earthquakes = list?.earthquakes ?? EMPTY_EARTHQUAKES;
-  const earthquake =
-    getSelectedEarthquake(earthquakes, quake) ?? getDetailEarthquake(detail ?? null);
-  const relief = useQuery({
-    ...reliefQueryOptions(earthquake?.latitude ?? 0, earthquake?.longitude ?? 0),
-    enabled: earthquake !== null,
-  });
-  const crust = useQuery(crustLayersQueryOptions());
-  const slabs = useQuery(slabGridsQueryOptions());
+  const prefix = `note${useId().replace(/[^a-zA-Z0-9]/g, '')}`;
+
+  return (
+    <div
+      data-testid="section-note"
+      className={`mt-4 border-t border-line pt-3.5 ${getNoteClassName(isExpanded)}`}
+    >
+      <svg aria-hidden="true" className="absolute size-0">
+        <PatternDefs prefix={prefix} />
+      </svg>
+      <h3 className="text-caption-bold uppercase">{m.section_heading()}</h3>
+      {earthquake && model && (
+        <p className="mt-1.5 text-body-s leading-normal text-muted">
+          {getSectionBlurb(earthquake.source, model.slab !== null, locale)}
+        </p>
+      )}
+      <p className="mt-3 text-caption">{getUpperLabel(m.section_legend_title, locale)}</p>
+      <ul className="mt-2 grid grid-cols-2 gap-x-3 gap-y-2 text-caption text-muted">
+        {SECTION_LAYER_ORDER.map((layer) => (
+          <li key={layer} className="flex items-center gap-2">
+            <svg aria-hidden="true" width="18" height="10" className="shrink-0">
+              <rect
+                x="0.3"
+                y="0.3"
+                width="17.4"
+                height="9.4"
+                fill={`url(#${prefix}-${layer})`}
+                stroke={SWATCH_STROKE}
+                strokeWidth="0.6"
+              />
+            </svg>
+            {getLayerName(layer, locale)}
+          </li>
+        ))}
+        <li className="col-span-2 flex items-center gap-2">
+          <svg aria-hidden="true" width="18" height="10" className="shrink-0">
+            <circle
+              cx="9"
+              cy="5"
+              r="3.6"
+              fill="none"
+              stroke="rgb(230 228 245 / 0.9)"
+              strokeWidth="0.9"
+            />
+          </svg>
+          {getUpperLabel(m.section_legend_others, locale)}
+        </li>
+      </ul>
+    </div>
+  );
+}
+
+export default function SectionView({ quake }: { quake: string }) {
+  const locale = getLocale();
+  const layout = usePhoneLayout();
+  const { earthquake, model, isError, isFetching, retry } = useSectionData(quake);
   const [host, setHost] = useState<HTMLElement | null>(null);
   const hostRef = useCallback((node: HTMLSpanElement | null) => {
     setHost(node?.closest('main') ?? null);
   }, []);
-  const isError = relief.isError || crust.isError;
-  const isSlabSettled = slabs.isSuccess || slabs.isError;
-  const isFetching = relief.isFetching || crust.isFetching;
-  const model = useMemo(() => {
-    if (!earthquake || !relief.data || !crust.data || !isSlabSettled) return null;
-    return getModel({
-      earthquake,
-      elevationsM: relief.data,
-      crust: crust.data,
-      slabs: slabs.data ?? EMPTY_SLABS,
-      others: earthquakes,
-    });
-  }, [earthquake, relief.data, crust.data, slabs.data, isSlabSettled, earthquakes]);
-
-  function retry() {
-    if (relief.isError) void relief.refetch();
-    if (crust.isError) void crust.refetch();
-  }
 
   const view = (
     <div
       data-testid="section-view"
-      className="pointer-events-auto absolute inset-0 z-[5] hidden bg-background bg-page lg:block"
+      style={getPhoneSectionBandStyle(layout)}
+      className="pointer-events-auto absolute inset-0 z-[5] block bg-background bg-page md:hidden lg:block"
     >
-      <div className="absolute top-[158px] left-139 w-[520px]">
+      <div className="absolute top-[158px] left-139 hidden w-[520px] lg:block">
         <h3 className="text-caption-bold uppercase">{m.section_heading()}</h3>
         {earthquake && model && (
           <p className="mt-2 text-body-s leading-normal text-muted">
@@ -148,7 +203,9 @@ export default function SectionView({ quake }: { quake: string }) {
         </div>
       )}
       {!isError && !model && <output className={STATUS_CLASS_NAME}>{m.section_loading()}</output>}
-      <AreaStrip />
+      <div className="hidden lg:contents">
+        <AreaStrip />
+      </div>
     </div>
   );
 

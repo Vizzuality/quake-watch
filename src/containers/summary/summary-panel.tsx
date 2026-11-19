@@ -3,6 +3,9 @@ import { getRouteApi } from '@tanstack/react-router';
 import { useLayoutEffect, useMemo, useState } from 'react';
 
 import { InfoLabel } from '@/components/info-button/info-button';
+import { requestGlobeSelect } from '@/containers/globe/globe-select';
+import { getQuakeKey } from '@/containers/globe/use-hovered-quake';
+import { useFilterSearch } from '@/hooks/use-filter-search';
 import { useIsQuakeSelected } from '@/hooks/use-is-quake-selected';
 import { getMagnitudeValueLabel } from '@/lib/earthquakes/details-panel';
 import { playbackClock } from '@/lib/earthquakes/playback-clock';
@@ -57,10 +60,21 @@ function getLargestValue(largest: Earthquake | null, locale: Locale): string {
   return largest ? getMagnitudeValueLabel(largest.magnitude, locale) : NO_VALUE;
 }
 
+type StatSelect = { label: string; onSelect: () => void };
+
+function getLargestSelect(
+  largest: Earthquake | null,
+  locale: Locale,
+  onSelect: (earthquake: Earthquake) => void,
+): StatSelect | undefined {
+  if (!largest) return undefined;
+  return { label: m.summary_open_largest({}, { locale }), onSelect: () => onSelect(largest) };
+}
+
 function getSummaryClassName(isHidden: boolean): string {
   return cn(
-    'absolute top-[143px] left-14 z-10 w-[250px] [transition:opacity_450ms_ease-out,translate_600ms_ease-out,visibility_600ms] motion-reduce:transition-none',
-    isHidden && 'pointer-events-none invisible -translate-x-6 opacity-0',
+    'md:absolute md:top-[143px] md:left-14 md:z-10 md:w-[250px] md:[transition:opacity_450ms_ease-out,translate_600ms_ease-out,visibility_600ms] md:motion-reduce:transition-none',
+    isHidden && 'md:pointer-events-none md:invisible md:-translate-x-6 md:opacity-0',
   );
 }
 
@@ -69,19 +83,56 @@ function getAreaEarthquakes(earthquakes: Earthquake[], place: string | undefined
 }
 
 function getCountClassName(place: string | undefined): string {
-  const padding = place === undefined ? 'py-6' : 'pt-2 pb-6';
-  return `flex flex-col gap-2 text-foreground ${padding}`;
+  const padding = place === undefined ? 'md:py-6' : 'pt-1 md:pt-2 md:pb-6';
+  return `flex items-baseline gap-3 text-foreground md:flex-col md:items-stretch md:gap-2 ${padding}`;
 }
 
-type SummaryStatProps = { label: string; info: string; value: string };
-
-function SummaryStat({ label, info, value }: SummaryStatProps) {
+function ChevronIcon() {
   return (
-    <div className="flex flex-col items-start gap-1 border-t border-line py-4">
-      <dt className="flex h-4 max-w-full items-center">
-        <InfoLabel label={label} info={info} className="text-label text-muted uppercase" />
+    <svg
+      aria-hidden="true"
+      width="14"
+      height="14"
+      viewBox="0 0 16 16"
+      fill="none"
+      className="shrink-0 text-muted md:hidden"
+    >
+      <path
+        d="M6 3.5L10.5 8L6 12.5"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+type SummaryStatProps = { label: string; info: string; value: string; select?: StatSelect };
+
+function SummaryStat({ label, info, value, select }: SummaryStatProps) {
+  return (
+    <div className="relative flex min-w-0 flex-col items-start gap-1.5 border-t border-line pt-2.5 md:gap-1 md:py-4">
+      <dt className="pointer-events-none relative z-10 flex min-h-4 max-w-full items-center md:pointer-events-auto md:h-4">
+        <InfoLabel
+          label={label}
+          info={info}
+          className="text-label text-muted uppercase max-md:line-clamp-2 max-md:whitespace-normal"
+        />
       </dt>
-      <dd className="text-numeral-l whitespace-nowrap text-foreground">{value}</dd>
+      <dd className="flex w-full items-center justify-between text-value-m whitespace-nowrap text-foreground md:block md:w-auto md:text-numeral-l">
+        {value}
+        {select && (
+          <>
+            <ChevronIcon />
+            <button
+              type="button"
+              aria-label={select.label}
+              onClick={select.onSelect}
+              className="absolute inset-0 cursor-pointer md:hidden"
+            />
+          </>
+        )}
+      </dd>
     </div>
   );
 }
@@ -90,6 +141,7 @@ export function SummaryPanel() {
   const search = homeRoute.useSearch();
   const { data } = useQuery(earthquakesQueryOptions(getEarthquakeFilters(search)));
   const isQuakeSelected = useIsQuakeSelected();
+  const setSearch = useFilterSearch();
   const locale = getLocale();
   const { place } = search;
   const earthquakes = data?.earthquakes ?? EMPTY_EARTHQUAKES;
@@ -100,6 +152,11 @@ export function SummaryPanel() {
   const [shownCount, setShownCount] = useState<number | null>(null);
   const stats: SummaryStats = getSummaryStats(index, shownCount ?? index.sortedTimes.length);
   const isAreaEmpty = place !== undefined && stats.count === 0;
+
+  function selectQuake(earthquake: Earthquake) {
+    if (requestGlobeSelect(earthquake)) return;
+    void setSearch({ quake: getQuakeKey(earthquake) });
+  }
 
   useLayoutEffect(() => {
     let current: number | null = null;
@@ -123,7 +180,10 @@ export function SummaryPanel() {
       className={getSummaryClassName(isQuakeSelected)}
     >
       {place !== undefined && (
-        <p data-testid="summary-eyebrow" className="truncate pt-6 text-label text-muted uppercase">
+        <p
+          data-testid="summary-eyebrow"
+          className="truncate text-label text-muted uppercase md:pt-6"
+        >
           {m.summary_in_view({ place }, { locale })}
         </p>
       )}
@@ -134,14 +194,14 @@ export function SummaryPanel() {
       ) : (
         <>
           <p className={getCountClassName(place)}>
-            <span data-testid="summary-count" className="text-numeral-l">
+            <span data-testid="summary-count" className="text-stat md:text-numeral-l">
               {getDecimalLabel(stats.count, locale)}
             </span>{' '}
-            <span className="text-value">
+            <span className="text-lead md:text-value">
               {getCountPhrase(search.interval, stats.count, locale)}
             </span>
           </p>
-          <dl className="border-b border-line">
+          <dl className="mt-3.5 grid grid-cols-2 gap-3.5 md:mt-0 md:block md:border-b md:border-line">
             <SummaryStat
               label={m.summary_likely_felt({}, { locale })}
               info={m.info_summary_likely_felt({}, { locale })}
@@ -151,6 +211,7 @@ export function SummaryPanel() {
               label={getLargestLabel(stats.largest, place, locale)}
               info={m.info_summary_largest({}, { locale })}
               value={getLargestValue(stats.largest, locale)}
+              select={getLargestSelect(stats.largest, locale, selectQuake)}
             />
           </dl>
         </>

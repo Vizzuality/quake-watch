@@ -36,6 +36,7 @@ export function listenForTooltipEscape(onEscape: () => void): () => void {
 
 export function useHoveredQuake() {
   const [hovered, setHovered] = useState<HoveredQuake | null>(null);
+  const [pinned, setPinned] = useState<HoveredQuake | null>(null);
   const [isOverQuake, setIsOverQuake] = useState(false);
   const keyRef = useRef<string | null>(null);
   const isOverQuakeRef = useRef(false);
@@ -89,10 +90,19 @@ export function useHoveredQuake() {
       scheduleHide();
     }
 
-    return { show, scheduleHide, hide, enterTooltip, leaveTooltip };
+    function pin(next: HoveredQuake) {
+      hide();
+      setPinned(next);
+    }
+
+    function unpin() {
+      setPinned(null);
+    }
+
+    return { show, scheduleHide, hide, enterTooltip, leaveTooltip, pin, unpin };
   }, []);
 
   useEffect(() => () => window.clearTimeout(hideTimerRef.current), []);
 
-  return { hovered, isOverQuake, ...actions };
+  return { hovered, pinned, isOverQuake, ...actions };
 }

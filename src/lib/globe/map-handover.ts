@@ -12,8 +12,9 @@ export function getMapZoom(radiusPx: number, latitude: number): number {
   return Math.log2((2 * Math.PI * radiusPx * cos) / MAPLIBRE_TILE_SIZE);
 }
 
-export function getMapPaddingTop(height: number, cy: number): number {
-  return 2 * cy - height;
+export function getMapVerticalPadding(height: number, cy: number) {
+  const offset = 2 * cy - height;
+  return { top: Math.max(0, offset), bottom: Math.max(0, -offset) };
 }
 
 export function getMapProjection(globeZoom: number) {

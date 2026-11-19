@@ -16,14 +16,17 @@ function getLinkClassName(isCurrent: boolean): string {
   return isCurrent ? 'text-foreground' : 'text-muted hover:text-foreground';
 }
 
-export function LanguageSwitch() {
+export function LanguageSwitch({ className }: { className?: string } = {}) {
   const { href } = useLocation();
   const currentLocale = getLocale();
 
   return (
     <nav
       aria-label={m.language_switch_label()}
-      className="pointer-events-auto flex items-center gap-1.5 text-label text-muted uppercase"
+      className={cn(
+        'pointer-events-auto flex items-center gap-1.5 text-label text-muted uppercase',
+        className,
+      )}
     >
       {locales.map((locale, index) => (
         <Fragment key={locale}>
@@ -34,7 +37,7 @@ export function LanguageSwitch() {
             lang={locale}
             aria-current={locale === currentLocale ? 'page' : undefined}
             className={cn(
-              'inline-flex min-h-6 items-center transition-colors',
+              'inline-flex min-h-11 min-w-11 items-center justify-center transition-colors md:min-h-6 md:min-w-0 md:justify-start',
               getLinkClassName(locale === currentLocale),
             )}
           >

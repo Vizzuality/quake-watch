@@ -255,10 +255,10 @@ export function PlaceSearch() {
   return (
     <div
       data-testid="place-search"
-      className="pointer-events-auto absolute bottom-14 left-14 z-20 w-[257px]"
+      className="pointer-events-auto mt-4 flex flex-col md:absolute md:bottom-14 md:left-14 md:z-20 md:mt-0 md:block md:w-[257px]"
     >
       {isListShown && (
-        <div className="absolute inset-x-0 bottom-full mb-2 border border-line bg-glass-panel py-1 backdrop-blur-[50px]">
+        <div className="order-last mt-2 border border-line bg-glass-panel py-1 backdrop-blur-[50px] md:absolute md:inset-x-0 md:bottom-full md:mt-0 md:mb-2">
           <Suggestions
             id={listboxId}
             suggestions={suggestions}
@@ -267,7 +267,7 @@ export function PlaceSearch() {
           />
         </div>
       )}
-      <div className="flex items-center gap-2.5 border-b border-muted pb-2.5">
+      <div className="flex items-center gap-7 border-b border-muted md:gap-2.5 md:pb-2.5">
         <div className="relative flex min-w-0 flex-1">
           <input
             ref={inputRef}
@@ -287,12 +287,12 @@ export function PlaceSearch() {
             onFocus={handleFocus}
             onBlur={handleBlur}
             onSelect={updateCaret}
-            className="h-4 min-w-0 flex-1 bg-transparent text-label text-foreground uppercase caret-transparent outline-none placeholder:text-muted forced-colors:caret-[auto]"
+            className="h-11 min-w-0 flex-1 bg-transparent text-base text-foreground uppercase caret-transparent outline-none placeholder:text-muted max-md:placeholder:text-[12px] max-md:placeholder:font-medium max-md:placeholder:tracking-[0.2em] md:h-4 md:text-label forced-colors:caret-[auto]"
           />
           <span
             ref={mirrorRef}
             aria-hidden="true"
-            className="invisible absolute top-0 left-0 text-label whitespace-pre uppercase"
+            className="invisible absolute top-0 left-0 text-base whitespace-pre uppercase md:text-label"
           />
           <span
             ref={caretRef}
@@ -307,7 +307,7 @@ export function PlaceSearch() {
             type="button"
             aria-label={m.search_clear({}, { locale })}
             onClick={handleClearClick}
-            className="flex size-4 shrink-0 cursor-pointer items-center justify-center text-muted hover:text-foreground focus-visible:text-foreground focus-visible:outline-1 focus-visible:outline-offset-2 focus-visible:outline-foreground"
+            className="-mx-3.5 flex size-11 shrink-0 cursor-pointer items-center justify-center text-muted hover:text-foreground focus-visible:text-foreground focus-visible:outline-1 focus-visible:outline-offset-2 focus-visible:outline-foreground md:mx-0 md:size-4"
           >
             <ClearIcon />
           </button>
@@ -317,13 +317,16 @@ export function PlaceSearch() {
           aria-label={m.search_locate({}, { locale })}
           aria-busy={isLocating}
           onClick={handleLocateClick}
-          className="flex size-4 shrink-0 cursor-pointer items-center justify-center text-foreground hover:text-accent focus-visible:outline-1 focus-visible:outline-offset-2 focus-visible:outline-foreground aria-busy:animate-pulse motion-reduce:aria-busy:animate-none"
+          className="-mx-3.5 flex size-11 shrink-0 cursor-pointer items-center justify-center text-foreground hover:text-accent focus-visible:outline-1 focus-visible:outline-offset-2 focus-visible:outline-foreground aria-busy:animate-pulse motion-reduce:aria-busy:animate-none md:mx-0 md:size-4"
         >
           <GpsFixIcon />
         </button>
       </div>
       {locateError && (
-        <p role="alert" className="absolute inset-x-0 top-full mt-2 text-body-s text-muted">
+        <p
+          role="alert"
+          className="mt-2 text-body-s text-muted md:absolute md:inset-x-0 md:top-full"
+        >
           {LOCATE_ERROR_MESSAGES[locateError](locale)}
         </p>
       )}

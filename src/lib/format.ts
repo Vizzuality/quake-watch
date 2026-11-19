@@ -10,6 +10,15 @@ function getRelativeTimeLabel(elapsedMs: number, locale: string): string {
   return format.format(-Math.round(elapsedMs / HOUR_MS), 'hour');
 }
 
+export function getShortElapsedLabel(elapsedMs: number, locale: string): string {
+  const format = new Intl.RelativeTimeFormat(getIntlLocale(locale), {
+    numeric: 'auto',
+    style: 'short',
+  });
+  if (elapsedMs < MINUTE_MS) return format.format(-Math.round(elapsedMs / 1000), 'second');
+  return format.format(-Math.round(elapsedMs / MINUTE_MS), 'minute');
+}
+
 export function getTimeLabel(time: number, now: number, locale: string, timeZone?: string): string {
   const elapsedMs = now - time;
   if (elapsedMs >= 0 && elapsedMs < DAY_MS) return getRelativeTimeLabel(elapsedMs, locale);
