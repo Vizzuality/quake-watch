@@ -5,7 +5,7 @@ import { getCanonicalRedirect } from './canonical-redirect';
 const ORIGIN = 'https://quake.watch';
 
 function getRequest(pathAndSearch: string, init: RequestInit = {}): Request {
-  return new Request(new URL(pathAndSearch, ORIGIN), init);
+  return new Request(`${ORIGIN}${pathAndSearch}`, init);
 }
 
 async function getRedirectFor(pathAndSearch: string, init: RequestInit = {}) {
@@ -25,6 +25,17 @@ describe('getCanonicalRedirect', () => {
     ['/en/?quake=usgs:us7000abcd', '/en?quake=usgs:us7000abcd'],
   ])('strips the trailing slash of %s with a 308 to %s', async (path, expected) => {
     expect(await getRedirectFor(path)).toEqual({ status: 308, location: expected, vary: null });
+  });
+
+  it.each([
+    ['//evil.example/', '/evil.example'],
+    ['/\\evil.example/', '/evil.example'],
+    ['///evil.example//', '/evil.example'],
+  ])('keeps the 308 for %s on the same origin', async (path, expected) => {
+    const { location } = await getRedirectFor(path);
+
+    expect(location).toBe(expected);
+    expect(new URL(location ?? '', ORIGIN).origin).toBe(ORIGIN);
   });
 
   it.each([

@@ -10,7 +10,8 @@ function getPathWithSearch(url: URL): string {
 
 function getTrailingSlashRedirect(url: URL): Response | null {
   if (url.pathname === '/' || !url.pathname.endsWith('/')) return null;
-  const location = `${url.pathname.replace(/\/+$/, '') || '/'}${url.search}`;
+  const pathname = url.pathname.replace(/^\/+/, '/').replace(/\/+$/, '') || '/';
+  const location = `${pathname}${url.search}`;
   return new Response(null, { status: 308, headers: { location } });
 }
 
