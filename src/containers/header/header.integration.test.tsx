@@ -1,3 +1,4 @@
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import {
   Outlet,
   RouterProvider,
@@ -8,9 +9,10 @@ import {
 } from '@tanstack/react-router';
 import { afterEach, describe, expect, it } from 'vitest';
 import { render } from 'vitest-browser-react';
-import { page } from 'vitest/browser';
+import { page, userEvent } from 'vitest/browser';
 
 import { Header } from '@/containers/header/header';
+import { setLiveUpdatesPaused } from '@/lib/earthquakes/live-updates';
 import { playbackClock } from '@/lib/earthquakes/playback-clock';
 import { EARTHQUAKE_SEARCH_ROUTE } from '@/lib/earthquakes/search-schema';
 import { overwriteGetLocale } from '@/paraglide/runtime';
@@ -37,7 +39,11 @@ async function renderHeader(initialEntry = '/') {
     history: createMemoryHistory({ initialEntries: [initialEntry] }),
   });
   await router.load();
-  const screen = await render(<RouterProvider router={router} />);
+  const screen = await render(
+    <QueryClientProvider client={new QueryClient()}>
+      <RouterProvider router={router} />
+    </QueryClientProvider>,
+  );
   return { screen, router };
 }
 
@@ -48,6 +54,7 @@ function getRect(element: Element): DOMRect {
 describe('header', () => {
   afterEach(async () => {
     playbackClock.setRange(null);
+    setLiveUpdatesPaused(false);
     overwriteGetLocale(() => 'en');
     await page.viewport(1280, 800);
   });
@@ -91,6 +98,60 @@ describe('header', () => {
     playbackClock.goLive();
     await expect.element(status).toHaveTextContent('Live · EMSC');
   });
+
+  it('pauses and resumes live updates at 24h from a toggle beside the status', async () => {
+    const { screen } = await renderHeader('/?interval=24h');
+    const status = screen.getByRole('status');
+    const toggle = screen.getByRole('button', { name: 'Pause live updates' });
+
+    await expect.element(toggle).toHaveAttribute('aria-pressed', 'false');
+    await expect.element(status).toHaveTextContent('Live · EMSC');
+
+    await toggle.click();
+
+    await expect.element(toggle).toHaveAttribute('aria-pressed', 'true');
+    await expect.element(status).toHaveTextContent('Paused · EMSC');
+    expect(status.element().querySelector('[data-live-dot]')).toBeNull();
+
+    toggle.element().focus();
+    await userEvent.keyboard('{Enter}');
+
+    await expect.element(toggle).toHaveAttribute('aria-pressed', 'false');
+    await expect.element(status).toHaveTextContent('Live · EMSC');
+  });
+
+  it.each(['/', '/?interval=3d'])('has no live updates toggle for %s', async (initialEntry) => {
+    const { screen } = await renderHeader(initialEntry);
+    await expect.element(screen.getByRole('status')).toBeVisible();
+    expect(screen.getByRole('button', { name: 'Pause live updates' }).query()).toBeNull();
+  });
+
+  it.each([
+    [390, 844],
+    [320, 640],
+  ])(
+    'gives the live updates toggle a 44 px hit area clear of About at %i×%i',
+    async (width, height) => {
+      await page.viewport(width, height);
+      const { screen } = await renderHeader('/?interval=24h');
+      const toggle = screen.getByRole('button', { name: 'Pause live updates' }).element();
+      const about = getRect(screen.getByRole('button', { name: 'About' }).element());
+      const rect = getRect(toggle);
+      const before = getComputedStyle(toggle, '::before');
+      const hit = {
+        left: rect.left + parseFloat(before.left),
+        right: rect.right - parseFloat(before.right),
+        top: rect.top + parseFloat(before.top),
+        bottom: rect.bottom - parseFloat(before.bottom),
+      };
+
+      expect(hit.right - hit.left).toBeGreaterThanOrEqual(44);
+      expect(hit.bottom - hit.top).toBeGreaterThanOrEqual(44);
+      expect(hit.right).toBeLessThanOrEqual(about.left);
+      expect(about.right).toBe(width - 20);
+      expect(document.documentElement.scrollWidth).toBe(width);
+    },
+  );
 
   it('lines the wordmark and About up with the D2 detail row and drops the top-right status', async () => {
     await page.viewport(1440, 900);

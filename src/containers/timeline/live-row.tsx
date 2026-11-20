@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { getRouteApi } from '@tanstack/react-router';
 import { useLayoutEffect, useRef, useSyncExternalStore } from 'react';
 
+import { useIsLiveUpdatesPaused } from '@/hooks/use-live-updates';
 import { getLiveSnapshot, playbackClock } from '@/lib/earthquakes/playback-clock';
 import { earthquakesQueryOptions } from '@/lib/earthquakes/query-options';
 import { getEarthquakeFilters } from '@/lib/earthquakes/search-schema';
@@ -47,8 +48,21 @@ function getServerClockSnapshot(): null {
   return null;
 }
 
-function getUpdatedLine(fetchedAt: number | undefined, now: number | null, locale: Locale): string {
-  const checks = m.live_row_checks({}, { locale });
+function getChecksLabel(isPaused: boolean, locale: Locale): string {
+  return isPaused ? m.live_row_paused_checks({}, { locale }) : m.live_row_checks({}, { locale });
+}
+
+function getNowLabel(isPaused: boolean, locale: Locale): string {
+  return isPaused ? m.live_row_paused({}, { locale }) : m.live_row_now({}, { locale });
+}
+
+function getUpdatedLine(
+  fetchedAt: number | undefined,
+  now: number | null,
+  isPaused: boolean,
+  locale: Locale,
+): string {
+  const checks = getChecksLabel(isPaused, locale);
   if (fetchedAt === undefined || now === null) return checks;
   const ago = getShortElapsedLabel(Math.max(0, now - fetchedAt), locale);
   return `${m.live_row_updated({ ago }, { locale })} · ${checks}`;
@@ -81,9 +95,11 @@ export function LiveRow() {
     playbackClock.getSnapshot,
     getLiveSnapshot,
   );
+  const isPausedSetting = useIsLiveUpdatesPaused();
   const locale = getLocale();
   const now = useSyncExternalStore(subscribeClock, getClockSnapshot, getServerClockSnapshot);
   const isLive = playhead === null;
+  const isPaused = isPausedSetting && search.interval === '24h';
 
   function handleToggle() {
     if (isPlaying) playbackClock.pause();
@@ -96,13 +112,13 @@ export function LiveRow() {
         {isLive || !range ? (
           <>
             <p className="text-caption-bold text-accent uppercase">
-              {m.live_row_now({}, { locale })}
+              {getNowLabel(isPaused, locale)}
             </p>
             <p
               data-testid="live-updated"
               className="line-clamp-2 text-caption text-muted uppercase"
             >
-              {getUpdatedLine(data?.fetchedAt, now, locale)}
+              {getUpdatedLine(data?.fetchedAt, now, isPaused, locale)}
             </p>
           </>
         ) : (
