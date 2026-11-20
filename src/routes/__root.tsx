@@ -13,6 +13,8 @@ import { getLocale } from '@/paraglide/runtime';
 
 import appCss from '../styles.css?url';
 
+const THEME_COLOR = '#171a33';
+
 export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({
   head: ({ matches }) => {
     const leaf = matches.at(-1);
@@ -27,6 +29,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       meta: [
         { charSet: 'utf-8' },
         { name: 'viewport', content: 'width=device-width, initial-scale=1' },
+        { name: 'theme-color', content: THEME_COLOR },
         { title },
         { name: 'description', content: m.app_description() },
         ...getSiteOpenGraphMeta({ title, url: canonical, locale: getLocale() }),
@@ -34,7 +37,10 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       ],
       links: [
         { rel: 'stylesheet', href: appCss },
-        { rel: 'icon', href: '/favicon.svg', type: 'image/svg+xml' },
+        { rel: 'icon', href: '/favicon.ico', sizes: '32x32' },
+        { rel: 'icon', href: '/icon.svg', type: 'image/svg+xml' },
+        { rel: 'apple-touch-icon', href: '/apple-touch-icon.png' },
+        { rel: 'manifest', href: '/site.webmanifest' },
         { rel: 'canonical', href: canonical },
         ...alternates.map(({ hreflang, href }) => ({ rel: 'alternate', hrefLang: hreflang, href })),
       ],

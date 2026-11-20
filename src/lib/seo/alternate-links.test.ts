@@ -19,7 +19,7 @@ describe('getAlternateLinks', () => {
         { hreflang: 'en', href: `${ORIGIN}/en` },
         { hreflang: 'es', href: `${ORIGIN}/es` },
         { hreflang: 'pt', href: `${ORIGIN}/pt` },
-        { hreflang: 'x-default', href: `${ORIGIN}/en` },
+        { hreflang: 'x-default', href: `${ORIGIN}/` },
       ],
       isNoindex: false,
     });
@@ -34,7 +34,7 @@ describe('getAlternateLinks', () => {
         { hreflang: 'en', href: `${ORIGIN}/en` },
         { hreflang: 'es', href: `${ORIGIN}/es` },
         { hreflang: 'pt', href: `${ORIGIN}/pt` },
-        { hreflang: 'x-default', href: `${ORIGIN}/en` },
+        { hreflang: 'x-default', href: `${ORIGIN}/` },
       ],
       isNoindex: false,
     });
@@ -67,7 +67,7 @@ describe('getAlternateLinks', () => {
       { hreflang: 'en', href: `${ORIGIN}/en?quake=usgs:us6000u4j2` },
       { hreflang: 'es', href: `${ORIGIN}/es?quake=usgs:us6000u4j2` },
       { hreflang: 'pt', href: `${ORIGIN}/pt?quake=usgs:us6000u4j2` },
-      { hreflang: 'x-default', href: `${ORIGIN}/en?quake=usgs:us6000u4j2` },
+      { hreflang: 'x-default', href: `${ORIGIN}/?quake=usgs:us6000u4j2` },
     ]);
   });
 

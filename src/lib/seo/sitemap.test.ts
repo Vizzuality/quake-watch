@@ -29,7 +29,7 @@ describe('getSitemap', () => {
       `<xhtml:link rel="alternate" hreflang="en" href="${ORIGIN}/en"/>`,
       `<xhtml:link rel="alternate" hreflang="es" href="${ORIGIN}/es"/>`,
       `<xhtml:link rel="alternate" hreflang="pt" href="${ORIGIN}/pt"/>`,
-      `<xhtml:link rel="alternate" hreflang="x-default" href="${ORIGIN}/en"/>`,
+      `<xhtml:link rel="alternate" hreflang="x-default" href="${ORIGIN}/"/>`,
     ];
 
     expect(getUrlBlocks(xml)).toHaveLength(3);
