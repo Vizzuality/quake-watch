@@ -16,6 +16,7 @@ import {
   SELECTED_RING_LAYER_ID,
   getFeltRingPaint,
   getQuakeMapStyle,
+  getReplayFilters,
   getSelectedQuakeFilter,
 } from './map-style';
 import { QUAKE_MARKER_LOOK } from './quakes';
@@ -350,6 +351,35 @@ describe('getSelectedQuakeFilter', () => {
   it('matches only the selected quake, and nothing without a selection', () => {
     expect(getSelectedQuakeFilter('emsc:1')).toEqual(['==', ['get', 'key'], 'emsc:1']);
     expect(getSelectedQuakeFilter(null)).toEqual(['==', ['get', 'key'], '']);
+  });
+});
+
+describe('getReplayFilters', () => {
+  const REPLAY_LAYER_IDS = [
+    QUAKE_LAYER_ID,
+    QUAKE_RING_LAYER_ID,
+    FELT_FILL_LAYER_ID,
+    FELT_LINE_LAYER_ID,
+  ];
+
+  function getStyleFilter(id: string) {
+    const layer = getLayer(id);
+    return 'filter' in layer ? (layer.filter ?? null) : null;
+  }
+
+  it('restores the style filters when live', () => {
+    expect(getReplayFilters(null)).toEqual(REPLAY_LAYER_IDS.map((id) => [id, getStyleFilter(id)]));
+  });
+
+  it('keeps only Earthquakes up to the playhead on top of the style filters', () => {
+    const shown = ['<=', ['get', 'time'], 1000];
+
+    expect(getReplayFilters(1000)).toEqual([
+      [QUAKE_LAYER_ID, shown],
+      [QUAKE_RING_LAYER_ID, ['all', getStyleFilter(QUAKE_RING_LAYER_ID), shown]],
+      [FELT_FILL_LAYER_ID, ['all', getStyleFilter(FELT_FILL_LAYER_ID), shown]],
+      [FELT_LINE_LAYER_ID, ['all', getStyleFilter(FELT_LINE_LAYER_ID), shown]],
+    ]);
   });
 });
 
