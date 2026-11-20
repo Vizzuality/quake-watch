@@ -19,6 +19,7 @@ import {
   getRingTicks,
   getScrubStepMs,
   getSpeedLabel,
+  isRingLabelBlocked,
 } from './time-ring';
 import { getPlaybackSpeed } from './timeline';
 import type { Earthquake } from './types';
@@ -241,5 +242,28 @@ describe('getNeedleEarthquake', () => {
 
   it('finds nothing in a quiet stretch', () => {
     expect(getNeedleEarthquake([getQuake('old', 0, 7)], 3 * DAY, range)).toBeUndefined();
+  });
+});
+
+describe('isRingLabelBlocked', () => {
+  const panel = { left: 1154, top: 159, right: 1384, bottom: 460 };
+
+  it('blocks a label that overlaps a panel or comes within 8 px of it', () => {
+    expect(isRingLabelBlocked({ left: 1118, top: 456, right: 1158, bottom: 468 }, [panel])).toBe(
+      true,
+    );
+    expect(isRingLabelBlocked({ left: 1110, top: 370, right: 1149, bottom: 382 }, [panel])).toBe(
+      true,
+    );
+  });
+
+  it('keeps a label more than 8 px clear of every panel', () => {
+    expect(isRingLabelBlocked({ left: 1078, top: 280, right: 1119, bottom: 292 }, [panel])).toBe(
+      false,
+    );
+    expect(isRingLabelBlocked({ left: 1110, top: 470, right: 1149, bottom: 482 }, [panel])).toBe(
+      false,
+    );
+    expect(isRingLabelBlocked({ left: 1110, top: 370, right: 1149, bottom: 382 }, [])).toBe(false);
   });
 });

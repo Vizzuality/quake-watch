@@ -164,6 +164,7 @@ export function SummaryPanel() {
       aria-hidden={isQuakeSelected}
       inert={isQuakeSelected}
       data-testid="summary"
+      data-ring-obstacle
       className={getSummaryClassName(isQuakeSelected)}
     >
       {place !== undefined && (

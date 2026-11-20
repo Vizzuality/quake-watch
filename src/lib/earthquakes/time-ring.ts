@@ -17,7 +17,10 @@ export type RingTick = {
   activeMs: number;
 };
 export type RingMark = { fraction: number; label: string | null };
+export type RingBox = { left: number; top: number; right: number; bottom: number };
 type Point = { x: number; y: number };
+
+export const RING_OBSTACLE_SELECTOR = '[data-ring-obstacle]';
 
 export const TIME_RING_LOOK = {
   radius: 354,
@@ -56,6 +59,7 @@ const SCRUB_STEPS = 48;
 const FULL_TURN = Math.PI * 2;
 const RING_FADE_START_ZOOM = 1.08;
 const RING_FADE_SPAN_ZOOM = 0.4;
+const RING_LABEL_CLEARANCE_PX = 8;
 
 export function getRingFraction(time: number, range: TimeRange): number {
   const span = range.end - range.start;
@@ -241,4 +245,17 @@ export function getNeedleEarthquake(
 export function getRingOpacity(zoom: number | undefined): number {
   if (zoom === undefined) return 1;
   return Math.min(1, Math.max(0, 1 - (zoom - RING_FADE_START_ZOOM) / RING_FADE_SPAN_ZOOM));
+}
+
+function isOverlapping(label: RingBox, obstacle: RingBox, gap: number): boolean {
+  return (
+    label.left < obstacle.right + gap &&
+    label.right > obstacle.left - gap &&
+    label.top < obstacle.bottom + gap &&
+    label.bottom > obstacle.top - gap
+  );
+}
+
+export function isRingLabelBlocked(label: RingBox, obstacles: readonly RingBox[]): boolean {
+  return obstacles.some((obstacle) => isOverlapping(label, obstacle, RING_LABEL_CLEARANCE_PX));
 }
