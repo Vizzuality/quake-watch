@@ -56,6 +56,7 @@ export function FiltersPanel() {
       aria-label={m.filters_label()}
       className="pointer-events-auto mt-[18px] md:absolute md:top-[159px] md:right-14 md:z-10 md:mt-0 md:w-[230px] md:border-b md:border-line"
     >
+      <h2 className="sr-only">{m.filters_label()}</h2>
       <FilterGroup
         label={m.filter_time()}
         info={m.info_filter_time()}

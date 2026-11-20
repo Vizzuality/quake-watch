@@ -99,6 +99,9 @@ describe('summary panel', () => {
   it('shows the counts and Largest so far for the whole Interval when live', async () => {
     const { screen } = await renderSummary();
 
+    await expect
+      .element(screen.getByRole('heading', { level: 2, name: '3 earthquakes this week.' }))
+      .toBeVisible();
     await expect.element(screen.getByText('earthquakes this week.')).toBeVisible();
     await expect
       .element(screen.getByRole('term').nth(0).getByText('Likely felt', { exact: true }))
