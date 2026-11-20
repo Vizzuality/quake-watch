@@ -16,7 +16,7 @@ function MapIcon() {
       viewBox="0 0 16 16"
       fill="none"
       stroke="currentColor"
-      className="size-3.5"
+      className="size-3.5 max-[359px]:hidden"
     >
       <path
         d="M2 3.6 6 2l4 1.6L14 2v10.4L10 14l-4-1.6L2 14Z M6 2v10.4 M10 3.6V14"
@@ -33,7 +33,7 @@ function StackIcon() {
       viewBox="0 0 16 16"
       fill="none"
       stroke="currentColor"
-      className="size-3.5"
+      className="size-3.5 max-[359px]:hidden"
     >
       <path
         d="M8 2 14 5.3 8 8.6 2 5.3Z M2 8.2l6 3.3 6-3.3 M2 11.1l6 3.3 6-3.3"

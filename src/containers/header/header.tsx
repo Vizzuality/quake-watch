@@ -4,6 +4,8 @@ import { useSyncExternalStore } from 'react';
 import { Wordmark } from '@/components/brand/wordmark';
 import { AboutDialog } from '@/containers/about/about-dialog';
 import { LanguageSwitch } from '@/containers/language-switch/language-switch';
+import { PauseIcon, PlayIcon } from '@/containers/timeline/playback-control';
+import { useIsLiveUpdatesPaused, useToggleLiveUpdates } from '@/hooks/use-live-updates';
 import { getLiveSnapshot, playbackClock } from '@/lib/earthquakes/playback-clock';
 import { SOURCE_ADAPTERS } from '@/lib/earthquakes/query-options';
 import type { EarthquakeSource } from '@/lib/earthquakes/search-schema';
@@ -28,26 +30,30 @@ function getWordmarkClassName(isDetail: boolean): string {
   return isDetail ? '' : 'mr-auto h-auto w-[124px] md:mr-0 md:w-[159px]';
 }
 
-function getStatusLabel(source: EarthquakeSource, isLive: boolean): string {
+function getStatusLabel(source: EarthquakeSource, isLive: boolean, isPaused: boolean): string {
   const label = SOURCE_ADAPTERS[source].label;
+  if (isPaused) return `${m.header_paused()} · ${label}`;
   return isLive ? `${m.header_live()} · ${label}` : label;
 }
 
-function LiveStatus({ source }: { source: EarthquakeSource }) {
+function LiveStatus({ source, isPaused }: { source: EarthquakeSource; isPaused: boolean }) {
   const { playhead } = useSyncExternalStore(
     playbackClock.subscribe,
     playbackClock.getSnapshot,
     getLiveSnapshot,
   );
   const isLive = playhead === null;
+  const hasState = isLive || isPaused;
 
   return (
     <output className="flex items-center gap-[7px] text-caption whitespace-nowrap text-foreground uppercase md:gap-2 md:text-label md:text-muted">
-      {isLive && (
+      {isLive && !isPaused && (
         <span data-live-dot aria-hidden="true" className="size-[5px] rounded-full bg-foreground" />
       )}
-      <span className={cn(isLive && 'max-[379px]:sr-only')}>{getStatusLabel(source, isLive)}</span>
-      {isLive && (
+      <span className={cn(hasState && 'max-[379px]:sr-only')}>
+        {getStatusLabel(source, isLive, isPaused)}
+      </span>
+      {hasState && (
         <span
           aria-hidden="true"
           data-label={SOURCE_ADAPTERS[source].label}
@@ -58,9 +64,28 @@ function LiveStatus({ source }: { source: EarthquakeSource }) {
   );
 }
 
+function LiveUpdatesToggle({ isPaused }: { isPaused: boolean }) {
+  const toggle = useToggleLiveUpdates();
+
+  return (
+    <button
+      type="button"
+      aria-label={m.live_updates_pause()}
+      aria-pressed={isPaused}
+      onClick={toggle}
+      className="pointer-events-auto relative flex size-6 shrink-0 cursor-pointer items-center justify-center rounded-pill text-foreground transition-colors before:absolute before:-inset-2.5 hover:text-accent focus-visible:outline-2 focus-visible:outline-foreground md:text-muted md:before:hidden md:hover:text-foreground md:[&>svg]:size-2.5"
+    >
+      {isPaused ? <PlayIcon /> : <PauseIcon />}
+    </button>
+  );
+}
+
 export function Header() {
-  const { quake, source } = homeRoute.useSearch();
+  const { quake, source, interval } = homeRoute.useSearch();
+  const isPausedSetting = useIsLiveUpdatesPaused();
   const isDetail = quake !== undefined;
+  const hasLiveUpdates = interval === '24h';
+  const isPaused = hasLiveUpdates && isPausedSetting;
 
   return (
     <header className={getHeaderClassName(isDetail)}>
@@ -72,7 +97,10 @@ export function Header() {
       </div>
       {!isDetail && (
         <div className="flex items-center md:absolute md:top-[56px] md:right-[71px] md:h-3 md:gap-6">
-          <LiveStatus source={source} />
+          <div className="flex items-center gap-1">
+            <LiveStatus source={source} isPaused={isPaused} />
+            {hasLiveUpdates && <LiveUpdatesToggle isPaused={isPaused} />}
+          </div>
           <LanguageSwitch className="hidden md:flex" />
         </div>
       )}

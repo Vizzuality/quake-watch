@@ -226,5 +226,11 @@
   "details_more": "Mais detalhes",
   "details_less": "Menos",
   "details_replay_short": "Repetir",
-  "map_likely_felt_short": "~{distance}"
+  "map_likely_felt_short": "~{distance}",
+  "details_wave_pause": "Pausar onda",
+  "details_wave_play": "Reproduzir onda",
+  "live_updates_pause": "Pausar atualizações em direto",
+  "header_paused": "Em pausa",
+  "live_row_paused": "Em pausa",
+  "live_row_paused_checks": "atualizações em pausa"
 }

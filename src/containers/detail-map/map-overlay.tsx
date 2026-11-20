@@ -4,6 +4,7 @@ import type { GeoJSONSource, LngLatLike, Map as MapLibreMap } from 'maplibre-gl'
 import { type RefObject, useEffect, useMemo, useRef } from 'react';
 
 import { getQuakeKey, getSelectedEarthquake } from '@/containers/globe/use-hovered-quake';
+import { useIsWavePaused } from '@/containers/globe/wave-pause';
 import { subscribeWaveReplay } from '@/containers/globe/wave-replay';
 import { usePhoneLayout } from '@/hooks/use-phone-layout';
 import { AREA_MIN_RADIUS_KM, getAreaRadiusKm } from '@/lib/earthquakes/area-strip';
@@ -287,9 +288,14 @@ function syncOverlay(
   setLocatorRect(map, refs.locatorRect.current);
 }
 
-function isMoving(motion: Motion, earthquake: Earthquake | undefined, reachKm: number): boolean {
+function isMoving(
+  motion: Motion,
+  earthquake: Earthquake | undefined,
+  reachKm: number,
+  now: number,
+): boolean {
   if (!earthquake || !(reachKm > 0)) return false;
-  return motion.replay !== null || motion.loopStartedAt !== null;
+  return isReplayRunning(motion.replay, earthquake.id, now) || motion.loopStartedAt !== null;
 }
 
 type MapScaleBarProps = {
@@ -347,6 +353,7 @@ export function MapScaleBar({ rootRef, midRef, endRef }: MapScaleBarProps) {
 export function MapOverlay({ map }: { map: MapLibreMap }) {
   const search = homeRoute.useSearch();
   const { data } = useQuery(earthquakesQueryOptions(getEarthquakeFilters(search)));
+  const isWavePaused = useIsWavePaused();
   const locale = getLocale();
   const earthquakes = data?.earthquakes ?? EMPTY_EARTHQUAKES;
   const selected = useMemo(
@@ -393,8 +400,13 @@ export function MapOverlay({ map }: { map: MapLibreMap }) {
   useEffect(() => subscribeWaveReplay(startReplay), []);
 
   useEffect(() => {
-    motionRef.current = { replay: null, loopStartedAt: null };
-    if (selectedId === undefined || isReducedMotion()) return;
+    motionRef.current.replay = null;
+  }, [selectedId]);
+
+  useEffect(() => {
+    motionRef.current.loopStartedAt = null;
+    scheduleRef.current();
+    if (selectedId === undefined || isWavePaused) return;
     function startLoopWhenVisible() {
       if (!isMapVisible(map)) return;
       map.off('idle', startLoopWhenVisible);
@@ -406,7 +418,7 @@ export function MapOverlay({ map }: { map: MapLibreMap }) {
     return () => {
       map.off('idle', startLoopWhenVisible);
     };
-  }, [map, selectedId]);
+  }, [map, selectedId, isWavePaused]);
 
   useEffect(() => {
     const refs: OverlayRefs = {
@@ -422,7 +434,7 @@ export function MapOverlay({ map }: { map: MapLibreMap }) {
       request = 0;
       if (!isMapLayerShown(map)) return;
       syncOverlay(map, refs, input, motionRef.current, now);
-      if (isMoving(motionRef.current, selected, reachKm)) schedule();
+      if (isMoving(motionRef.current, selected, reachKm, now)) schedule();
     }
     function schedule() {
       if (request) return;
