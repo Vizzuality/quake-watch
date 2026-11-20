@@ -27,10 +27,10 @@ import {
   getRingBarsPath,
   getRingFraction,
   getRingFractionAt,
+  getRingKeyTarget,
   getRingMarks,
   getRingPoint,
   getRingTicks,
-  getScrubStepMs,
   isRingLabelBlocked,
 } from '@/lib/earthquakes/time-ring';
 import type { TimeRange } from '@/lib/earthquakes/timeline';
@@ -49,7 +49,6 @@ const R0 = TIME_RING_LOOK.radius;
 const PAST_CLIP_RADIUS = R0 + TIME_RING_LOOK.barInset + TIME_RING_LOOK.barMax + 4;
 const HIT_RADIUS = R0 + (TIME_RING_LOOK.hitOuter - TIME_RING_LOOK.hitInner) / 2;
 const HIT_WIDTH = TIME_RING_LOOK.hitOuter + TIME_RING_LOOK.hitInner;
-const PAGE_STEPS = 6;
 const SVG_NS = 'http://www.w3.org/2000/svg';
 const ACTIVE_BAR_OPACITY = '0.95';
 
@@ -79,21 +78,6 @@ function syncActiveBars(group: SVGGElement | null, active: readonly RingTick[]) 
   if (group.dataset.ids === ids) return;
   group.dataset.ids = ids;
   group.replaceChildren(...active.map(getActiveBarElement));
-}
-
-function getKeyTarget(key: string, current: number, range: TimeRange): number | null {
-  const step = getScrubStepMs(range);
-  const targets: Record<string, number> = {
-    ArrowRight: current + step,
-    ArrowUp: current + step,
-    ArrowLeft: current - step,
-    ArrowDown: current - step,
-    PageUp: current + step * PAGE_STEPS,
-    PageDown: current - step * PAGE_STEPS,
-    Home: range.start,
-    End: range.end,
-  };
-  return targets[key] ?? null;
 }
 
 function getWheelTarget(event: WheelEvent, svg: SVGSVGElement): Element | undefined {
@@ -237,7 +221,7 @@ export function TimeRing({ opacity }: { opacity: number }) {
   function handleKeyDown(event: KeyboardEvent<SVGCircleElement>) {
     if (!range) return;
     const current = playbackClock.getPlayhead() ?? range.end;
-    const target = getKeyTarget(event.key, current, range);
+    const target = getRingKeyTarget(event.key, current, range);
     if (target === null) return;
     event.preventDefault();
     playbackClock.seek(target);
@@ -321,7 +305,7 @@ export function TimeRing({ opacity }: { opacity: number }) {
               d={barsPath}
               clipPath={`url(#${clipId})`}
               vectorEffect="non-scaling-stroke"
-              className="stroke-foreground/40"
+              className="stroke-foreground/50"
             />
             <g ref={activeRef} data-testid="time-ring-active" />
             {marks.map(({ fraction }) => {

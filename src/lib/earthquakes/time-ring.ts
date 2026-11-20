@@ -56,6 +56,7 @@ const HOURLY_MARK_STEP_MS = 3 * HOUR_MS;
 const NEEDLE_WINDOW_MIN_MS = 2 * HOUR_MS;
 const NEEDLE_WINDOW_FRACTION = 0.05;
 const SCRUB_STEPS = 48;
+const PAGE_STEPS = 6;
 const FULL_TURN = Math.PI * 2;
 const RING_FADE_START_ZOOM = 1.08;
 const RING_FADE_SPAN_ZOOM = 0.4;
@@ -222,6 +223,21 @@ export function getSpeedLabel(range: TimeRange, locale: Locale): string {
 
 export function getScrubStepMs(range: TimeRange): number {
   return (range.end - range.start) / SCRUB_STEPS;
+}
+
+export function getRingKeyTarget(key: string, current: number, range: TimeRange): number | null {
+  const step = getScrubStepMs(range);
+  const targets: Record<string, number> = {
+    ArrowRight: current + step,
+    ArrowUp: current + step,
+    ArrowLeft: current - step,
+    ArrowDown: current - step,
+    PageUp: current + step * PAGE_STEPS,
+    PageDown: current - step * PAGE_STEPS,
+    Home: range.start,
+    End: range.end,
+  };
+  return targets[key] ?? null;
 }
 
 export function getNeedleEarthquake(

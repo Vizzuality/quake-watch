@@ -198,7 +198,7 @@ describe('timeline', () => {
     expect(router.state.location.href).toBe(href);
   });
 
-  it('scrubs with the arrow, Home and End keys', async () => {
+  it('scrubs with the four arrow keys, Home and End', async () => {
     const { slider, getNowClassName } = await renderTimeline();
 
     expect(getNowClassName()).toContain('fill-accent');
@@ -208,6 +208,11 @@ describe('timeline', () => {
     await userEvent.keyboard('{Home}');
     await expect.element(slider).toHaveAttribute('aria-valuenow', String(START));
     await userEvent.keyboard('{ArrowRight}');
+    await expect.element(slider).toHaveAttribute('aria-valuenow', String(START + STEP));
+    await userEvent.keyboard('{ArrowUp}');
+    await expect.element(slider).toHaveAttribute('aria-valuenow', String(START + 2 * STEP));
+    await expect.element(slider).toHaveAttribute('aria-valuetext', 'Mon 26.10 · 07:00 UTC');
+    await userEvent.keyboard('{ArrowDown}');
     await expect.element(slider).toHaveAttribute('aria-valuenow', String(START + STEP));
     expect(getNowClassName()).toContain('fill-foreground');
     await userEvent.keyboard('{End}');

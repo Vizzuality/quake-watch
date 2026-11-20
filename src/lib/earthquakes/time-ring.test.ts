@@ -13,6 +13,7 @@ import {
   getRingBarsPath,
   getRingFraction,
   getRingFractionAt,
+  getRingKeyTarget,
   getRingMarks,
   getRingOpacity,
   getRingPoint,
@@ -265,5 +266,27 @@ describe('isRingLabelBlocked', () => {
       false,
     );
     expect(isRingLabelBlocked({ left: 1110, top: 370, right: 1149, bottom: 382 }, [])).toBe(false);
+  });
+});
+
+describe('getRingKeyTarget', () => {
+  const range = { start: 0, end: 4800 };
+
+  it('steps forward with Right and Up, back with Left and Down', () => {
+    expect(getRingKeyTarget('ArrowRight', 1000, range)).toBe(1100);
+    expect(getRingKeyTarget('ArrowUp', 1000, range)).toBe(1100);
+    expect(getRingKeyTarget('ArrowLeft', 1000, range)).toBe(900);
+    expect(getRingKeyTarget('ArrowDown', 1000, range)).toBe(900);
+  });
+
+  it('jumps six steps with Page Up and Page Down, and to the ends with Home and End', () => {
+    expect(getRingKeyTarget('PageUp', 1000, range)).toBe(1600);
+    expect(getRingKeyTarget('PageDown', 1000, range)).toBe(400);
+    expect(getRingKeyTarget('Home', 1000, range)).toBe(0);
+    expect(getRingKeyTarget('End', 1000, range)).toBe(4800);
+  });
+
+  it('ignores other keys', () => {
+    expect(getRingKeyTarget('Enter', 1000, range)).toBeNull();
   });
 });
