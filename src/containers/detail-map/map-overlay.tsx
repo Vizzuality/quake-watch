@@ -5,6 +5,7 @@ import { type RefObject, useEffect, useMemo, useRef } from 'react';
 
 import { getQuakeKey, getSelectedEarthquake } from '@/containers/globe/use-hovered-quake';
 import { subscribeWaveReplay } from '@/containers/globe/wave-replay';
+import { usePhoneLayout } from '@/hooks/use-phone-layout';
 import { AREA_MIN_RADIUS_KM, getAreaRadiusKm } from '@/lib/earthquakes/area-strip';
 import { getFeltReachKm } from '@/lib/earthquakes/intensity';
 import { earthquakesQueryOptions } from '@/lib/earthquakes/query-options';
@@ -22,7 +23,7 @@ import {
   getMapFadeMask,
   getReplayRings,
 } from '@/lib/globe/map-overlay';
-import { getScaleBar, getScaleBarLabels } from '@/lib/globe/map-scale-bar';
+import { getScaleBar, getScaleBarLabels, getScaleBarMaxPx } from '@/lib/globe/map-scale-bar';
 import {
   AREA_SOURCE_ID,
   FELT_FILL_LAYER_ID,
@@ -34,7 +35,9 @@ import {
   getSelectedQuakeFilter,
 } from '@/lib/globe/map-style';
 import { EARTH_RADIUS_KM } from '@/lib/globe/quakes';
-import { getFeltRingLabel } from '@/lib/i18n/map-labels';
+import { getFeltRingLabel, getFeltRingShortLabel } from '@/lib/i18n/map-labels';
+import { PHONE_MAX_WIDTH } from '@/lib/layout/phone';
+import { getPhoneDetailOverlayStyle, getPhoneFeltLabelPlacement } from '@/lib/layout/phone-detail';
 import { getLocale } from '@/paraglide/runtime';
 
 import { AreaStrip } from './area-strip';
@@ -169,6 +172,22 @@ function setLabelPosition(
   label.style.transform = `translate(${point.x + offsetPx}px, ${point.y}px) ${transform}`;
 }
 
+function getLabelSize(element: HTMLElement | null) {
+  return { width: element?.offsetWidth ?? 0, height: element?.offsetHeight ?? 0 };
+}
+
+function setPhoneFeltLabel(label: HTMLElement | null, centre: Point, radiusPx: number) {
+  if (!label) return;
+  const { top, isShort } = getPhoneFeltLabelPlacement(
+    centre,
+    radiusPx,
+    getLabelSize(label.querySelector<HTMLElement>('[data-felt-full]')),
+    getLabelSize(label.querySelector<HTMLElement>('[data-felt-short]')),
+  );
+  label.toggleAttribute('data-short', isShort);
+  label.style.transform = `translate(${centre.x}px, ${top}px) translateX(-50%)`;
+}
+
 function setRings(group: SVGGElement | null, centre: Point, rings: ReplayRing[], strokePx: number) {
   if (!group) return;
   [...group.children].forEach((circle, index) => {
@@ -190,7 +209,7 @@ function setText(element: HTMLElement | null, text: string | null) {
 }
 
 function setScaleBar(map: MapLibreMap, { root, mid, end }: ScaleRefs, locale: string) {
-  const bar = getScaleBar(getKmPerPx(map));
+  const bar = getScaleBar(getKmPerPx(map), getScaleBarMaxPx(map.getContainer().clientWidth));
   if (!root.current) return;
   root.current.hidden = bar === null;
   if (!bar) return;
@@ -245,12 +264,17 @@ function syncOverlay(
   const east = getDestinationPoint(map, earthquake, reachKm, EAST_RADIANS);
   const feltPx = Math.hypot(east.x - centre.x, east.y - centre.y);
   const { felt, area } = RING_LABEL_LOOK;
-  setLabelPosition(
-    refs.feltLabel.current,
-    getDestinationPoint(map, earthquake, reachKm, felt.bearingDeg * RADIANS_PER_DEGREE),
-    felt.offsetPx,
-    'translateY(-100%)',
-  );
+  if (map.getContainer().clientWidth < PHONE_MAX_WIDTH) {
+    setPhoneFeltLabel(refs.feltLabel.current, centre, feltPx);
+  } else {
+    refs.feltLabel.current?.removeAttribute('data-short');
+    setLabelPosition(
+      refs.feltLabel.current,
+      getDestinationPoint(map, earthquake, reachKm, felt.bearingDeg * RADIANS_PER_DEGREE),
+      felt.offsetPx,
+      'translateY(-100%)',
+    );
+  }
   setLabelPosition(
     refs.areaLabel.current,
     getDestinationPoint(map, earthquake, areaRadiusKm, area.bearingDeg * RADIANS_PER_DEGREE),
@@ -274,12 +298,15 @@ type MapScaleBarProps = {
   endRef: RefObject<HTMLSpanElement | null>;
 };
 
-function MapScaleBar({ rootRef, midRef, endRef }: MapScaleBarProps) {
+export function MapScaleBar({ rootRef, midRef, endRef }: MapScaleBarProps) {
+  const layout = usePhoneLayout();
+
   return (
     <div
       ref={rootRef}
       data-testid="map-scale-bar"
-      className="pointer-events-none absolute right-14 bottom-[238px] hidden h-0.5 md:block"
+      style={getPhoneDetailOverlayStyle(layout)}
+      className="pointer-events-none absolute top-(--scale-bar-top) right-[18px] h-0.5 md:top-auto md:right-14 md:bottom-[238px]"
       aria-hidden="true"
     >
       <svg className="absolute inset-0 size-full overflow-visible">
@@ -441,9 +468,20 @@ export function MapOverlay({ map }: { map: MapLibreMap }) {
             <span
               ref={feltLabelRef}
               data-map-measure="felt-label"
-              className={`${LABEL_CLASS_NAME} text-accent`}
+              className={`${LABEL_CLASS_NAME} group/felt grid justify-items-center text-accent`}
             >
-              {getFeltRingLabel(reachKm, locale)}
+              <span
+                data-felt-full
+                className="col-start-1 row-start-1 group-data-short/felt:invisible"
+              >
+                {getFeltRingLabel(reachKm, locale)}
+              </span>
+              <span
+                data-felt-short
+                className="invisible col-start-1 row-start-1 group-data-short/felt:visible"
+              >
+                {getFeltRingShortLabel(reachKm, locale)}
+              </span>
             </span>
           )}
           {isAreaRingShown && (

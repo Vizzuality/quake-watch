@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   getAreaCaption,
   getFeltRingLabel,
+  getFeltRingShortLabel,
   getStripQuakeLabel,
   getStripTickLabel,
 } from './map-labels';
@@ -13,6 +14,13 @@ describe('getFeltRingLabel', () => {
   it('rounds the felt reach as the detail panel does', () => {
     expect(getFeltRingLabel(687.4, 'en')).toBe('Likely felt ~690 km');
     expect(getFeltRingLabel(687.4, 'es')).toBe('Probablemente sentido ~690 km');
+  });
+});
+
+describe('getFeltRingShortLabel', () => {
+  it('keeps only the rounded distance for tight phone rings', () => {
+    expect(getFeltRingShortLabel(687.4, 'en')).toBe('~690 km');
+    expect(getFeltRingShortLabel(1004, 'pt')).toBe('~1000 km');
   });
 });
 

@@ -13,6 +13,7 @@ import { page } from 'vitest/browser';
 import { Header } from '@/containers/header/header';
 import { playbackClock } from '@/lib/earthquakes/playback-clock';
 import { EARTHQUAKE_SEARCH_ROUTE } from '@/lib/earthquakes/search-schema';
+import { overwriteGetLocale } from '@/paraglide/runtime';
 
 const RANGE = {
   start: Date.parse('2026-10-26T00:00:00.000Z'),
@@ -47,6 +48,7 @@ function getRect(element: Element): DOMRect {
 describe('header', () => {
   afterEach(async () => {
     playbackClock.setRange(null);
+    overwriteGetLocale(() => 'en');
     await page.viewport(1280, 800);
   });
 
@@ -103,4 +105,48 @@ describe('header', () => {
     expect(screen.container.querySelector('[role="status"]')).toBeNull();
     expect(screen.container.querySelector('nav')).toBeNull();
   });
+
+  it.each([
+    [390, 844],
+    [767, 900],
+  ])(
+    'hides the wordmark and About row in the phone detail view, where the top bar takes over, at %i×%i',
+    async (width, height) => {
+      await page.viewport(width, height);
+      const { screen } = await renderHeader('/?quake=usgs:us7000abcd');
+
+      const wordmark = screen.container.querySelector('header svg') as SVGElement;
+      await expect.poll(() => getRect(wordmark).width).toBe(0);
+      expect(screen.getByRole('button', { name: 'About' }).query()).toBeNull();
+    },
+  );
+
+  it.each([
+    [390, 844, 'en'],
+    [360, 740, 'pt'],
+    [320, 640, 'es'],
+  ] as const)(
+    'puts the wordmark, Live · source and About on one row at %i×%i in %s',
+    async (width, height, locale) => {
+      overwriteGetLocale(() => locale);
+      await page.viewport(width, height);
+      const { screen } = await renderHeader('/?source=usgs');
+      const wordmark = screen.container.querySelector('header svg') as SVGElement;
+      const status = screen.getByRole('status').element();
+      const about = screen.container.querySelector('header button') as HTMLElement;
+      const centre = (rect: DOMRect) => rect.top + rect.height / 2;
+
+      expect(getRect(wordmark).left).toBe(20);
+      expect(getRect(wordmark).width).toBe(124);
+      expect(centre(getRect(wordmark))).toBeCloseTo(70, 0);
+      expect(centre(getRect(status))).toBeCloseTo(70, 0);
+      expect(centre(getRect(about))).toBeCloseTo(70, 0);
+      expect(getRect(status).left).toBeGreaterThan(getRect(wordmark).right);
+      expect(getRect(about).left).toBeGreaterThanOrEqual(getRect(status).right + 16);
+      expect(getRect(about).right).toBe(width - 20);
+      expect(getRect(about).height).toBeGreaterThanOrEqual(44);
+      expect(status.scrollWidth).toBeLessThanOrEqual(status.clientWidth);
+      expect(screen.getByRole('navigation').query()).toBeNull();
+    },
+  );
 });

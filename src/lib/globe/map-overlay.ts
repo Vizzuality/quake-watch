@@ -1,3 +1,5 @@
+import { PHONE_MAX_WIDTH, getPhoneLayout } from '@/lib/layout/phone';
+
 import { getGlobeFrame } from './frame';
 
 export const REPLAY_RING_LOOK = {
@@ -27,7 +29,6 @@ const BOARD = { width: 1440, height: 900, radiusPx: 330 } as const;
 const DETAIL_FOCUS_Y = 392;
 // The earthquake panel's right edge: md:left-14 + md:w-105 in earthquake-panel.tsx.
 const DETAIL_PANEL_RIGHT_PX = 476;
-const DETAIL_MIN_WIDTH_PX = 768;
 const FADE_SOLID_PX = 286;
 const FADE_END_PX = 520;
 
@@ -73,13 +74,22 @@ function getEdgePadding(focus: number, size: number): [number, number] {
 }
 
 export function getDetailPadding(width: number, height: number): MapPadding {
-  if (width < DETAIL_MIN_WIDTH_PX) return { top: 0, bottom: 0, left: 0, right: 0 };
+  if (width < PHONE_MAX_WIDTH) {
+    const [top, bottom] = getEdgePadding(getPhoneLayout(width, height).detailFocusY, height);
+    return { top, bottom, left: 0, right: 0 };
+  }
   const [top, bottom] = getEdgePadding((height * DETAIL_FOCUS_Y) / BOARD.height, height);
   return { top, bottom, left: DETAIL_PANEL_RIGHT_PX, right: 0 };
 }
 
+function getFadeScale(width: number, height: number): number {
+  if (width >= PHONE_MAX_WIDTH) return getGlobeFrame(width, height).radius / BOARD.radiusPx;
+  const { detailSheetTop, detailFocusY } = getPhoneLayout(width, height);
+  return (detailSheetTop - detailFocusY) / (BOARD.height - DETAIL_FOCUS_Y);
+}
+
 export function getMapFadeMask(width: number, height: number, centre: ScreenPoint): string {
-  const scale = getGlobeFrame(width, height).radius / BOARD.radiusPx;
+  const scale = getFadeScale(width, height);
   const solid = getRoundedPx(FADE_SOLID_PX * scale);
   const end = getRoundedPx(FADE_END_PX * scale);
   return `radial-gradient(circle at ${getRoundedPx(centre.x)}px ${getRoundedPx(centre.y)}px, #000 ${solid}px, transparent ${end}px)`;

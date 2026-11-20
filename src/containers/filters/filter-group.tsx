@@ -23,7 +23,7 @@ export function FilterGroup<T extends string | number>({
   const labelId = `${id}-label`;
 
   return (
-    <div className="flex flex-col gap-[9px] border-t border-line py-4">
+    <div className="flex flex-col gap-0.5 border-t border-line pt-3.5 pb-0.5 md:gap-[9px] md:py-4">
       <div className="flex h-4 items-center">
         <InfoLabel
           label={label}
@@ -35,10 +35,13 @@ export function FilterGroup<T extends string | number>({
       <div
         role="radiogroup"
         aria-labelledby={labelId}
-        className="flex h-[17px] items-start gap-[14px]"
+        className="flex flex-wrap gap-x-3 md:h-[17px] md:flex-nowrap md:items-start md:gap-[14px]"
       >
         {options.map((option) => (
-          <label key={option.value} className="cursor-pointer">
+          <label
+            key={option.value}
+            className="flex min-h-11 min-w-11 cursor-pointer items-center md:inline md:min-h-0 md:min-w-0"
+          >
             <input
               type="radio"
               name={id}

@@ -70,8 +70,17 @@ describe('getDetailPadding', () => {
     });
   });
 
-  it('keeps the earthquake centred on phones, where the panel covers the screen', () => {
-    expect(getDetailPadding(390, 844)).toEqual({ top: 0, bottom: 0, left: 0, right: 0 });
+  it('puts the camera centre at y 290 of the 390 × 844 phone board, above the detail sheet', () => {
+    expect(getDetailPadding(390, 844)).toEqual({ top: 0, bottom: 264, left: 0, right: 0 });
+  });
+
+  it('scales the phone camera centre with the screen height', () => {
+    expect(getDetailPadding(320, 640)).toEqual({
+      top: 0,
+      bottom: Math.round(640 - (2 * 640 * 290) / 844),
+      left: 0,
+      right: 0,
+    });
   });
 });
 
@@ -82,8 +91,14 @@ describe('getMapFadeMask', () => {
     );
   });
 
+  it('ends the phone fade at the detail sheet, as the desktop one ends at the bottom edge', () => {
+    expect(getMapFadeMask(390, 844, { x: 195, y: 290 })).toBe(
+      'radial-gradient(circle at 195px 290px, #000 155.4px, transparent 282.5px)',
+    );
+  });
+
   it('scales the fade with the globe frame', () => {
-    expect(getMapFadeMask(720, 450, { x: 360, y: 231 })).toBe(
+    expect(getMapFadeMask(1440, 450, { x: 360, y: 231 })).toBe(
       'radial-gradient(circle at 360px 231px, #000 143px, transparent 260px)',
     );
   });

@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
-import { SCALE_BAR_MAX_PX, getScaleBar, getScaleBarLabels } from './map-scale-bar';
+import {
+  SCALE_BAR_MAX_PX,
+  getScaleBar,
+  getScaleBarLabels,
+  getScaleBarMaxPx,
+} from './map-scale-bar';
 
 describe('getScaleBar', () => {
   it('picks the longest round distance that fits in 140 px, as the prototype does', () => {
@@ -43,5 +48,16 @@ describe('getScaleBarLabels', () => {
 
   it('drops the middle label on bars of 120 px or less, like the 200 km bar of the target', () => {
     expect(getScaleBarLabels({ km: 200, widthPx: 118 }, 'en').mid).toBeNull();
+  });
+});
+
+describe('getScaleBarMaxPx', () => {
+  it('keeps the 140 px bar on desktop', () => {
+    expect(getScaleBarMaxPx(1440)).toBe(SCALE_BAR_MAX_PX);
+  });
+
+  it('shortens the bar on phones so it stays clear of the centred quake at 320 px', () => {
+    const maxPx = getScaleBarMaxPx(320);
+    expect(320 - 18 - maxPx - 4).toBeGreaterThan(320 / 2 + 12 + 8);
   });
 });

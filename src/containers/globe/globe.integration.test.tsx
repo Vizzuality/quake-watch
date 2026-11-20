@@ -9,10 +9,12 @@ import {
   createRouter,
 } from '@tanstack/react-router';
 import { createRef, useImperativeHandle, useRef } from 'react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-react';
 
 import Globe from '@/containers/globe/globe';
+import { requestGlobeFlyTo } from '@/containers/globe/globe-fly-to';
+import { requestGlobeSelect } from '@/containers/globe/globe-select';
 import {
   type GlobeControls,
   type GlobeControlsOptions,
@@ -46,8 +48,11 @@ import {
 } from '@/lib/globe/motion';
 import { QUAKE_MARKER_LOOK, getEpicentreRadiusPx, getHypocentreRadius } from '@/lib/globe/quakes';
 import { getLatLonVector, getRotatedVector } from '@/lib/globe/sphere';
+import { setHomeSheetOpen } from '@/lib/layout/home-sheet-store';
+import { getPhoneLayout } from '@/lib/layout/phone';
 import { overwriteGetLocale } from '@/paraglide/runtime';
 import { getEmscFeature, getFeatureCollection } from '@/test/fixtures/earthquakes';
+import { setViewport } from '@/test/set-viewport';
 import { stubFetch } from '@/test/stub-fetch';
 
 type Point = { x: number; y: number };
@@ -374,7 +379,12 @@ async function renderGlobe(
   {
     initialEntries = ['/'],
     responseGate,
-  }: { initialEntries?: string[]; responseGate?: Promise<void> } = {},
+    size = { width: WIDTH, height: HEIGHT },
+  }: {
+    initialEntries?: string[];
+    responseGate?: Promise<void>;
+    size?: { width: number; height: number };
+  } = {},
 ) {
   vi.spyOn(Element.prototype, 'setPointerCapture').mockImplementation(() => {});
   const fetchMock = stubFetch([
@@ -394,7 +404,7 @@ async function renderGlobe(
     path: '/',
     ...EARTHQUAKE_SEARCH_ROUTE,
     component: () => (
-      <div style={{ position: 'relative', width: WIDTH, height: HEIGHT }}>
+      <div style={{ position: 'relative', ...size }}>
         <Globe />
       </div>
     ),
@@ -499,9 +509,14 @@ async function renderControls(options?: GlobeControlsOptions) {
   if (!controlsRef.current) throw new Error('controls probe did not mount');
   const controls = controlsRef.current;
 
-  function pointer(type: string, x: number, { y = 100, id = 1, time = 0, button = 0 } = {}) {
+  function pointer(
+    type: string,
+    x: number,
+    { y = 100, id = 1, time = 0, button = 0, pointerType = 'mouse' } = {},
+  ) {
     const event = new PointerEvent(type, {
       pointerId: id,
+      pointerType,
       clientX: x,
       clientY: y,
       button,
@@ -965,18 +980,23 @@ function waitMs(ms: number): Promise<void> {
 
 async function renderTooltipGlobe(
   quakes: TestQuake[],
-  { initialEntries = [BOARD_VIEW_PATH], reducedMotion = true } = {},
+  {
+    initialEntries = [BOARD_VIEW_PATH],
+    reducedMotion = true,
+    size = { width: WIDTH, height: HEIGHT },
+  } = {},
 ) {
   stubReducedMotion(reducedMotion);
-  const globe = await renderGlobe({ 0: quakes }, { initialEntries });
+  const globe = await renderGlobe({ 0: quakes }, { initialEntries, size });
   await globe.settle();
   const container = globe.screen.getByRole('img').element() as HTMLElement;
   const rect = container.getBoundingClientRect();
 
-  function pointer(type: string, { x, y }: Point) {
+  function pointer(type: string, { x, y }: Point, pointerType = '') {
     container.dispatchEvent(
       new PointerEvent(type, {
         pointerId: 1,
+        pointerType,
         button: 0,
         bubbles: true,
         clientX: rect.left + x,
@@ -998,9 +1018,9 @@ async function renderTooltipGlobe(
     });
   }
 
-  function tap(point: Point) {
-    pointer('pointerdown', point);
-    pointer('pointerup', point);
+  function tap(point: Point, pointerType = '') {
+    pointer('pointerdown', point, pointerType);
+    pointer('pointerup', point, pointerType);
   }
 
   function drag(from: Point, by: Point) {
@@ -1051,6 +1071,375 @@ async function renderTooltipGlobe(
     leaveTooltip,
   };
 }
+
+const PHONE = { width: 390, height: 844 } as const;
+const PHONE_FRAME = getGlobeFrame(PHONE.width, PHONE.height);
+const PIN_NORTH_M5: TestQuake = { ...TOOLTIP_M5, lat: VIEW_LAT + 30 };
+const PIN_SOUTH_M4: TestQuake = { ...COMPACT_M4, lat: VIEW_LAT - 30, lon: VIEW_LON };
+const PIN_WEST_M4: TestQuake = { ...COMPACT_M4, lat: VIEW_LAT, lon: VIEW_LON - 70 };
+const PIN_EAST_M4: TestQuake = { ...COMPACT_M4, lat: VIEW_LAT, lon: VIEW_LON + 70 - 360 };
+const PIN_QUAKES = [PIN_NORTH_M5, PIN_SOUTH_M4, PIN_WEST_M4, PIN_EAST_M4];
+const NEAR_CENTRE_QUAKES: TestQuake[] = [
+  { ...TOOLTIP_M5, lat: VIEW_LAT + 1 },
+  { ...COMPACT_M4, lat: VIEW_LAT - 1, lon: VIEW_LON },
+];
+const CARD_CHROME_GAP_PX = 8;
+const CARD_POINT_GAP_PX = 12;
+
+async function renderPinGlobe(
+  quakes: TestQuake[] = PIN_QUAKES,
+  size: { width: number; height: number } = PHONE,
+) {
+  const globe = await renderTooltipGlobe(quakes, { size });
+
+  function getCard(): HTMLElement | null {
+    const id = globe.container.getAttribute('aria-describedby');
+    return id === null ? null : document.getElementById(id);
+  }
+
+  async function pin(key: string): Promise<{ card: HTMLElement; point: Point }> {
+    const point = globe.getLivePoint(key);
+    globe.tap(point, 'touch');
+    const card = await vi.waitFor(() => {
+      const shown = getCard();
+      if (!shown?.textContent?.includes('Open details')) throw new Error('card is not pinned');
+      return shown;
+    });
+    return { card, point };
+  }
+
+  function getRelativeRect(element: HTMLElement) {
+    const rect = element.getBoundingClientRect();
+    const origin = globe.container.getBoundingClientRect();
+    return {
+      left: rect.left - origin.left,
+      top: rect.top - origin.top,
+      bottom: rect.bottom - origin.top,
+      width: rect.width,
+    };
+  }
+
+  function getElementAt({ x, y }: Point): Element | null {
+    const origin = globe.container.getBoundingClientRect();
+    return document.elementFromPoint(origin.left + x, origin.top + y);
+  }
+
+  function clickAt(point: Point): HTMLElement {
+    const target = getElementAt(point);
+    if (!(target instanceof HTMLElement)) throw new Error('nothing to click there');
+    target.click();
+    return target;
+  }
+
+  function clickAfterTap(point: Point) {
+    getElementAt(point)?.dispatchEvent(new MouseEvent('click', { bubbles: true, detail: 1 }));
+  }
+
+  function tapAt(point: Point) {
+    const target = getElementAt(point);
+    if (!target || !getCard()?.contains(target)) {
+      globe.tap(point, 'touch');
+      return;
+    }
+    for (const type of ['pointerdown', 'pointerup']) {
+      target.dispatchEvent(new PointerEvent(type, { bubbles: true, pointerType: 'touch' }));
+    }
+    clickAfterTap(point);
+  }
+
+  return { ...globe, getCard, pin, getRelativeRect, getElementAt, clickAt, clickAfterTap, tapAt };
+}
+
+describe('globe pinned card on touch', () => {
+  beforeEach(async () => {
+    await setViewport(PHONE.width, PHONE.height);
+  });
+
+  afterEach(async () => {
+    setHomeSheetOpen(false);
+    playbackClock.setRange(null);
+    vi.restoreAllMocks();
+    await setViewport(WIDTH, HEIGHT);
+  });
+
+  it('pins a 270 px card below a quake above the globe centre without opening it', async () => {
+    const globe = await renderPinGlobe();
+
+    const { card, point } = await globe.pin('emsc:test_0');
+
+    expect(point.y).toBeLessThan(PHONE_FRAME.cy);
+    const rect = globe.getRelativeRect(card);
+    expect(rect.left).toBeCloseTo(point.x - 135, 1);
+    expect(rect.top).toBeCloseTo(point.y + 22, 1);
+    expect(rect.width).toBe(270);
+    await expect.element(globe.screen.getByRole('button', { name: 'Open details' })).toBeVisible();
+    expect(getQuakeSearch(globe.router)).toBeUndefined();
+  });
+
+  it('pins the card above a quake below the globe centre', async () => {
+    const globe = await renderPinGlobe();
+
+    const { card, point } = await globe.pin('emsc:test_1');
+
+    expect(point.y).toBeGreaterThan(PHONE_FRAME.cy);
+    expect(globe.getRelativeRect(card).top).toBeCloseTo(point.y - 214, 1);
+  });
+
+  it('keeps the card 12 px inside both edges', async () => {
+    const globe = await renderPinGlobe();
+
+    const west = await globe.pin('emsc:test_2');
+    expect(west.point.x - 135).toBeLessThan(12);
+    expect(globe.getRelativeRect(west.card).left).toBe(12);
+    const east = await globe.pin('emsc:test_3');
+    expect(east.point.x - 135).toBeGreaterThan(PHONE.width - 282);
+    expect(globe.getRelativeRect(east.card).left).toBe(PHONE.width - 282);
+  });
+
+  it('opens the detail on a second tap on the pinned quake', async () => {
+    const globe = await renderPinGlobe();
+
+    const { point } = await globe.pin('emsc:test_0');
+    globe.tap(point, 'touch');
+    await expect.poll(() => getQuakeSearch(globe.router)).toBe('emsc:test_0');
+  });
+
+  it('opens the detail from Open details', async () => {
+    const globe = await renderPinGlobe();
+
+    await globe.pin('emsc:test_1');
+    (globe.screen.getByRole('button', { name: 'Open details' }).element() as HTMLElement).click();
+    await expect.poll(() => getQuakeSearch(globe.router)).toBe('emsc:test_1');
+    await expect.poll(globe.getCard).toBeNull();
+  });
+
+  it('opens the detail from anywhere on the card through its one Open details button', async () => {
+    const globe = await renderPinGlobe();
+
+    const { card } = await globe.pin('emsc:test_0');
+    const rect = globe.getRelativeRect(card);
+    expect(card.querySelectorAll('button, a, [tabindex]')).toHaveLength(1);
+    const target = globe.clickAt({ x: rect.left + 20, y: rect.top + 20 });
+
+    expect(target.textContent).toContain('Open details');
+    await expect.poll(() => getQuakeSearch(globe.router)).toBe('emsc:test_0');
+  });
+
+  it('moves the pin to another tapped quake and clears it on a tap on the empty globe', async () => {
+    const globe = await renderPinGlobe();
+
+    await globe.pin('emsc:test_0');
+    const { card } = await globe.pin('emsc:test_1');
+    expect(card.textContent).toContain('M4.3');
+    globe.tap({ x: 20, y: 20 }, 'touch');
+    await expect.poll(globe.getCard).toBeNull();
+    expect(getQuakeSearch(globe.router)).toBeUndefined();
+  });
+
+  it('clears the pin on a drag and when the home sheet opens', async () => {
+    const globe = await renderPinGlobe();
+
+    const { point } = await globe.pin('emsc:test_0');
+    const dragged = { x: point.x + 40, y: point.y };
+    globe.pointer('pointerdown', point, 'touch');
+    globe.pointer('pointermove', dragged, 'touch');
+    await expect.poll(globe.getCard).toBeNull();
+    globe.pointer('pointerup', dragged, 'touch');
+    await globe.pin('emsc:test_1');
+    setHomeSheetOpen(true);
+    await expect.poll(globe.getCard).toBeNull();
+  });
+
+  it('clears the pin when a noteworthy Earthquake arrives, not for a small one', async () => {
+    const quakes = [...PIN_QUAKES];
+    const globe = await renderPinGlobe(quakes);
+
+    await globe.pin('emsc:test_0');
+    quakes.push({ ...COMPACT_M4, lat: VIEW_LAT - 50, depth: 300, mag: 2 });
+    await globe.queryClient.refetchQueries();
+    await waitFrames(3);
+    expect(globe.getCard()).not.toBeNull();
+    quakes.push({ ...COMPACT_M4, lat: VIEW_LAT - 50, mag: 5 });
+    await globe.queryClient.refetchQueries();
+
+    await expect.poll(globe.getCard).toBeNull();
+  });
+
+  it('clears the pin when playback starts', async () => {
+    const globe = await renderPinGlobe();
+
+    await globe.pin('emsc:test_0');
+    const end = Date.now();
+    playbackClock.setRange({ start: end - 86_400_000, end });
+    playbackClock.play();
+
+    await expect.poll(globe.getCard).toBeNull();
+  });
+
+  it('still opens the detail at once on a mouse click', async () => {
+    const globe = await renderPinGlobe();
+
+    globe.tap(globe.getLivePoint('emsc:test_0'), 'mouse');
+    await expect.poll(() => getQuakeSearch(globe.router)).toBe('emsc:test_0');
+  });
+});
+
+function getPinBand(size: { width: number; height: number }) {
+  const layout = getPhoneLayout(size.width, size.height);
+  return {
+    top: layout.headerBottom + CARD_CHROME_GAP_PX,
+    bottom: layout.homeSheetTop - CARD_CHROME_GAP_PX,
+  };
+}
+
+const SHORT_PHONES = [
+  { width: 320, height: 640 },
+  { width: 360, height: 740 },
+] as const;
+const NEAR_CENTRE_CASES = SHORT_PHONES.flatMap((size) => [
+  { ...size, where: 'just above', key: 'emsc:test_0' },
+  { ...size, where: 'just below', key: 'emsc:test_1' },
+]);
+
+describe('globe pinned card on short phones', () => {
+  afterEach(async () => {
+    vi.restoreAllMocks();
+    await setViewport(WIDTH, HEIGHT);
+  });
+
+  it.each(NEAR_CENTRE_CASES)(
+    'puts the card flush on the roomier side for a quake $where the centre at $width×$height and opens it from a tap on the quake, card or not',
+    async ({ key, width, height }) => {
+      const size = { width, height };
+      await setViewport(width, height);
+      const band = getPinBand(size);
+      const globe = await renderPinGlobe(NEAR_CENTRE_QUAKES, size);
+
+      const { card, point } = await globe.pin(key);
+      const rect = globe.getRelativeRect(card);
+
+      expect(Math.abs(point.y - getGlobeFrame(size.width, size.height).cy)).toBeLessThan(3);
+      expect(rect.top).toBeGreaterThanOrEqual(band.top - 0.5);
+      expect(rect.bottom).toBeLessThanOrEqual(band.bottom + 0.5);
+      const edge = band.bottom - point.y >= point.y - band.top ? 'bottom' : 'top';
+      expect(Math.abs(rect[edge] - band[edge])).toBeLessThan(0.5);
+      globe.tapAt(point);
+      await expect.poll(() => getQuakeSearch(globe.router)).toBe(key);
+    },
+  );
+
+  it('ignores the click a pinning tap sends to the card that now covers the quake', async () => {
+    const size = { width: 320, height: 640 };
+    await setViewport(size.width, size.height);
+    const globe = await renderPinGlobe(NEAR_CENTRE_QUAKES, size);
+
+    const { card, point } = await globe.pin('emsc:test_0');
+    expect(card.contains(globe.getElementAt(point))).toBe(true);
+    globe.clickAfterTap(point);
+    await waitFrames(3);
+
+    expect(getQuakeSearch(globe.router)).toBeUndefined();
+    expect(globe.getCard()).toBe(card);
+  });
+
+  it.each([
+    ['above', 'emsc:test_0'],
+    ['below', 'emsc:test_1'],
+  ])(
+    'clears a quake well %s the centre by 12 px at 360×740 and opens it on a second tap',
+    async (_, key) => {
+      const size = { width: 360, height: 740 };
+      await setViewport(size.width, size.height);
+      const band = getPinBand(size);
+      const globe = await renderPinGlobe(PIN_QUAKES, size);
+
+      const { card, point } = await globe.pin(key);
+      const rect = globe.getRelativeRect(card);
+
+      expect(rect.top).toBeGreaterThanOrEqual(band.top - 0.5);
+      expect(rect.bottom).toBeLessThanOrEqual(band.bottom + 0.5);
+      expect(Math.max(rect.top - point.y, point.y - rect.bottom)).toBeGreaterThanOrEqual(
+        CARD_POINT_GAP_PX - 0.5,
+      );
+      globe.tap(point, 'touch');
+      await expect.poll(() => getQuakeSearch(globe.router)).toBe(key);
+    },
+  );
+});
+
+describe('globe fly-to requests', () => {
+  const DEEP_M4: TestQuake = { ...COMPACT_M4, depth: 500, mag: 4 };
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('selects a requested Earthquake like a tap: URL, then a fly to zoom 5 for the map', async () => {
+    const globe = await renderTooltipGlobe([TOOLTIP_M5, COMPACT_M4]);
+
+    const isHandled = requestGlobeSelect({
+      id: 'test_1',
+      source: 'emsc',
+      magnitude: COMPACT_M4.mag,
+      magnitudeType: null,
+      place: null,
+      time: Date.now(),
+      depthKm: COMPACT_M4.depth,
+      longitude: COMPACT_M4.lon,
+      latitude: COMPACT_M4.lat,
+      url: '',
+    });
+
+    expect(isHandled).toBe(true);
+    await expect.poll(() => getQuakeSearch(globe.router)).toBe('emsc:test_1');
+    await expect.poll(() => getGlobeView().zoom).toBe(ZOOM_RANGE[1]);
+    expect(getDistance(globe.getLivePoint('emsc:test_1'), CENTRE)).toBeLessThanOrEqual(1);
+  });
+
+  it('centres the requested Earthquake at a zoom that holds the drift and pulses it', async () => {
+    stubPreservedDrawingBuffer();
+    const globe = await renderTooltipGlobe([TOOLTIP_M5, DEEP_M4], { reducedMotion: false });
+    const clock = freezeClock();
+    clock.advance(IDLE_DELAY_MS * 2);
+    await waitFrames(2);
+
+    requestGlobeFlyTo({
+      id: 'test_1',
+      source: 'emsc',
+      magnitude: DEEP_M4.mag,
+      magnitudeType: null,
+      place: null,
+      time: Date.now(),
+      depthKm: DEEP_M4.depth,
+      longitude: DEEP_M4.lon,
+      latitude: DEEP_M4.lat,
+      url: '',
+    });
+    for (let elapsed = 0; elapsed <= FLY_DURATION_MS; elapsed += 200) {
+      await waitFrames(1);
+      clock.advance(200);
+    }
+    await waitFrames(2);
+    const landed = getGlobeView();
+    for (let i = 0; i < 5; i++) {
+      clock.advance(200);
+      await waitFrames(1);
+    }
+    const snapshot = getSnapshot(globe.getCanvas());
+    const held = getGlobeView();
+    clock.restore();
+
+    expect(getDistance(globe.getLivePoint('emsc:test_1'), CENTRE)).toBeLessThanOrEqual(1);
+    expect(held.zoom).toBeGreaterThanOrEqual(SELECT_MIN_ZOOM);
+    expect(held.lon).toBe(landed.lon);
+    const pink = getPixelsAround(CENTRE, (_, distance) => distance <= 2).filter((pixel) => {
+      const [r, g, b] = getRgb(snapshot, pixel);
+      return r > 180 && g < 150 && b > g;
+    });
+    expect(pink.length).toBeGreaterThan(5);
+    expect(getQuakeSearch(globe.router)).toBeUndefined();
+  });
+});
 
 describe('globe quake tooltip', () => {
   afterEach(() => {
@@ -2067,7 +2456,31 @@ describe('globe controls', () => {
     pointer('pointermove', 102, { y: 121 });
     pointer('pointerup', 102, { y: 121 });
     expect(onTap).toHaveBeenCalledTimes(1);
-    expect(onTap).toHaveBeenCalledWith({ x: 102 - rect.left, y: 121 - rect.top });
+    expect(onTap).toHaveBeenCalledWith({ x: 102 - rect.left, y: 121 - rect.top }, 'mouse');
+  });
+
+  it('reports the pointer type of a touch or pen tap', async () => {
+    const onTap = vi.fn<NonNullable<GlobeControlsOptions['onTap']>>();
+    const { pointer } = await renderControls({ onTap });
+
+    pointer('pointerdown', 100, { pointerType: 'touch' });
+    pointer('pointerup', 100, { pointerType: 'touch' });
+    pointer('pointerdown', 100, { pointerType: 'pen' });
+    pointer('pointerup', 100, { pointerType: 'pen' });
+    expect(onTap.mock.calls.map(([, pointerType]) => pointerType)).toEqual(['touch', 'pen']);
+  });
+
+  it('reports a drag once when it passes the 4 px threshold', async () => {
+    const onDragStart = vi.fn<() => void>();
+    const { pointer } = await renderControls({ onDragStart });
+
+    pointer('pointerdown', 100);
+    pointer('pointermove', 103);
+    expect(onDragStart).not.toHaveBeenCalled();
+    pointer('pointermove', 104);
+    pointer('pointermove', 140);
+    pointer('pointerup', 140);
+    expect(onDragStart).toHaveBeenCalledTimes(1);
   });
 
   it('does not report a tap after a drag, a secondary button or a pinch', async () => {

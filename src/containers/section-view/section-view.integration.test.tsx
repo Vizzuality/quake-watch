@@ -9,7 +9,7 @@ import {
   createRouter,
   getRouteApi,
 } from '@tanstack/react-router';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-react';
 import { userEvent } from 'vitest/browser';
 
@@ -18,9 +18,10 @@ import { CRUST_CELL_COUNT, getCrustLayersBuffer } from '@/lib/section/crust-laye
 import { getSlabGridsBuffer } from '@/lib/section/slab-depth';
 import { TERRARIUM_TILE_URL, TILE_SIZE } from '@/lib/section/terrarium';
 import { getEmscFeature, getFeatureCollection } from '@/test/fixtures/earthquakes';
+import { setViewport } from '@/test/set-viewport';
 import { stubFetch } from '@/test/stub-fetch';
 
-import SectionView from './section-view';
+import SectionView, { SectionNote } from './section-view';
 import { ViewToggle } from './view-toggle';
 
 const QUAKE = 'emsc:20261029_0000123';
@@ -57,11 +58,50 @@ async function getSeaFloorTile(): Promise<Blob> {
 function DetailHarness() {
   const { view } = homeRoute.useSearch();
   return (
-    <main className="relative h-dvh">
-      <ViewToggle />
-      {view === 'section' && <SectionView quake={QUAKE} />}
-    </main>
+    <>
+      <main className="relative h-dvh">
+        <div className="relative z-10">
+          <ViewToggle />
+        </div>
+        {view === 'section' && <SectionView quake={QUAKE} />}
+      </main>
+      <aside>{view === 'section' && <SectionNote quake={QUAKE} />}</aside>
+    </>
   );
+}
+
+type Rect = { left: number; right: number; top: number; bottom: number };
+
+function isOverlapping(a: Rect, b: Rect): boolean {
+  return a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom;
+}
+
+function getRect(element: Element): Rect {
+  const { left, right, top, bottom } = element.getBoundingClientRect();
+  return { left, right, top, bottom };
+}
+
+function getLabelRects(): { text: string; rect: Rect; fontPx: number }[] {
+  const figure = document.querySelector('[data-testid="section-figure"]');
+  const svg = figure as SVGSVGElement;
+  const pxPerUnit = svg.getBoundingClientRect().width / svg.viewBox.baseVal.width;
+  return Array.from(figure?.querySelectorAll('text:not([data-halo])') ?? []).map((text) => ({
+    text: text.textContent ?? '',
+    rect: getRect(text),
+    fontPx: Number.parseFloat(getComputedStyle(text).fontSize) * pxPerUnit,
+  }));
+}
+
+async function waitForPhoneFigure() {
+  await expect
+    .poll(() => {
+      const figure = document.querySelector('[data-testid="section-figure"]');
+      const isDesktop = figure?.getAttribute('viewBox') === '480 200 960 530';
+      return (
+        figure !== null && !isDesktop && !figure.querySelector('[data-testid="section-legend"]')
+      );
+    })
+    .toBe(true);
 }
 
 async function renderSection(initialEntry: string, { tilesFail = false } = {}) {
@@ -146,11 +186,17 @@ describe('section view', () => {
 
     await expect.element(screen.getByTestId('section-figure')).toBeInTheDocument();
     await expect
-      .element(screen.getByText(/top of the sinking plate from USGS Slab2, earthquakes from EMSC/))
+      .element(
+        screen
+          .getByTestId('section-view')
+          .getByText(/top of the sinking plate from USGS Slab2, earthquakes from EMSC/),
+      )
       .toBeVisible();
-    await expect.element(screen.getByText('M6.2 · 143 KM')).toBeInTheDocument();
+    await expect.element(screen.getByText('M6.2 · 143 KM').last()).toBeInTheDocument();
     await expect.element(screen.getByText('TOP OF THE SINKING PLATE').first()).toBeInTheDocument();
-    await expect.element(screen.getByText('LAYERS · CRUST1.0')).toBeInTheDocument();
+    await expect
+      .element(screen.getByTestId('section-view').getByText('LAYERS · CRUST1.0'))
+      .toBeInTheDocument();
     expect(screen.getByTestId('section-other').elements()).toHaveLength(1);
     await expect
       .element(
@@ -175,5 +221,132 @@ describe('section view', () => {
 
     await expect.poll(() => fetchMock.mock.calls.length).toBeGreaterThan(callsBefore);
     expect(screen.getByTestId('section-figure').query()).toBeNull();
+  });
+
+  describe('on phones', () => {
+    afterEach(async () => {
+      await setViewport(1280, 800);
+    });
+
+    it.each([
+      [390, 844, 558],
+      [320, 640, 354],
+    ])(
+      'fills the band under the action row and above the collapsed sheet at %ix%i',
+      async (width, height, bandBottom) => {
+        await setViewport(width, height);
+        const { screen } = await renderSection(`/?quake=${QUAKE}&view=section`);
+        const figure = screen.getByRole('figure');
+
+        await waitForPhoneFigure();
+        const rect = getRect(figure.element());
+
+        expect(rect.top).toBeCloseTo(136, 0);
+        expect(rect.bottom).toBeCloseTo(bandBottom, 0);
+        expect(rect.left).toBeCloseTo(16, 0);
+        expect(rect.right).toBeCloseTo(width - 16, 0);
+        expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(width);
+      },
+    );
+
+    it.each([
+      [390, 844],
+      [320, 640],
+    ])(
+      'keeps every label at 10 px or more, inside the figure and clear of the others at %ix%i',
+      async (width, height) => {
+        await setViewport(width, height);
+        const { screen } = await renderSection(`/?quake=${QUAKE}&view=section`);
+
+        await waitForPhoneFigure();
+        await expect.element(screen.getByText('M6.2 · 143 KM').last()).toBeVisible();
+        await expect.element(screen.getByText('SEA LEVEL').last()).toBeVisible();
+        await expect
+          .element(
+            screen.getByTestId('section-figure').getByText('TOP OF THE SINKING PLATE').last(),
+          )
+          .toBeVisible();
+        await expect.poll(() => getLabelRects().length).toBeGreaterThan(4);
+        const figure = getRect(screen.getByTestId('section-figure').element());
+        const labels = getLabelRects();
+
+        const small = labels.filter(({ fontPx }) => fontPx < 10 - 0.01).map(({ text }) => text);
+        const clipped = labels
+          .filter(
+            ({ rect }) =>
+              rect.left < figure.left - 0.5 ||
+              rect.right > figure.right + 0.5 ||
+              rect.top < figure.top - 0.5 ||
+              rect.bottom > figure.bottom + 0.5,
+          )
+          .map(({ text }) => text);
+        const overlaps = labels.flatMap((a, index) =>
+          labels
+            .slice(index + 1)
+            .filter((b) => isOverlapping(a.rect, b.rect))
+            .map((b) => `${a.text} / ${b.text}`),
+        );
+
+        expect(small).toEqual([]);
+        expect(clipped).toEqual([]);
+        expect(overlaps).toEqual([]);
+      },
+    );
+
+    it('moves the heading, sources and legend into the detail sheet', async () => {
+      await setViewport(390, 844);
+      const { screen } = await renderSection(`/?quake=${QUAKE}&view=section`);
+      const note = screen.getByTestId('section-note');
+
+      await waitForPhoneFigure();
+
+      await expect
+        .element(note.getByRole('heading', { name: "What's under this earthquake" }))
+        .toBeInTheDocument();
+      await expect
+        .element(note.getByText(/the top of the sinking plate from USGS Slab2/))
+        .toBeInTheDocument();
+      await expect.element(note.getByText('LAYERS · CRUST1.0')).toBeInTheDocument();
+      await expect.element(note.getByText('MIDDLE CRUST')).toBeInTheDocument();
+      expect(screen.getByTestId('section-legend').query()).toBeNull();
+    });
+
+    it('switches Map → Section → Map from the toggle', async () => {
+      await setViewport(390, 844);
+      const { screen, router } = await renderSection(`/?quake=${QUAKE}`);
+
+      await screen.getByText('Section', { exact: true }).click();
+
+      await waitForPhoneFigure();
+      expect(router.state.location.search).toMatchObject({ view: 'section' });
+
+      await screen.getByText('Map', { exact: true }).click();
+
+      expect(screen.getByTestId('section-view').query()).toBeNull();
+      expect(router.state.location.search).not.toHaveProperty('view');
+    });
+
+    it('shows the error and its retry inside the band', async () => {
+      await setViewport(320, 640);
+      const { screen } = await renderSection(`/?quake=${QUAKE}&view=section`, {
+        tilesFail: true,
+      });
+      const alert = screen.getByRole('alert');
+
+      await expect.element(alert.getByText(/^The slice couldn't load\./)).toBeVisible();
+      const rect = getRect(alert.element());
+      const button = screen.getByRole('button', { name: 'Try again' }).element();
+      const retry = getRect(button);
+      const centreX = (retry.left + retry.right) / 2;
+      const centreY = (retry.top + retry.bottom) / 2;
+
+      expect(rect.top).toBeGreaterThanOrEqual(136 - 0.5);
+      expect(rect.bottom).toBeLessThanOrEqual(354 + 0.5);
+      expect(retry.left).toBeGreaterThanOrEqual(16);
+      expect(retry.right).toBeLessThanOrEqual(304);
+      expect(retry.bottom - retry.top).toBeGreaterThanOrEqual(34);
+      expect(document.elementFromPoint(centreX, centreY - 21.5)).toBe(button);
+      expect(document.elementFromPoint(centreX, centreY + 21.5)).toBe(button);
+    });
   });
 });

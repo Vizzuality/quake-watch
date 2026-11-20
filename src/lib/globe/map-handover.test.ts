@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   getMapFade,
-  getMapPaddingTop,
+  getMapVerticalPadding,
   getMapZoom,
   getMapZoomFromUrl,
   getUrlZoom,
@@ -36,9 +36,13 @@ describe('URL zoom', () => {
   });
 });
 
-describe('getMapPaddingTop', () => {
-  it('moves the map centre onto the globe centre', () => {
-    expect(getMapPaddingTop(900, 462)).toBe(24);
+describe('getMapVerticalPadding', () => {
+  it('pads the top when the globe sits below the middle', () => {
+    expect(getMapVerticalPadding(900, 462)).toEqual({ top: 24, bottom: 0 });
+  });
+
+  it('pads the bottom when the globe sits above the middle', () => {
+    expect(getMapVerticalPadding(844, 330)).toEqual({ top: 0, bottom: 184 });
   });
 });
 

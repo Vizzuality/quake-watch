@@ -8,6 +8,7 @@ import {
   getKmLabel,
   getLocalDateTimeLabel,
   getScientificLabel,
+  getShortElapsedLabel,
   getTimeLabel,
 } from './format';
 
@@ -78,5 +79,14 @@ describe('getDegreesLabel and getSecondsLabel', () => {
     expect(getDegreesLabel(45, 'es')).toBe('45°');
     expect(getSecondsLabel(0.84, 'en')).toBe('0.84s');
     expect(getSecondsLabel(0.84, 'es')).toBe('0,84s');
+  });
+});
+
+describe('getShortElapsedLabel', () => {
+  it('counts seconds under a minute and minutes after', () => {
+    expect(getShortElapsedLabel(400, 'en')).toBe('now');
+    expect(getShortElapsedLabel(2_400, 'en')).toBe('2 sec. ago');
+    expect(getShortElapsedLabel(59_000, 'es')).toBe('hace 59 s');
+    expect(getShortElapsedLabel(180_000, 'pt')).toBe('há 3 min');
   });
 });
