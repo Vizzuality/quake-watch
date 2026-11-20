@@ -31,3 +31,45 @@ describe('legacy redirects', () => {
     expect(location).toBe(expected);
   });
 });
+
+describe('canonical redirects', () => {
+  it.each([
+    ['/en/', '/en'],
+    ['/es/?quake=emsc:1', '/es?quake=emsc:1'],
+  ])('%s → 308 %s', async (pathname, expected) => {
+    if (!server) throw new Error('Smoke server did not start');
+    const response = await fetch(`${server.origin}${pathname}`, { redirect: 'manual' });
+    expect(response.status).toBe(308);
+    expect(response.headers.get('location')).toBe(expected);
+  });
+
+  it.each<Record<string, string>>([{}, { 'sec-fetch-dest': 'document' }])(
+    'negotiates / into a 307 that varies on language and cookie with %o',
+    async (headers) => {
+      if (!server) throw new Error('Smoke server did not start');
+      const response = await fetch(`${server.origin}/`, {
+        redirect: 'manual',
+        headers: { 'accept-language': 'es', ...headers },
+      });
+      expect(response.status).toBe(307);
+      expect(response.headers.get('location')).toBe('/es');
+      expect(response.headers.get('vary')).toBe('Accept-Language, Cookie');
+    },
+  );
+});
+
+describe('icons and manifest', () => {
+  it.each([
+    ['/favicon.ico', 'image/vnd.microsoft.icon'],
+    ['/icon.svg', 'image/svg+xml'],
+    ['/apple-touch-icon.png', 'image/png'],
+    ['/icon-192.png', 'image/png'],
+    ['/icon-512.png', 'image/png'],
+    ['/site.webmanifest', 'application/manifest+json'],
+  ])('serves %s as %s without a redirect', async (pathname, contentType) => {
+    if (!server) throw new Error('Smoke server did not start');
+    const response = await fetch(`${server.origin}${pathname}`, { redirect: 'manual' });
+    expect(response.status).toBe(200);
+    expect(response.headers.get('content-type')).toContain(contentType);
+  });
+});
