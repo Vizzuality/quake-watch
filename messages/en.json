@@ -226,5 +226,7 @@
   "details_more": "More details",
   "details_less": "Less",
   "details_replay_short": "Replay",
-  "map_likely_felt_short": "~{distance}"
+  "map_likely_felt_short": "~{distance}",
+  "skip_to_summary": "Skip to summary",
+  "skip_to_details": "Skip to earthquake details"
 }
