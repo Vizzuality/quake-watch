@@ -267,7 +267,7 @@ export function PlaceSearch() {
           />
         </div>
       )}
-      <div className="flex items-center gap-7 border-b border-muted md:gap-2.5 md:pb-2.5">
+      <div className="flex items-center gap-7 border-b border-muted has-[input:focus-visible]:border-accent has-[input:focus-visible]:shadow-[0_1px_0_var(--color-accent)] md:gap-2.5 md:pb-2.5">
         <div className="relative flex min-w-0 flex-1">
           <input
             ref={inputRef}
@@ -307,7 +307,7 @@ export function PlaceSearch() {
             type="button"
             aria-label={m.search_clear({}, { locale })}
             onClick={handleClearClick}
-            className="-mx-3.5 flex size-11 shrink-0 cursor-pointer items-center justify-center text-muted hover:text-foreground focus-visible:text-foreground focus-visible:outline-1 focus-visible:outline-offset-2 focus-visible:outline-foreground md:mx-0 md:size-4"
+            className="-mx-3.5 flex size-11 shrink-0 cursor-pointer items-center justify-center text-muted hover:text-foreground focus-visible:text-foreground md:-m-1 md:size-6"
           >
             <ClearIcon />
           </button>
@@ -317,7 +317,7 @@ export function PlaceSearch() {
           aria-label={m.search_locate({}, { locale })}
           aria-busy={isLocating}
           onClick={handleLocateClick}
-          className="-mx-3.5 flex size-11 shrink-0 cursor-pointer items-center justify-center text-foreground hover:text-accent focus-visible:outline-1 focus-visible:outline-offset-2 focus-visible:outline-foreground aria-busy:animate-pulse motion-reduce:aria-busy:animate-none md:mx-0 md:size-4"
+          className="-mx-3.5 flex size-11 shrink-0 cursor-pointer items-center justify-center text-foreground hover:text-accent aria-busy:animate-pulse motion-reduce:aria-busy:animate-none md:-m-1 md:size-6"
         >
           <GpsFixIcon />
         </button>

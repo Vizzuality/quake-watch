@@ -89,7 +89,7 @@ export function InfoLabel({ label, info, labelId, className }: InfoLabelProps) {
         onPointerLeave={() => setIsHovered(false)}
         onFocus={handleFocus}
         onBlur={() => setIsFocused(false)}
-        className="pointer-events-auto -m-3.5 flex size-11 shrink-0 cursor-help items-center justify-center rounded-full md:m-0 md:size-4"
+        className="pointer-events-auto -m-3.5 flex size-11 shrink-0 cursor-help items-center justify-center rounded-full md:-m-1 md:size-6"
       >
         <InfoIcon isOpen={isOpen} />
       </button>

@@ -262,7 +262,6 @@ export function TimeRing({ opacity }: { opacity: number }) {
   return (
     <svg
       ref={svgRef}
-      role="presentation"
       className="pointer-events-none absolute inset-0 size-full overflow-visible"
       style={{ opacity }}
       aria-hidden={!isInteractive}
