@@ -14,6 +14,7 @@ import { cdp, userEvent } from 'vitest/browser';
 
 import { subscribeGlobeSelect } from '@/containers/globe/globe-select';
 import { HomeSheet } from '@/containers/home-sheet/home-sheet';
+import { setLiveUpdatesPaused } from '@/lib/earthquakes/live-updates';
 import { playbackClock } from '@/lib/earthquakes/playback-clock';
 import { EARTHQUAKE_SEARCH_ROUTE } from '@/lib/earthquakes/search-schema';
 import type { Earthquake } from '@/lib/earthquakes/types';
@@ -90,6 +91,7 @@ describe('home sheet on phones', () => {
 
   afterEach(async () => {
     setHomeSheetOpen(false);
+    setLiveUpdatesPaused(false);
     playbackClock.setRange(null);
     overwriteGetLocale(() => 'en');
     vi.useRealTimers();
@@ -114,6 +116,16 @@ describe('home sheet on phones', () => {
     expect(screen.getByRole('combobox', { name: 'Search a place' }).query()).toBeNull();
     expect(screen.getByRole('radiogroup', { name: 'Time' }).query()).toBeNull();
     expect(screen.getByRole('navigation', { name: 'Language' }).query()).toBeNull();
+  });
+
+  it('says the live row is paused while live updates are paused at 24h', async () => {
+    const { screen } = await renderHomeSheet('/?interval=24h');
+    await expect.element(screen.getByText('Live · now')).toBeVisible();
+
+    setLiveUpdatesPaused(true);
+
+    await expect.element(screen.getByText('Paused', { exact: true })).toBeVisible();
+    await expect.element(screen.getByText(/^Updated .+ ago · updates paused$/)).toBeVisible();
   });
 
   it('opens from Filters & search with search, filters, the depth legend and the language group', async () => {

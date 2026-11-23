@@ -15,6 +15,7 @@ import { cdp, userEvent } from 'vitest/browser';
 
 import EarthquakePanel from '@/containers/earthquake-panel/earthquake-panel';
 import { listenForTooltipEscape } from '@/containers/globe/use-hovered-quake';
+import { getIsWavePaused, setWavePaused } from '@/containers/globe/wave-pause';
 import { subscribeWaveReplay } from '@/containers/globe/wave-replay';
 import { EARTHQUAKE_SEARCH_ROUTE } from '@/lib/earthquakes/search-schema';
 import { getPhoneLayout } from '@/lib/layout/phone';
@@ -106,6 +107,10 @@ async function renderPanel(
 }
 
 describe('earthquake panel', () => {
+  afterEach(() => {
+    setWavePaused(null);
+  });
+
   it('opens an EMSC Earthquake from the URL and moves focus to its heading', async () => {
     const { screen } = await renderPanel(`/?quake=emsc:${EARLY_ID}`);
 
@@ -280,6 +285,35 @@ describe('earthquake panel', () => {
     unsubscribe();
   });
 
+  it('pauses and resumes the looping wave from a button beside Replay that keeps its choice across Earthquakes', async () => {
+    const { screen, router } = await renderPanel(`/?quake=emsc:${EARLY_ID}`);
+    const pause = screen.getByRole('button', { name: 'Pause wave', exact: true });
+    await expect.element(pause).toBeVisible();
+    const replay = getRect(screen.getByRole('button', { name: 'Replay wave' }).element());
+    const pauseRect = getRect(pause.element());
+    expect(pauseRect.left - replay.right).toBe(8);
+    expect(pauseRect).toMatchObject({ top: replay.top, height: replay.height });
+    expect(pauseRect.width).toBe(replay.height);
+
+    await pause.click();
+
+    expect(getIsWavePaused()).toBe(true);
+    const play = screen.getByRole('button', { name: 'Play wave', exact: true });
+    await expect.element(play).toBeVisible();
+
+    await screen.getByRole('button', { name: 'Next Earthquake' }).click();
+    await expect.poll(() => router.state.location.search.quake).toBe(`emsc:${LATE_ID}`);
+    await expect.element(play).toBeVisible();
+
+    play.element().focus();
+    await userEvent.keyboard(' ');
+
+    expect(getIsWavePaused()).toBe(false);
+    await expect
+      .element(screen.getByRole('button', { name: 'Pause wave', exact: true }))
+      .toHaveFocus();
+  });
+
   it('lists at most three related Earthquakes, always including the selected one', async () => {
     const { screen } = await renderPanel('/?quake=emsc:small', { list: SEQUENCE });
 
@@ -390,8 +424,23 @@ describe('earthquake panel on phones', () => {
   });
 
   afterEach(async () => {
+    setWavePaused(null);
     await cdp().send('Emulation.setEmulatedMedia', { features: [] });
     await setViewport(1280, 800);
+  });
+
+  it('starts the wave paused under reduced motion and still lets it play', async () => {
+    const { screen } = await renderPanel(`/?quake=emsc:${EARLY_ID}`);
+    const play = screen.getByRole('button', { name: 'Play wave', exact: true });
+    await expect.element(play).toBeVisible();
+    expect(getIsWavePaused()).toBe(true);
+
+    await play.click();
+
+    expect(getIsWavePaused()).toBe(false);
+    await expect
+      .element(screen.getByRole('button', { name: 'Pause wave', exact: true }))
+      .toBeVisible();
   });
 
   it('puts back, Event n / total and the arrows in a top bar and Replay and the view toggle under it', async () => {
@@ -409,20 +458,23 @@ describe('earthquake panel on phones', () => {
     expect(previous).toMatchObject({ left: 298, top: 50, width: 34, height: 34 });
     expect(next).toMatchObject({ left: 340, top: 50, width: 34, height: 34 });
     expect((caption.left + caption.right) / 2).toBeCloseTo((backRect.right + previous.left) / 2, 0);
+    const wave = getRect(screen.getByRole('button', { name: 'Play wave', exact: true }).element());
     expect(replay).toMatchObject({ left: 16, top: 96, height: 32 });
+    expect(wave).toMatchObject({ left: replay.right + 8, top: 96, width: 32, height: 32 });
     expect(toggle).toMatchObject({ right: 374, top: 96, height: 32 });
-    expect(replay.right).toBeLessThan(toggle.left);
+    expect(wave.right).toBeLessThan(toggle.left);
   });
 
   it('gives every top-bar and action-row control a 44 px hit area that does not overlap its neighbours', async () => {
     const { screen } = await renderPanel(`/?quake=emsc:${LATE_ID}`);
     await expect.element(screen.getByText('Event 2 / 2')).toBeVisible();
-    const [back, previous, next, replay] = [
+    const [back, previous, next, replay, wave] = [
       'Back to globe',
       'Previous Earthquake',
       'Next Earthquake',
       'Replay wave',
-    ].map((name) => getHitRect(screen.getByRole('button', { name }).element()));
+      'Play wave',
+    ].map((name) => getHitRect(screen.getByRole('button', { name, exact: true }).element()));
     const [map, section] = screen
       .getByTestId('view-toggle')
       .element()
@@ -431,7 +483,7 @@ describe('earthquake panel on phones', () => {
       .map(getHitRect)
       .toArray();
 
-    for (const hit of [back, previous, next, replay, map, section]) {
+    for (const hit of [back, previous, next, replay, wave, map, section]) {
       expect.soft(hit.width).toBeGreaterThanOrEqual(44);
       expect.soft(hit.height).toBeGreaterThanOrEqual(44);
     }
@@ -439,6 +491,8 @@ describe('earthquake panel on phones', () => {
     expect(back.bottom).toBeLessThanOrEqual(replay.top);
     expect(previous.bottom).toBeLessThanOrEqual(section.top);
     expect(map.right).toBeLessThanOrEqual(section.left);
+    expect(replay.right).toBeLessThanOrEqual(wave.left);
+    expect(wave.right).toBeLessThanOrEqual(map.left);
     expect(next.right).toBeLessThanOrEqual(390);
     expect(getHitButton(16 - 4.5, 67)).toBe(
       screen.getByRole('button', { name: 'Back to globe' }).element(),
@@ -450,15 +504,23 @@ describe('earthquake panel on phones', () => {
     const { screen } = await renderPanel(`/?quake=emsc:${EARLY_ID}`);
     await expect.element(screen.getByRole('button', { name: 'Replay wave' })).toBeVisible();
 
-    const replay = getRect(screen.getByRole('button', { name: 'Replay wave' }).element());
+    const wave = getHitRect(
+      screen.getByRole('button', { name: 'Play wave', exact: true }).element(),
+    );
     const toggle = getRect(screen.getByTestId('view-toggle').element());
-    for (const name of ['Back to globe', 'Previous Earthquake', 'Next Earthquake', 'Replay wave']) {
-      const rect = getRect(screen.getByRole('button', { name }).element());
+    for (const name of [
+      'Back to globe',
+      'Previous Earthquake',
+      'Next Earthquake',
+      'Replay wave',
+      'Play wave',
+    ]) {
+      const rect = getRect(screen.getByRole('button', { name, exact: true }).element());
       expect.soft(rect.left, name).toBeGreaterThanOrEqual(16);
       expect.soft(rect.right, name).toBeLessThanOrEqual(304);
     }
     expect(toggle.right).toBe(304);
-    expect(replay.right).toBeLessThan(toggle.left);
+    expect(wave.right).toBeLessThanOrEqual(toggle.left);
     expect(document.documentElement.scrollWidth).toBe(320);
   });
 

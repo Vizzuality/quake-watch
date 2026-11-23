@@ -1,5 +1,6 @@
 import { queryOptions } from '@tanstack/react-query';
 
+import { getIsLiveUpdatesPaused } from './live-updates';
 import { getEarthquakeFilters } from './search-schema';
 import type { EarthquakeFilters, EarthquakeSource, Interval } from './search-schema';
 import { emscAdapter } from './sources/emsc';
@@ -48,13 +49,22 @@ export function getEarthquakesStaleMs(interval: Interval): number {
   return interval === '24h' ? LIVE_STALE_MS : ARCHIVE_STALE_MS;
 }
 
+export function getEarthquakesRefetchMs(interval: Interval): number | false {
+  if (interval !== '24h' || getIsLiveUpdatesPaused()) return false;
+  return LIVE_REFETCH_MS;
+}
+
+export function getEarthquakesFreshMs(interval: Interval): number {
+  if (interval === '24h' && getIsLiveUpdatesPaused()) return Infinity;
+  return getEarthquakesStaleMs(interval);
+}
+
 export function earthquakesQueryOptions(search: EarthquakeFilters) {
   const filters = getEarthquakeFilters(search);
-  const isLive = filters.interval === '24h';
   return queryOptions({
     queryKey: getEarthquakesQueryKey(filters),
     queryFn: ({ signal }) => getEarthquakes(filters, signal),
-    refetchInterval: isLive ? LIVE_REFETCH_MS : false,
-    staleTime: getEarthquakesStaleMs(filters.interval),
+    refetchInterval: () => getEarthquakesRefetchMs(filters.interval),
+    staleTime: () => getEarthquakesFreshMs(filters.interval),
   });
 }
