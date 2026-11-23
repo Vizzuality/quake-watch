@@ -11,6 +11,7 @@ import {
 import { createRef, useImperativeHandle, useRef } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-react';
+import { userEvent } from 'vitest/browser';
 
 import Globe from '@/containers/globe/globe';
 import { requestGlobeFlyTo } from '@/containers/globe/globe-fly-to';
@@ -473,7 +474,7 @@ async function renderRings(
   stubReducedMotion(reducedMotion);
   stubPreservedDrawingBuffer();
   const globe = await renderGlobe({ 3: quakes }, { initialEntries: [path] });
-  const container = globe.screen.getByRole('img').element();
+  const container = globe.screen.getByRole('application').element();
   if (zoom > 1) {
     for (let i = 0; i < 20; i++) {
       container.dispatchEvent(
@@ -558,13 +559,53 @@ describe('globe', () => {
 
     await expect
       .element(
-        screen.getByRole('img', { name: 'Globe of Earthquakes. Drag to rotate, scroll to zoom.' }),
+        screen.getByRole('application', {
+          name: 'Globe of Earthquakes. Drag or use the arrow keys to rotate; scroll or press + and − to zoom.',
+        }),
       )
       .toBeVisible();
     await vi.waitFor(() => expect(screen.container.querySelector('canvas')).not.toBeNull());
     await waitFrames(10);
     expect(screen.container.querySelector('output')).toBeNull();
     expect(consoleError).not.toHaveBeenCalled();
+  });
+
+  it('takes keyboard focus with an inset 2 px ring and zooms from 44 px buttons in the page language', async () => {
+    overwriteGetLocale(() => 'es');
+    const { screen } = await renderGlobe();
+    const globe = screen.getByRole('application').element() as HTMLElement;
+
+    await userEvent.tab();
+    expect(document.activeElement).toBe(globe);
+    expect(globe.matches(':focus-visible')).toBe(true);
+    expect(getComputedStyle(globe).outlineWidth).toBe('2px');
+    expect(getComputedStyle(globe).outlineOffset).toBe('-2px');
+
+    await userEvent.keyboard('+');
+    expect(window.__globeView?.().zoom).toBeCloseTo(1.5, 6);
+
+    await expect.element(screen.getByRole('button', { name: 'Alejar' })).toBeVisible();
+    const zoomOut = screen.getByRole('button', { name: 'Alejar' }).element() as HTMLElement;
+    const hitArea = getComputedStyle(zoomOut, '::before');
+    expect(zoomOut.getBoundingClientRect().width).toBe(34);
+    expect(hitArea.top).toBe('-5px');
+    expect(hitArea.left).toBe('-5px');
+    zoomOut.click();
+    expect(window.__globeView?.().zoom).toBe(1);
+    (screen.getByRole('button', { name: 'Acercar' }).element() as HTMLElement).click();
+    expect(window.__globeView?.().zoom).toBeCloseTo(1.5, 6);
+  });
+
+  it('drops the globe and the zoom buttons from the Tab order under the section view', async () => {
+    const { screen } = await renderGlobe(
+      {},
+      { initialEntries: ['/?quake=emsc:test_0&view=section'] },
+    );
+    const globe = screen.getByRole('application', { includeHidden: true }).element();
+
+    await vi.waitFor(() => expect(globe.getAttribute('tabindex')).toBe('-1'));
+    expect(globe.getAttribute('aria-hidden')).toBe('true');
+    expect(screen.container.querySelector('fieldset')).toBeNull();
   });
 
   it('leaves the canvas transparent past the halo and paints the halo and dots', async () => {
@@ -989,7 +1030,7 @@ async function renderTooltipGlobe(
   stubReducedMotion(reducedMotion);
   const globe = await renderGlobe({ 0: quakes }, { initialEntries, size });
   await globe.settle();
-  const container = globe.screen.getByRole('img').element() as HTMLElement;
+  const container = globe.screen.getByRole('application').element() as HTMLElement;
   const rect = container.getBoundingClientRect();
 
   function pointer(type: string, { x, y }: Point, pointerType = '') {
@@ -1777,7 +1818,7 @@ describe('globe quake tooltip', () => {
 
   it('shows a pointer cursor over a quake and grab elsewhere', async () => {
     const globe = await renderTooltipGlobe([TOOLTIP_M5]);
-    const img = globe.screen.getByRole('img');
+    const img = globe.screen.getByRole('application');
 
     await expect.element(img).toHaveClass('cursor-grab');
     await globe.hover(getScreenPoint(TOOLTIP_M5.lat, TOOLTIP_M5.lon, 1));
@@ -1967,7 +2008,7 @@ describe('globe camera URL', () => {
     const globe = await renderGlobe({ 0: FRAME_QUAKES }, { responseGate });
     await vi.waitFor(globe.getCanvas);
     await waitFrames(5);
-    const container = globe.screen.getByRole('img').element() as HTMLElement;
+    const container = globe.screen.getByRole('application').element() as HTMLElement;
     const rect = container.getBoundingClientRect();
     for (const [type, dx] of [
       ['pointerdown', 0],
@@ -2301,6 +2342,37 @@ describe('globe controls', () => {
     const dragged = controls.viewRef.current;
     expect(dragged.lon).toBeCloseTo(INITIAL_VIEW.lon - 100 / RADIUS, 6);
     expect(step(60)).toEqual(dragged);
+  });
+
+  it('rotates 60 px with the arrow keys and zooms by 1.5 with + and −', async () => {
+    const onZoomPastMax = vi.fn<NonNullable<GlobeControlsOptions['onZoomPastMax']>>();
+    const { controls, target } = await renderControls({ onZoomPastMax });
+
+    function press(key: string, init: KeyboardEventInit = {}): KeyboardEvent {
+      const event = new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true, ...init });
+      target.dispatchEvent(event);
+      return event;
+    }
+
+    expect(press('ArrowLeft').defaultPrevented).toBe(true);
+    expect(controls.viewRef.current.lon).toBeCloseTo(INITIAL_VIEW.lon - 60 / RADIUS, 6);
+    press('ArrowUp');
+    expect(controls.viewRef.current.lat).toBeCloseTo(INITIAL_VIEW.lat + 60 / RADIUS, 6);
+    press('+');
+    expect(controls.viewRef.current.zoom).toBeCloseTo(1.5, 6);
+    press('-');
+    expect(controls.viewRef.current.zoom).toBeCloseTo(1, 6);
+
+    const before = controls.viewRef.current;
+    expect(press('ArrowRight', { ctrlKey: true }).defaultPrevented).toBe(false);
+    expect(press('a').defaultPrevented).toBe(false);
+    expect(controls.viewRef.current).toEqual(before);
+
+    for (let i = 0; i < 4; i++) press('=');
+    expect(controls.viewRef.current.zoom).toBe(ZOOM_RANGE[1]);
+    expect(onZoomPastMax).not.toHaveBeenCalled();
+    press('+');
+    expect(onZoomPastMax).toHaveBeenCalledOnce();
   });
 
   it('keeps spinning after a flick and stops within a second', async () => {

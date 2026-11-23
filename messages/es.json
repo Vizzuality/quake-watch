@@ -40,7 +40,7 @@
   "not_found_line": "Aquí no hay nada.",
   "error_line": "Algo ha ido mal.",
   "back_to_globe": "Volver al globo",
-  "globe_label": "Globo de terremotos. Arrastra para girar y desplázate para hacer zoom.",
+  "globe_label": "Globo de terremotos. Arrastra o usa las flechas para girar; desplázate o pulsa + y − para hacer zoom.",
   "globe_unavailable": "Tu navegador no puede dibujar el globo.",
   "tooltip_age_minutes": "hace {count} min",
   "tooltip_age_hours": "hace {count} h",
@@ -255,5 +255,11 @@
   "live_row_paused": "En pausa",
   "live_row_paused_checks": "actualizaciones en pausa",
   "skip_to_summary": "Saltar al resumen",
-  "skip_to_details": "Saltar a los detalles del terremoto"
+  "skip_to_details": "Saltar a los detalles del terremoto",
+  "globe_zoom_in": "Acercar",
+  "globe_zoom_out": "Alejar",
+  "globe_zoom_label": "Zoom",
+  "map_label": "Mapa de terremotos. Arrastra o usa las flechas para moverte; desplázate o pulsa + y − para hacer zoom.",
+  "map_toggle_attribution": "Mostrar u ocultar los créditos del mapa",
+  "map_feedback": "Comentarios sobre el mapa"
 }

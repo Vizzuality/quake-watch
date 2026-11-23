@@ -47,7 +47,7 @@ import { type GlobeWaves, createGlobeWaves } from './globe-waves';
 import type { MapCentre, MapHandover } from './maplibre-map';
 import { QuakeTooltip } from './quake-tooltip';
 import { SceneCanvas } from './scene-canvas';
-import { type HoverOptions, useGlobeControls } from './use-globe-controls';
+import { type HoverOptions, KEY_ZOOM_FACTOR, useGlobeControls } from './use-globe-controls';
 import {
   type HoveredQuake,
   type Point,
@@ -72,6 +72,7 @@ const homeRoute = getRouteApi('/');
 const GlobeMap = lazy(() => import('./maplibre-map'));
 // A rejected chunk must not reach SceneErrorBoundary, which would take the whole globe down.
 const GlobeLabels = lazy(() => import('./globe-labels').catch(() => ({ default: () => null })));
+const ZoomButtons = lazy(() => import('./zoom-buttons').catch(() => ({ default: () => null })));
 const CENTRE_TOLERANCE = 1e-4;
 
 function isWebGLAvailable(): boolean {
@@ -187,6 +188,8 @@ function GlobeCanvas() {
   const tooltipId = useId();
   const earthquakes = data?.earthquakes ?? EMPTY_EARTHQUAKES;
   const { quake, place } = search;
+  const isSectionShown = quake !== undefined && search.view === 'section';
+  const isGlobeHidden = isMapActive || isSectionShown;
   const selectedEarthquake = useMemo(
     () => getSelectedEarthquake(earthquakes, quake),
     [earthquakes, quake],
@@ -267,7 +270,15 @@ function GlobeCanvas() {
     hideHover();
     unpin();
     setIsMapActive(true);
+    if (document.activeElement === containerRef.current) {
+      mapLayerRef.current?.querySelector<HTMLElement>('.maplibregl-canvas')?.focus();
+    }
     return true;
+  }
+
+  function handleZoomButton(direction: 1 | -1) {
+    if (isMapActive) mapHandoverRef.current?.zoom(direction);
+    else controls.zoomBy(KEY_ZOOM_FACTOR ** direction);
   }
 
   function dropPendingQuake(view: GlobeView) {
@@ -294,11 +305,12 @@ function GlobeCanvas() {
     else if (!controls.isAnimating()) focusPendingQuake(controls.viewRef.current);
   }
 
-  function handleMapExit(centre: MapCentre) {
+  function handleMapExit(centre: MapCentre, hadFocus: boolean) {
     const view = getSearchView(centre.lat, centre.lon, ZOOM_RANGE[1]);
     controls.jumpTo(view);
     setCamera(getViewCamera(view));
     setIsMapActive(false);
+    if (hadFocus) containerRef.current?.focus();
   }
 
   useArrivals((arrived) => {
@@ -462,12 +474,12 @@ function GlobeCanvas() {
     <div className="absolute inset-0">
       <div
         ref={containerRef}
-        // oxlint-disable-next-line jsx-a11y/prefer-tag-over-role -- an <img> element cannot host the WebGL canvas
-        role="img"
+        role="application"
+        tabIndex={isGlobeHidden ? -1 : 0}
         aria-label={m.globe_label()}
-        aria-hidden={isMapActive}
+        aria-hidden={isGlobeHidden}
         aria-describedby={card ? tooltipId : undefined}
-        className={`absolute inset-0 touch-none select-none ${getCursorClassName(isOverQuake)}`}
+        className={`absolute inset-0 touch-none select-none focus-visible:-outline-offset-2 ${getCursorClassName(isOverQuake)}`}
       >
         <SceneCanvas>
           <GlobeScene
@@ -501,6 +513,11 @@ function GlobeCanvas() {
             </Suspense>
           </GlobeErrorBoundary>
         </div>
+      )}
+      {!isSectionShown && (
+        <Suspense fallback={null}>
+          <ZoomButtons isDetail={quake !== undefined} onZoom={handleZoomButton} />
+        </Suspense>
       )}
       {card && (
         <QuakeTooltip

@@ -9,6 +9,8 @@ import {
   getPhoneFeltLabelPlacement,
   getPhoneStripLabelLeft,
   getPhoneTickLabelsShown,
+  getPhoneZoomButtonsRight,
+  getPhoneZoomButtonsTop,
 } from './phone-detail';
 
 const MINI_GLOBE_BOX_PX = 100;
@@ -38,6 +40,51 @@ describe('getPhoneDetailOverlay', () => {
     expect(centreX + radius).toBeLessThanOrEqual(320 - 12);
     expect(overlay.stripTop + STRIP_HEIGHT_PX).toBeLessThan(layout.detailSheetTop);
     expect(overlay.scaleBarTop).toBeGreaterThan(centreY + radius);
+  });
+});
+
+describe('getPhoneZoomButtonsTop', () => {
+  it('sits 12 px under the header on the overview, portrait and side', () => {
+    expect(getPhoneZoomButtonsTop(getPhoneLayout(390, 844), false)).toBe(102);
+    expect(getPhoneZoomButtonsTop(getPhoneLayout(320, 640), false)).toBe(102);
+    expect(getPhoneZoomButtonsTop(getPhoneLayout(844, 390), false)).toBe(64);
+  });
+
+  it('centres the detail row on the mini-globe', () => {
+    for (const [width, height] of [
+      [390, 844],
+      [360, 740],
+      [320, 640],
+      [844, 390],
+    ]) {
+      const layout = getPhoneLayout(width, height);
+      const { miniGlobe } = getPhoneDetailOverlay(layout);
+      const miniGlobeCentre = miniGlobe.top + MINI_GLOBE_BOX_PX / 2;
+
+      expect(getPhoneZoomButtonsTop(layout, true) + 17).toBeCloseTo(miniGlobeCentre, 6);
+    }
+  });
+});
+
+describe('getPhoneZoomButtonsRight', () => {
+  it('sits 16 px from the map edge on the overview, left of the side sheet on short landscape screens', () => {
+    expect(getPhoneZoomButtonsRight(getPhoneLayout(390, 844), false)).toBe(16);
+    expect(getPhoneZoomButtonsRight(getPhoneLayout(844, 390), false)).toBe(336);
+  });
+
+  it('leaves 12 px between the detail row and the mini-globe', () => {
+    for (const [width, height] of [
+      [390, 844],
+      [320, 640],
+      [844, 390],
+    ]) {
+      const layout = getPhoneLayout(width, height);
+      const { miniGlobe } = getPhoneDetailOverlay(layout);
+      const miniGlobeLeft = miniGlobe.right + MINI_GLOBE_BOX_PX / 2 + miniGlobe.scale * 46;
+      const sheet = layout.isSide ? 320 : 0;
+
+      expect(getPhoneZoomButtonsRight(layout, true) - sheet).toBeCloseTo(miniGlobeLeft + 12, 6);
+    }
   });
 });
 
