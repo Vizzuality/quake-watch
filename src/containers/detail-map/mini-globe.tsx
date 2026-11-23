@@ -76,7 +76,7 @@ export function MiniGlobe({ latitude, longitude, rectRef }: MiniGlobeProps) {
   return (
     <div
       data-testid="mini-globe"
-      className="pointer-events-none absolute top-(--mini-globe-top) right-(--mini-globe-right) scale-(--mini-globe-scale) md:top-auto md:right-[54px] md:bottom-[302px] md:scale-none"
+      className="pointer-events-none absolute top-(--mini-globe-top) right-(--mini-globe-right) scale-(--mini-globe-scale) md:top-auto md:right-[54px] md:bottom-[302px] md:scale-none short:right-[calc(var(--mini-globe-right)+320px)]"
       style={{ width: SIZE_PX, height: SIZE_PX, ...getPhoneDetailOverlayStyle(layout) }}
       aria-hidden="true"
     >

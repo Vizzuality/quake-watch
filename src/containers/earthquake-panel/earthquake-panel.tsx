@@ -422,7 +422,7 @@ function PanelNavigation({
   }, [isAtStart, isAtEnd]);
 
   return (
-    <div className="absolute top-[50px] right-4 left-4 flex items-center gap-2 md:top-13.5 md:right-14 md:left-79 md:gap-7">
+    <div className="absolute top-[50px] right-4 left-[max(1rem,env(safe-area-inset-left))] flex items-center gap-2 md:top-13.5 md:right-14 md:left-79 md:gap-7 short:right-84">
       <button
         type="button"
         onClick={onClose}
@@ -538,7 +538,7 @@ export default function EarthquakePanel({ quake }: { quake: string }) {
           type="button"
           disabled={position === null}
           onClick={() => requestWaveReplay(earthquake.id)}
-          className={`${PILL_BASE_CLASS_NAME} ${ROW_HIT_CLASS_NAME} absolute top-24 left-4 h-8 border-foreground px-3 text-button md:top-29 md:left-139 md:h-auto md:border-muted md:px-4 md:py-2.5 md:text-[9.5px]`}
+          className={`${PILL_BASE_CLASS_NAME} ${ROW_HIT_CLASS_NAME} absolute top-24 left-[max(1rem,env(safe-area-inset-left))] h-8 border-foreground px-3 text-button md:top-29 md:left-139 md:h-auto md:border-muted md:px-4 md:py-2.5 md:text-[9.5px]`}
         >
           <PlayIcon />
           <span aria-hidden="true" className="md:hidden">

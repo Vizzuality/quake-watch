@@ -15,7 +15,7 @@ const homeRoute = getRouteApi('/');
 function getHeaderClassName(isDetail: boolean): string {
   return isDetail
     ? 'pointer-events-none absolute inset-x-0 top-0 z-10'
-    : 'pointer-events-none absolute inset-x-5 top-[50px] z-10 flex h-10 items-center gap-4 md:inset-x-0 md:top-0 md:block md:h-auto';
+    : 'pointer-events-none absolute top-[50px] right-[max(1.25rem,env(safe-area-inset-right))] left-[max(1.25rem,env(safe-area-inset-left))] @container z-10 flex h-10 items-center gap-4 short:top-3 short:right-85 md:inset-x-0 md:top-0 md:block md:h-auto';
 }
 
 function getBrandClassName(isDetail: boolean): string {
@@ -46,12 +46,12 @@ function LiveStatus({ source }: { source: EarthquakeSource }) {
       {isLive && (
         <span data-live-dot aria-hidden="true" className="size-[5px] rounded-full bg-foreground" />
       )}
-      <span className={cn(isLive && 'max-[379px]:sr-only')}>{getStatusLabel(source, isLive)}</span>
+      <span className={cn(isLive && '@max-[339px]:sr-only')}>{getStatusLabel(source, isLive)}</span>
       {isLive && (
         <span
           aria-hidden="true"
           data-label={SOURCE_ADAPTERS[source].label}
-          className="before:content-[attr(data-label)] min-[380px]:hidden"
+          className="before:content-[attr(data-label)] @min-[340px]:hidden"
         />
       )}
     </output>

@@ -18,8 +18,8 @@ export type PhoneDetailOverlay = {
   stripTop: number;
 };
 
-export function getPhoneDetailOverlay({ k, detailSheetTop }: PhoneLayout): PhoneDetailOverlay {
-  const stripTop = detailSheetTop - STRIP.sheetGapPx - STRIP.heightPx;
+export function getPhoneDetailOverlay({ k, detailMapBottom }: PhoneLayout): PhoneDetailOverlay {
+  const stripTop = detailMapBottom - STRIP.sheetGapPx - STRIP.heightPx;
   return {
     miniGlobe: {
       top: PHONE_ACTION_ROW_BOTTOM + MINI_GLOBE.belowRowPx * k - MINI_GLOBE_HALF_BOX_PX,
@@ -31,7 +31,8 @@ export function getPhoneDetailOverlay({ k, detailSheetTop }: PhoneLayout): Phone
   };
 }
 
-export function getDetailSheetOpenTop({ detailSheetOpenTop }: PhoneLayout): number {
+export function getDetailSheetOpenTop({ detailSheetOpenTop, isSide }: PhoneLayout): number {
+  if (isSide) return detailSheetOpenTop;
   return Math.max(detailSheetOpenTop, PHONE_ACTION_ROW_BOTTOM + OPEN_SHEET_BELOW_ROW_PX);
 }
 
@@ -118,6 +119,6 @@ export function getPhoneTickLabelsShown(
 
 export function getMapSheetTopStyle(layout: PhoneLayout | null, isDetail: boolean): CSSProperties {
   if (!layout) return {};
-  const top = isDetail ? layout.detailSheetTop : layout.homeSheetTop;
+  const top = isDetail ? layout.detailMapBottom : layout.homeMapBottom;
   return { '--map-sheet-top': `${top}px` } as CSSProperties;
 }

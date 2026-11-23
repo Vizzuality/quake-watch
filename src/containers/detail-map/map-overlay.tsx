@@ -36,7 +36,7 @@ import {
 } from '@/lib/globe/map-style';
 import { EARTH_RADIUS_KM } from '@/lib/globe/quakes';
 import { getFeltRingLabel, getFeltRingShortLabel } from '@/lib/i18n/map-labels';
-import { PHONE_MAX_WIDTH } from '@/lib/layout/phone';
+import { isPhoneViewport } from '@/lib/layout/phone';
 import { getPhoneDetailOverlayStyle, getPhoneFeltLabelPlacement } from '@/lib/layout/phone-detail';
 import { getLocale } from '@/paraglide/runtime';
 
@@ -209,7 +209,10 @@ function setText(element: HTMLElement | null, text: string | null) {
 }
 
 function setScaleBar(map: MapLibreMap, { root, mid, end }: ScaleRefs, locale: string) {
-  const bar = getScaleBar(getKmPerPx(map), getScaleBarMaxPx(map.getContainer().clientWidth));
+  const bar = getScaleBar(
+    getKmPerPx(map),
+    getScaleBarMaxPx(map.getContainer().clientWidth, map.getContainer().clientHeight),
+  );
   if (!root.current) return;
   root.current.hidden = bar === null;
   if (!bar) return;
@@ -264,7 +267,7 @@ function syncOverlay(
   const east = getDestinationPoint(map, earthquake, reachKm, EAST_RADIANS);
   const feltPx = Math.hypot(east.x - centre.x, east.y - centre.y);
   const { felt, area } = RING_LABEL_LOOK;
-  if (map.getContainer().clientWidth < PHONE_MAX_WIDTH) {
+  if (isPhoneViewport(map.getContainer().clientWidth, map.getContainer().clientHeight)) {
     setPhoneFeltLabel(refs.feltLabel.current, centre, feltPx);
   } else {
     refs.feltLabel.current?.removeAttribute('data-short');
@@ -306,7 +309,7 @@ export function MapScaleBar({ rootRef, midRef, endRef }: MapScaleBarProps) {
       ref={rootRef}
       data-testid="map-scale-bar"
       style={getPhoneDetailOverlayStyle(layout)}
-      className="pointer-events-none absolute top-(--scale-bar-top) right-[18px] h-0.5 md:top-auto md:right-14 md:bottom-[238px]"
+      className="pointer-events-none absolute top-(--scale-bar-top) right-[18px] h-0.5 md:top-auto md:right-14 md:bottom-[238px] short:right-[338px]"
       aria-hidden="true"
     >
       <svg className="absolute inset-0 size-full overflow-visible">

@@ -4,7 +4,7 @@ import { createPortal } from 'react-dom';
 import { AreaStrip } from '@/containers/detail-map/area-strip';
 import { usePhoneLayout } from '@/hooks/use-phone-layout';
 import type { Earthquake } from '@/lib/earthquakes/types';
-import { PHONE_MAX_WIDTH } from '@/lib/layout/phone';
+import { isPhoneViewport } from '@/lib/layout/phone';
 import {
   getPhoneSectionBandStyle,
   getPhoneSectionView,
@@ -27,7 +27,7 @@ import { useSectionData } from './use-section-data';
 import { useSectionWave } from './use-section-wave';
 
 const FIGURE_BOX_CLASS_NAME =
-  'absolute top-(--section-top) right-4 left-4 h-(--section-height) lg:top-[200px] lg:right-0 lg:bottom-[170px] lg:left-120 lg:h-auto';
+  'absolute top-(--section-top) right-4 left-[max(1rem,env(safe-area-inset-left))] h-(--section-height) short:right-84 lg:top-[200px] lg:right-0 lg:bottom-[170px] lg:left-120 lg:h-auto';
 const STATUS_CLASS_NAME = `${FIGURE_BOX_CLASS_NAME} flex flex-col items-center justify-center gap-4 text-center text-body-s text-muted lg:text-start`;
 const RETRY_CLASS_NAME =
   'relative min-h-[34px] cursor-pointer rounded-pill border border-muted px-4 py-2.5 text-[11px] leading-[1.2] font-medium tracking-[0.2em] text-foreground uppercase before:absolute before:inset-x-0 before:-inset-y-[5px] hover:border-accent disabled:cursor-default disabled:opacity-40 lg:static lg:min-h-0 lg:text-[9.5px] lg:before:hidden';
@@ -72,7 +72,8 @@ function SectionFigureBlock({
     function measure() {
       if (!element) return;
       const { width, height } = element.getBoundingClientRect();
-      const isPhone = window.innerWidth < PHONE_MAX_WIDTH && width > 0 && height > 0;
+      const isPhone =
+        isPhoneViewport(window.innerWidth, window.innerHeight) && width > 0 && height > 0;
       setBox((current) => {
         if (!isPhone) return null;
         if (current?.width === width && current.height === height) return current;

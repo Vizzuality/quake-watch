@@ -1,6 +1,6 @@
 import type { Map as MapLibreMap } from 'maplibre-gl';
 
-import { PHONE_MAX_WIDTH } from '@/lib/layout/phone';
+import { isPhoneViewport } from '@/lib/layout/phone';
 
 const COLLAPSE_DELAY_MS = 5000;
 const SHOWN_CLASS = 'maplibregl-compact-show';
@@ -24,7 +24,7 @@ export function watchAttributionCollapse(map: MapLibreMap) {
 
   function onMapShown() {
     if (isSettled || timer !== undefined) return;
-    if (map.getContainer().clientWidth >= PHONE_MAX_WIDTH) {
+    if (!isPhoneViewport(map.getContainer().clientWidth, map.getContainer().clientHeight)) {
       dispose();
       return;
     }
