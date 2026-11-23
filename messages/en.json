@@ -232,5 +232,7 @@
   "live_updates_pause": "Pause live updates",
   "header_paused": "Paused",
   "live_row_paused": "Paused",
-  "live_row_paused_checks": "updates paused"
+  "live_row_paused_checks": "updates paused",
+  "skip_to_summary": "Skip to summary",
+  "skip_to_details": "Skip to earthquake details"
 }

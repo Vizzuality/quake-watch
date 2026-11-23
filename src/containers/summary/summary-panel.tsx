@@ -11,7 +11,7 @@ import { getMagnitudeValueLabel } from '@/lib/earthquakes/details-panel';
 import { playbackClock } from '@/lib/earthquakes/playback-clock';
 import { earthquakesQueryOptions } from '@/lib/earthquakes/query-options';
 import { getRegionEarthquakes } from '@/lib/earthquakes/regions';
-import { type Interval, getEarthquakeFilters } from '@/lib/earthquakes/search-schema';
+import { getEarthquakeFilters } from '@/lib/earthquakes/search-schema';
 import {
   type SummaryStats,
   getSummaryIndex,
@@ -20,31 +20,16 @@ import {
 } from '@/lib/earthquakes/summary';
 import type { Earthquake } from '@/lib/earthquakes/types';
 import { getDecimalLabel } from '@/lib/format';
-import { getIntlLocale } from '@/lib/i18n/intl-locale';
+import { SUMMARY_ID } from '@/lib/layout/skip-targets';
 import { cn } from '@/lib/utils';
 import { m } from '@/paraglide/messages';
 import { type Locale, getLocale } from '@/paraglide/runtime';
 
+import { getCountPhrase } from './count-phrase';
+
 const homeRoute = getRouteApi('/');
 const EMPTY_EARTHQUAKES: Earthquake[] = [];
 const NO_VALUE = '—';
-
-type CountPhrase = (inputs: Record<string, never>, options: { locale: Locale }) => string;
-
-const COUNT_PHRASES: Record<Interval, { one: CountPhrase; other: CountPhrase }> = {
-  '24h': { one: m.summary_earthquakes_24h_one, other: m.summary_earthquakes_24h_other },
-  '3d': { one: m.summary_earthquakes_3d_one, other: m.summary_earthquakes_3d_other },
-  '7d': { one: m.summary_earthquakes_7d_one, other: m.summary_earthquakes_7d_other },
-};
-
-function getCountPhrase(interval: Interval, count: number, locale: Locale): string {
-  const phrases = COUNT_PHRASES[interval];
-  const phrase =
-    new Intl.PluralRules(getIntlLocale(locale)).select(count) === 'one'
-      ? phrases.one
-      : phrases.other;
-  return phrase({}, { locale });
-}
 
 function getLargestLabel(
   largest: Earthquake | null,
@@ -73,7 +58,7 @@ function getLargestSelect(
 
 function getSummaryClassName(isHidden: boolean): string {
   return cn(
-    'md:absolute md:top-[143px] md:left-14 md:z-10 md:w-[250px] md:[transition:opacity_450ms_ease-out,translate_600ms_ease-out,visibility_600ms] md:motion-reduce:transition-none',
+    'outline-none md:absolute md:top-[143px] md:left-14 md:z-10 md:w-[250px] md:[transition:opacity_450ms_ease-out,translate_600ms_ease-out,visibility_600ms] md:motion-reduce:transition-none',
     isHidden && 'md:pointer-events-none md:invisible md:-translate-x-6 md:opacity-0',
   );
 }
@@ -173,6 +158,8 @@ export function SummaryPanel() {
   if (!data) return null;
   return (
     <section
+      id={SUMMARY_ID}
+      tabIndex={-1}
       aria-label={m.summary_label({}, { locale })}
       aria-hidden={isQuakeSelected}
       inert={isQuakeSelected}
@@ -188,19 +175,19 @@ export function SummaryPanel() {
         </p>
       )}
       {isAreaEmpty ? (
-        <p className="border-b border-line pt-2 pb-6 text-body text-foreground">
+        <h2 className="border-b border-line pt-2 pb-6 text-body text-foreground">
           {m.summary_area_empty({}, { locale })}
-        </p>
+        </h2>
       ) : (
         <>
-          <p className={getCountClassName(place)}>
+          <h2 className={getCountClassName(place)}>
             <span data-testid="summary-count" className="text-stat md:text-numeral-l">
               {getDecimalLabel(stats.count, locale)}
             </span>{' '}
             <span className="text-lead md:text-value">
               {getCountPhrase(search.interval, stats.count, locale)}
             </span>
-          </p>
+          </h2>
           <dl className="mt-3.5 grid grid-cols-2 gap-3.5 md:mt-0 md:block md:border-b md:border-line">
             <SummaryStat
               label={m.summary_likely_felt({}, { locale })}

@@ -96,7 +96,7 @@ export function AreaStrip() {
     const measure = () => {
       const width = figure.clientWidth;
       const tickWidths = [...figure.querySelectorAll<HTMLElement>('[data-strip-tick]')].map(
-        (tick) => tick.offsetWidth,
+        (tick) => tick.getBoundingClientRect().width,
       );
       setPhonePlacement({
         labelLeft: getPhoneStripLabelLeft(layout.strip.selected.x, width, label.offsetWidth),

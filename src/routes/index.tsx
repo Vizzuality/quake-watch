@@ -6,11 +6,14 @@ import { GlobeSlot } from '@/containers/globe/globe-slot';
 import { Header } from '@/containers/header/header';
 import { HomeSheet } from '@/containers/home-sheet/home-sheet';
 import { LiveBanner } from '@/containers/live-banner/live-banner';
+import { SkipLink } from '@/containers/skip-link/skip-link';
+import { ResultsStatus } from '@/containers/summary/results-status';
 import { Timeline } from '@/containers/timeline/timeline';
 import { getShareEarthquake } from '@/lib/earthquakes/details/share-earthquake';
 import { earthquakesQueryOptions } from '@/lib/earthquakes/query-options';
 import { EARTHQUAKE_SEARCH_ROUTE, getEarthquakeFilters } from '@/lib/earthquakes/search-schema';
 import { prefetchServerEarthquakes } from '@/lib/earthquakes/server-earthquakes';
+import { MAIN_ID } from '@/lib/layout/skip-targets';
 import { getDetailMeta } from '@/lib/seo/detail-meta';
 import { m } from '@/paraglide/messages';
 import { getLocale, isServer } from '@/paraglide/runtime';
@@ -47,30 +50,35 @@ function Home() {
   const { source, interval, minmag, depth, quake } = search;
 
   return (
-    <main
-      className="relative min-h-dvh overflow-hidden text-foreground"
-      data-source={source}
-      data-interval={interval}
-      data-minmag={minmag}
-      data-depth={depth}
-    >
-      <div className="absolute inset-0">
-        <GlobeSlot>
-          <Globe />
-        </GlobeSlot>
-      </div>
-      <Timeline />
-      <h1 className="sr-only">{m.app_title()}</h1>
+    <>
+      <SkipLink />
       <Header />
-      <LiveBanner />
-      <HomeSheet />
-      {quake !== undefined && (
-        <ClientOnly>
-          <Suspense fallback={null}>
-            <EarthquakePanel quake={quake} />
-          </Suspense>
-        </ClientOnly>
-      )}
-    </main>
+      <main
+        id={MAIN_ID}
+        className="relative min-h-dvh overflow-hidden text-foreground"
+        data-source={source}
+        data-interval={interval}
+        data-minmag={minmag}
+        data-depth={depth}
+      >
+        <div className="absolute inset-0">
+          <GlobeSlot>
+            <Globe />
+          </GlobeSlot>
+        </div>
+        <Timeline />
+        <h1 className="sr-only">{m.app_title()}</h1>
+        <ResultsStatus />
+        <LiveBanner />
+        <HomeSheet />
+        {quake !== undefined && (
+          <ClientOnly>
+            <Suspense fallback={null}>
+              <EarthquakePanel quake={quake} />
+            </Suspense>
+          </ClientOnly>
+        )}
+      </main>
+    </>
   );
 }

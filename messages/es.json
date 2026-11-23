@@ -232,5 +232,7 @@
   "live_updates_pause": "Pausar actualizaciones en directo",
   "header_paused": "En pausa",
   "live_row_paused": "En pausa",
-  "live_row_paused_checks": "actualizaciones en pausa"
+  "live_row_paused_checks": "actualizaciones en pausa",
+  "skip_to_summary": "Saltar al resumen",
+  "skip_to_details": "Saltar a los detalles del terremoto"
 }
