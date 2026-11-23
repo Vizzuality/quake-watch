@@ -91,7 +91,6 @@ function getTickLabelStep(xs: number[], stripWidth: number, widest: number): num
   for (let step = 1; step < xs.length; step++) {
     const isClear = xs.every(
       (x, index) =>
-        index % step !== 0 ||
         index + step >= xs.length ||
         (xs[index + step] - x) * stripWidth >= widest + TICK_LABEL.gapPx,
     );
@@ -100,20 +99,37 @@ function getTickLabelStep(xs: number[], stripWidth: number, widest: number): num
   return Math.max(1, xs.length);
 }
 
+function getTickLabelsInside(xs: number[], stripWidth: number, widths: number[]): boolean[] {
+  return xs.map((x, index) => {
+    const centre = x * stripWidth;
+    const half = widths[index] / 2;
+    return (
+      centre - half >= -TICK_LABEL.overhangPx && centre + half <= stripWidth + TICK_LABEL.overhangPx
+    );
+  });
+}
+
+function getTickLabelsForPhase(inside: boolean[], step: number, phase: number): boolean[] {
+  return inside.map((isInside, index) => index % step === phase && isInside);
+}
+
+function getShownCount(shown: boolean[]): number {
+  return shown.filter(Boolean).length;
+}
+
 export function getPhoneTickLabelsShown(
   xs: number[],
   stripWidth: number,
   widths: number[],
 ): boolean[] {
   const step = getTickLabelStep(xs, stripWidth, Math.max(0, ...widths));
-  return xs.map((x, index) => {
-    const centre = x * stripWidth;
-    const half = widths[index] / 2;
-    const isInside =
-      centre - half >= -TICK_LABEL.overhangPx &&
-      centre + half <= stripWidth + TICK_LABEL.overhangPx;
-    return index % step === 0 && isInside;
-  });
+  const inside = getTickLabelsInside(xs, stripWidth, widths);
+  let best = getTickLabelsForPhase(inside, step, 0);
+  for (let phase = 1; phase < step; phase++) {
+    const shown = getTickLabelsForPhase(inside, step, phase);
+    if (getShownCount(shown) > getShownCount(best)) best = shown;
+  }
+  return best;
 }
 
 export function getMapSheetTopStyle(layout: PhoneLayout | null, isDetail: boolean): CSSProperties {

@@ -168,6 +168,19 @@ describe('getPhoneTickLabelsShown', () => {
       false,
     ]);
   });
+
+  it('starts every other label from the second day when the first would be clipped', () => {
+    const clippedEnds = [0.01, 0.17, 0.33, 0.49, 0.65, 0.81, 0.97];
+    expect(getPhoneTickLabelsShown(clippedEnds, 276, Array(7).fill(40))).toEqual([
+      false,
+      true,
+      false,
+      true,
+      false,
+      true,
+      false,
+    ]);
+  });
 });
 
 describe('getMapSheetTopStyle', () => {
