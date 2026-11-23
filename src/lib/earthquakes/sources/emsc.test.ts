@@ -4,12 +4,14 @@ import { getEmscFeature } from '@/test/fixtures/earthquakes';
 
 import type { EarthquakeFilters } from '../search-schema';
 import { emscAdapter } from './emsc';
+import { getFdsnQuery } from './feature-collection';
 
 const NOW = new Date('2026-10-08T12:00:00.000Z');
 const FILTERS: EarthquakeFilters = { source: 'emsc', interval: '7d', minmag: 0, depth: 'all' };
 
 function getQueryUrl(filters: Partial<EarthquakeFilters> = {}): URL {
-  return new URL(emscAdapter.getQueryUrl({ ...FILTERS, ...filters }, NOW, 20_000));
+  const merged = { ...FILTERS, ...filters };
+  return new URL(emscAdapter.getQueryUrl(merged, getFdsnQuery(merged, NOW.getTime())));
 }
 
 describe('emscAdapter.getQueryUrl', () => {

@@ -11,7 +11,9 @@ import {
   getEarthquakesQueryKey,
   getEarthquakesStaleMs,
 } from './query-options';
+import { getTimeWindow } from './search-schema';
 import type { EarthquakeFilters } from './search-schema';
+import { isLongWindow } from './sources/feature-collection';
 
 export const LIST_SERVER_FETCH_TIMEOUT_MS = 15_000;
 
@@ -67,7 +69,7 @@ export async function prefetchServerEarthquakes(
   queryClient: QueryClient,
   filters: EarthquakeFilters,
 ): Promise<void> {
-  if (!isServer) return;
+  if (!isServer || isLongWindow(getTimeWindow(filters, Date.now()))) return;
   try {
     const result = await getServerEarthquakes(filters, AbortSignal.timeout(PAGE_FETCH_TIMEOUT_MS));
     queryClient.setQueryData(earthquakesQueryOptions(filters).queryKey, result, {

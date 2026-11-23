@@ -10,10 +10,12 @@ import {
   earthquakesQueryOptions,
   getEarthquakes,
   getEarthquakesQueryKey,
+  getSourceLabel,
   LIVE_REFETCH_MS,
   LIVE_STALE_MS,
 } from './query-options';
 import { earthquakeSearchSchema } from './search-schema';
+import { LONG_WINDOW_LIMIT } from './sources/feature-collection';
 import { EarthquakeSourceError } from './sources/source-error';
 
 const NOW = new Date('2026-10-08T12:00:00.000Z');
@@ -64,6 +66,24 @@ describe('getEarthquakesQueryKey', () => {
         getSearch({ lat: 10, lon: 20, zoom: 3, place: 'Lima', quake: 'emsc:20261013_0000326' }),
       ),
     ).toStrictEqual(getEarthquakesQueryKey(getSearch()));
+  });
+
+  it('holds the dates of a custom range', () => {
+    expect(
+      getEarthquakesQueryKey(
+        getSearch({ interval: 'custom', from: '2026-01-01', to: '2026-01-31' }),
+      ),
+    ).toStrictEqual([
+      'earthquakes',
+      {
+        source: 'emsc',
+        interval: 'custom',
+        minmag: 0,
+        depth: 'all',
+        from: '2026-01-01',
+        to: '2026-01-31',
+      },
+    ]);
   });
 
   it.each([{ source: 'usgs' }, { interval: '24h' }, { minmag: 4 }, { depth: 'mid' }])(
@@ -161,6 +181,57 @@ describe('getEarthquakes', () => {
     expect(error).toMatchObject({ source, status });
   });
 
+  it('merges both catalogues for all and drops the duplicate', async () => {
+    const fetchMock = stubFetch([
+      {
+        match: (url) => url.hostname === 'www.seismicportal.eu',
+        respond: () =>
+          Response.json(
+            getFeatureCollection([
+              getEmscFeature({ time: '2026-08-14T23:04:41.00Z' }),
+              getEmscFeature({ id: 'emsc-only', lat: 60, lon: 20 }),
+            ]),
+          ),
+      },
+      {
+        match: (url) => url.hostname === 'earthquake.usgs.gov',
+        respond: () => Response.json(getFeatureCollection([getUsgsFeature()])),
+      },
+    ]);
+    const result = await getEarthquakes(getSearch({ source: 'all' }), getSignal());
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(result.earthquakes.map(({ source, id }) => `${source}:${id}`).toSorted()).toEqual([
+      'emsc:emsc-only',
+      'usgs:us6000tkv2',
+    ]);
+  });
+
+  it('fails all when either catalogue fails', async () => {
+    stubFetch([
+      {
+        match: (url) => url.hostname === 'www.seismicportal.eu',
+        respond: () => new Response(null, { status: 503 }),
+      },
+      {
+        match: (url) => url.hostname === 'earthquake.usgs.gov',
+        respond: () => Response.json(getFeatureCollection([getUsgsFeature()])),
+      },
+    ]);
+    const error = await getEarthquakes(getSearch({ source: 'all' }), getSignal()).catch(
+      (caught: unknown) => caught,
+    );
+    expect(error).toMatchObject({ source: 'emsc', status: 503 });
+  });
+
+  it('flags a year that hit the long-window limit', async () => {
+    const features = Array.from({ length: LONG_WINDOW_LIMIT }, () => getUsgsFeature());
+    const fetchMock = stubResponse(() => Response.json(getFeatureCollection(features)));
+    const result = await getEarthquakes(getSearch({ source: 'usgs', interval: '1y' }), getSignal());
+    expect(result.isTruncated).toBe(true);
+    const url = new URL(String(fetchMock.mock.calls[0]?.[0]));
+    expect(url.searchParams.get('orderby')).toBe('magnitude');
+  });
+
   it('drops malformed features', async () => {
     stubResponse(() =>
       Response.json(
@@ -186,5 +257,12 @@ describe('getEarthquakes', () => {
     stubResponse(() => Response.json(getFeatureCollection(features)));
     const result = await getEarthquakes(getSearch(), getSignal());
     expect(result.isTruncated).toBe(false);
+  });
+});
+
+describe('getSourceLabel', () => {
+  it('names one catalogue or both', () => {
+    expect(getSourceLabel('emsc')).toBe('EMSC');
+    expect(getSourceLabel('all')).toBe('EMSC + USGS');
   });
 });

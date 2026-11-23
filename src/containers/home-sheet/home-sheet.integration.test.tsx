@@ -133,7 +133,7 @@ describe('home sheet on phones', () => {
     }
     expect(
       screen.getByRole('radiogroup', { name: 'Source' }).getByRole('radio').all(),
-    ).toHaveLength(2);
+    ).toHaveLength(3);
     const scaleRow = screen.getByTestId('depth-legend').element().querySelector('[data-from]');
     expect(getComputedStyle(scaleRow as Element, '::before').content).toBe('"Surface"');
     expect(getComputedStyle(scaleRow as Element, '::after').content).toBe('"700 km"');

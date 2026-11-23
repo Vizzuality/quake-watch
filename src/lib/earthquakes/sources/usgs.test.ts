@@ -3,13 +3,15 @@ import { describe, expect, it } from 'vitest';
 import { getUsgsFeature } from '@/test/fixtures/earthquakes';
 
 import type { EarthquakeFilters } from '../search-schema';
+import { getFdsnQuery } from './feature-collection';
 import { usgsAdapter } from './usgs';
 
 const NOW = new Date('2026-10-08T12:00:00.000Z');
 const FILTERS: EarthquakeFilters = { source: 'usgs', interval: '7d', minmag: 0, depth: 'all' };
 
 function getQueryUrl(filters: Partial<EarthquakeFilters> = {}): URL {
-  return new URL(usgsAdapter.getQueryUrl({ ...FILTERS, ...filters }, NOW, 20_000));
+  const merged = { ...FILTERS, ...filters };
+  return new URL(usgsAdapter.getQueryUrl(merged, getFdsnQuery(merged, NOW.getTime())));
 }
 
 describe('usgsAdapter.getQueryUrl', () => {

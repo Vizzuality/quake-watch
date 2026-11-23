@@ -11,7 +11,7 @@ import {
   getStripTicks,
 } from '@/lib/earthquakes/area-strip';
 import { type EarthquakesResult, earthquakesQueryOptions } from '@/lib/earthquakes/query-options';
-import { type Interval, getEarthquakeFilters } from '@/lib/earthquakes/search-schema';
+import { type TimeFilters, getEarthquakeFilters } from '@/lib/earthquakes/search-schema';
 import { getIntervalRange } from '@/lib/earthquakes/timeline';
 import { MAP_COLORS } from '@/lib/globe/map-style';
 import { getAreaCaption, getStripQuakeLabel, getStripTickLabel } from '@/lib/i18n/map-labels';
@@ -61,17 +61,17 @@ function isTickLabelHidden(phone: PhonePlacement | null, index: number): boolean
 function getStripLayout(
   data: EarthquakesResult | undefined,
   quake: string | undefined,
-  interval: Interval,
+  filters: TimeFilters,
 ) {
   const selected = getSelectedEarthquake(data?.earthquakes ?? [], quake);
   if (!data || !selected) return null;
-  const range = getIntervalRange(interval, data.fetchedAt);
+  const range = getIntervalRange(filters, data.fetchedAt);
   const area = getAreaEarthquakes(data.earthquakes, selected);
   return {
     selected,
     area,
     strip: getAreaStrip({ earthquakes: area, selected, range }),
-    ticks: getStripTicks(range, interval),
+    ticks: getStripTicks(range),
   };
 }
 
@@ -80,8 +80,11 @@ export function AreaStrip() {
   const { data } = useQuery(earthquakesQueryOptions(getEarthquakeFilters(search)));
   const phoneLayout = usePhoneLayout();
   const locale = getLocale();
-  const { quake, interval } = search;
-  const layout = useMemo(() => getStripLayout(data, quake, interval), [data, quake, interval]);
+  const { quake, interval, from, to } = search;
+  const layout = useMemo(
+    () => getStripLayout(data, quake, { interval, from, to }),
+    [data, quake, interval, from, to],
+  );
   const figureRef = useRef<HTMLElement>(null);
   const labelRef = useRef<HTMLSpanElement>(null);
   const [phonePlacement, setPhonePlacement] = useState<PhonePlacement | null>(null);
@@ -187,7 +190,7 @@ export function AreaStrip() {
         </span>
       ))}
       <figcaption className="absolute right-0 bottom-0 left-0 pr-4 text-label-s text-muted uppercase md:top-[100px] md:right-auto md:bottom-auto md:pr-0 md:whitespace-nowrap">
-        {getAreaCaption(interval, area.length, locale)}
+        {getAreaCaption({ interval, from, to }, area.length, locale)}
       </figcaption>
     </figure>
   );

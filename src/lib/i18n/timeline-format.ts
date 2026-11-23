@@ -5,6 +5,8 @@ import type { Locale } from '@/paraglide/runtime';
 const BIN_FORMAT_OPTIONS: Record<HistogramUnit, Intl.DateTimeFormatOptions> = {
   hour: { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' },
   day: { month: 'short', day: 'numeric' },
+  week: { month: 'short', day: 'numeric' },
+  month: { month: 'short', year: 'numeric' },
 };
 
 const DATE_TIME_OPTIONS: Intl.DateTimeFormatOptions = {

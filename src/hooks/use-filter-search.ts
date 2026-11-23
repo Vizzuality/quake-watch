@@ -4,7 +4,10 @@ import { useCallback } from 'react';
 import type { EarthquakeSearch } from '@/lib/earthquakes/search-schema';
 
 export type FilterSearchPatch = Partial<
-  Pick<EarthquakeSearch, 'source' | 'place' | 'interval' | 'minmag' | 'depth' | 'quake'>
+  Pick<
+    EarthquakeSearch,
+    'source' | 'place' | 'interval' | 'from' | 'to' | 'minmag' | 'depth' | 'quake'
+  >
 >;
 
 export function useFilterSearch() {

@@ -35,10 +35,10 @@ export function Timeline() {
     getIsHomeSheetOpenOnServer,
   );
   const fetchedAt = data?.fetchedAt;
-  const { interval, quake } = search;
+  const { interval, from, to, quake } = search;
   const range = useMemo(
-    () => (fetchedAt === undefined ? null : getIntervalRange(interval, fetchedAt)),
-    [interval, fetchedAt],
+    () => (fetchedAt === undefined ? null : getIntervalRange({ interval, from, to }, fetchedAt)),
+    [interval, from, to, fetchedAt],
   );
 
   useEffect(() => {
