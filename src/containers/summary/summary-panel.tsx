@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { getRouteApi } from '@tanstack/react-router';
-import { useLayoutEffect, useMemo, useState } from 'react';
+import { type RefObject, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 
 import { InfoLabel } from '@/components/info-button/info-button';
 import { requestGlobeSelect } from '@/containers/globe/globe-select';
@@ -30,6 +30,7 @@ import { getCountPhrase } from './count-phrase';
 const homeRoute = getRouteApi('/');
 const EMPTY_EARTHQUAKES: Earthquake[] = [];
 const NO_VALUE = '—';
+const FOCUS_RETURN_FRAMES = 3;
 
 function getLargestLabel(
   largest: Earthquake | null,
@@ -46,6 +47,14 @@ function getLargestValue(largest: Earthquake | null, locale: Locale): string {
 }
 
 type StatSelect = { label: string; onSelect: () => void };
+
+function isFocusLost(): boolean {
+  return document.activeElement === null || document.activeElement === document.body;
+}
+
+function getOptionalQuakeKey(earthquake: Earthquake | null): string | undefined {
+  return earthquake ? getQuakeKey(earthquake) : undefined;
+}
 
 function getLargestSelect(
   largest: Earthquake | null,
@@ -92,9 +101,15 @@ function ChevronIcon() {
   );
 }
 
-type SummaryStatProps = { label: string; info: string; value: string; select?: StatSelect };
+type SummaryStatProps = {
+  label: string;
+  info: string;
+  value: string;
+  select?: StatSelect;
+  selectRef?: RefObject<HTMLButtonElement | null>;
+};
 
-function SummaryStat({ label, info, value, select }: SummaryStatProps) {
+function SummaryStat({ label, info, value, select, selectRef }: SummaryStatProps) {
   return (
     <div className="relative flex min-w-0 flex-col items-start gap-1.5 border-t border-line pt-2.5 md:gap-1 md:py-4">
       <dt className="pointer-events-none relative z-10 flex min-h-4 max-w-full items-center md:pointer-events-auto md:h-4">
@@ -110,10 +125,11 @@ function SummaryStat({ label, info, value, select }: SummaryStatProps) {
           <>
             <ChevronIcon />
             <button
+              ref={selectRef}
               type="button"
               aria-label={select.label}
               onClick={select.onSelect}
-              className="absolute inset-0 cursor-pointer md:hidden"
+              className="absolute inset-0 cursor-pointer"
             />
           </>
         )}
@@ -128,7 +144,7 @@ export function SummaryPanel() {
   const isQuakeSelected = useIsQuakeSelected();
   const setSearch = useFilterSearch();
   const locale = getLocale();
-  const { place } = search;
+  const { place, quake } = search;
   const earthquakes = data?.earthquakes ?? EMPTY_EARTHQUAKES;
   const index = useMemo(
     () => getSummaryIndex(getAreaEarthquakes(earthquakes, place)),
@@ -137,11 +153,29 @@ export function SummaryPanel() {
   const [shownCount, setShownCount] = useState<number | null>(null);
   const stats: SummaryStats = getSummaryStats(index, shownCount ?? index.sortedTimes.length);
   const isAreaEmpty = place !== undefined && stats.count === 0;
+  const largestKey = getOptionalQuakeKey(stats.largest);
+  const largestRef = useRef<HTMLButtonElement>(null);
+  const previousQuakeRef = useRef(quake);
 
   function selectQuake(earthquake: Earthquake) {
     if (requestGlobeSelect(earthquake)) return;
     void setSearch({ quake: getQuakeKey(earthquake) });
   }
+
+  useEffect(() => {
+    const previousQuake = previousQuakeRef.current;
+    previousQuakeRef.current = quake;
+    if (quake !== undefined || previousQuake === undefined || previousQuake !== largestKey) return;
+    let frame = 0;
+    // The desktop summary fades in with a `visibility` transition, which keeps it unfocusable for its first frame.
+    function returnFocus(framesLeft: number) {
+      if (!isFocusLost()) return;
+      largestRef.current?.focus();
+      if (framesLeft > 0) frame = requestAnimationFrame(() => returnFocus(framesLeft - 1));
+    }
+    returnFocus(FOCUS_RETURN_FRAMES);
+    return () => cancelAnimationFrame(frame);
+  }, [quake, largestKey]);
 
   useLayoutEffect(() => {
     let current: number | null = null;
@@ -200,6 +234,7 @@ export function SummaryPanel() {
               info={m.info_summary_largest({}, { locale })}
               value={getLargestValue(stats.largest, locale)}
               select={getLargestSelect(stats.largest, locale, selectQuake)}
+              selectRef={largestRef}
             />
           </dl>
         </>

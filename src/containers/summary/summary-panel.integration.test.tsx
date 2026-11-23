@@ -185,6 +185,23 @@ describe('summary panel', () => {
     await expect.element(screen.getByRole('tooltip')).toBeVisible();
   });
 
+  it('opens the largest Earthquake from the keyboard on desktop and takes focus back on close', async () => {
+    const { screen, router } = await renderSummary();
+    const open = screen.getByRole('button', { name: 'Open the largest earthquake' });
+
+    await expect.element(open).toBeVisible();
+    await userEvent.tab();
+    await userEvent.tab();
+    await userEvent.tab();
+    await expect.element(open).toHaveFocus();
+    await userEvent.keyboard('{Enter}');
+
+    await expect.poll(() => router.state.location.search.quake).toBe('emsc:a');
+    await expect.poll(() => document.activeElement).toBe(document.body);
+    await router.navigate({ to: '/', search: (prev) => ({ ...prev, quake: undefined }) });
+    await expect.element(open).toHaveFocus();
+  });
+
   it('hides when an Earthquake is selected and returns when it is cleared', async () => {
     const { screen, router } = await renderSummary(`/?quake=${SELECTED_QUAKE}`);
     const summary = screen.getByTestId('summary');
