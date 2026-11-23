@@ -84,8 +84,8 @@ describe('InfoLabel', () => {
     const button = rendered.screen.getByRole('button', { name: 'More about Likely felt' });
     const icon = button.element().querySelector('svg') as SVGElement;
 
-    expect(button.element().getBoundingClientRect().width).toBe(16);
-    expect(button.element().getBoundingClientRect().height).toBe(16);
+    expect(button.element().getBoundingClientRect().width).toBe(24);
+    expect(button.element().getBoundingClientRect().height).toBe(24);
     expect(getComputedStyle(icon).color).toBe('rgb(160, 157, 193)');
 
     await userEvent.hover(button);

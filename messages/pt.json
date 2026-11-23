@@ -226,5 +226,7 @@
   "details_more": "Mais detalhes",
   "details_less": "Menos",
   "details_replay_short": "Repetir",
-  "map_likely_felt_short": "~{distance}"
+  "map_likely_felt_short": "~{distance}",
+  "skip_to_summary": "Saltar para o resumo",
+  "skip_to_details": "Saltar para os detalhes do sismo"
 }

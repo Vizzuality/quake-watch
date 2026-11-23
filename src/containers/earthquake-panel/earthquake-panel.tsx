@@ -7,7 +7,6 @@ import {
   lazy,
   useEffect,
   useEffectEvent,
-  useId,
   useLayoutEffect,
   useMemo,
   useRef,
@@ -56,6 +55,7 @@ import {
 import type { Earthquake } from '@/lib/earthquakes/types';
 import { getDecimalLabel, getKmLabel } from '@/lib/format';
 import { getDetailSheetOpenTop } from '@/lib/layout/phone-detail';
+import { DETAILS_HEADING_ID } from '@/lib/layout/skip-targets';
 import { cn } from '@/lib/utils';
 import { m } from '@/paraglide/messages';
 import { type Locale, getLocale } from '@/paraglide/runtime';
@@ -481,7 +481,6 @@ export default function EarthquakePanel({ quake }: { quake: string }) {
   const headingRef = useRef<HTMLHeadingElement>(null);
   const sheetBodyRef = useRef<HTMLDivElement>(null);
   const hasFocusedRef = useRef(false);
-  const headingId = useId();
   const locale = getLocale();
   const earthquakes = list?.earthquakes ?? EMPTY_EARTHQUAKES;
   const ordered = useMemo(() => getTimeOrderedEarthquakes(earthquakes), [earthquakes]);
@@ -524,7 +523,10 @@ export default function EarthquakePanel({ quake }: { quake: string }) {
   }, [quake]);
 
   return (
-    <section aria-labelledby={headingId} className="pointer-events-none absolute inset-0 z-10">
+    <section
+      aria-labelledby={DETAILS_HEADING_ID}
+      className="pointer-events-none absolute inset-0 z-10"
+    >
       {earthquake && search.view === 'section' && (
         <Suspense fallback={null}>
           <SectionView quake={quake} />
@@ -560,7 +562,7 @@ export default function EarthquakePanel({ quake }: { quake: string }) {
             <EarthquakeFacts
               earthquake={earthquake}
               feltReports={getFeltReports(detail)}
-              headingId={headingId}
+              headingId={DETAILS_HEADING_ID}
               headingRef={headingRef}
               locale={locale}
               isExpanded={isSheetOpen}
@@ -583,13 +585,23 @@ export default function EarthquakePanel({ quake }: { quake: string }) {
             </Suspense>
           )}
           {state === 'not-found' && (
-            <h2 ref={headingRef} id={headingId} tabIndex={-1} className="text-title outline-none">
+            <h2
+              ref={headingRef}
+              id={DETAILS_HEADING_ID}
+              tabIndex={-1}
+              className="text-title outline-none"
+            >
               {m.details_not_found()}
             </h2>
           )}
           {state === 'error' && (
             <div role="alert" className="flex flex-col items-start gap-4">
-              <h2 ref={headingRef} id={headingId} tabIndex={-1} className="text-title outline-none">
+              <h2
+                ref={headingRef}
+                id={DETAILS_HEADING_ID}
+                tabIndex={-1}
+                className="text-title outline-none"
+              >
                 {m.details_error()}
               </h2>
               <button
@@ -603,7 +615,7 @@ export default function EarthquakePanel({ quake }: { quake: string }) {
             </div>
           )}
           {state === 'loading' && (
-            <h2 id={headingId} className="sr-only">
+            <h2 id={DETAILS_HEADING_ID} className="sr-only">
               {m.details_loading()}
             </h2>
           )}
