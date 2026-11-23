@@ -297,10 +297,10 @@ export default function GlobeMap({
     if (!readyMap) return;
     const map = readyMap;
     const sortedTimes = getSortedTimes(earthquakes);
-    let shownCount: number | null = null;
+    let shownCount: number | null | undefined;
     function update() {
       const playhead = playbackClock.getPlayhead();
-      const next = getShownCount(sortedTimes, playhead);
+      const next = playhead === null ? null : getShownCount(sortedTimes, playhead);
       if (next === shownCount || !isReplaySourceLoaded(map)) return;
       shownCount = next;
       setReplayFilters(map, playhead);
