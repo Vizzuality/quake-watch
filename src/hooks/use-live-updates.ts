@@ -11,7 +11,7 @@ import {
 const EARTHQUAKES_QUERY_ROOT = ['earthquakes'];
 
 function stopLiveRefetch(queryClient: QueryClient) {
-  // An observer only re-reads a function `refetchInterval` when its options or its query change.
+  // An observer only re-reads a function `refetchInterval` in setOptions: https://github.com/TanStack/query/blob/%40tanstack/query-core%405.104.1/packages/query-core/src/queryObserver.ts#L252-L263
   for (const query of queryClient.getQueryCache().findAll({ queryKey: EARTHQUAKES_QUERY_ROOT })) {
     for (const observer of query.observers) observer.setOptions(observer.options);
   }
