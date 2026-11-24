@@ -25,29 +25,98 @@ const DENIED_COPY =
 const VANUATU = { lat: -17.7, lon: 168.3 };
 const VANUATU_AREA = '/?place=Vanuatu&plat=-16&plon=167&radius=250';
 
-function getPhotonFeature(
-  name: string,
-  country: string,
-  [lon, lat]: [number, number],
-  extent: number[],
-) {
+type PhotonFeatureInput = {
+  id: number;
+  name: string;
+  type: string;
+  state?: string;
+  country: string;
+  point: [number, number];
+  extent?: number[];
+};
+
+function getPhotonFeature({ id, name, type, state, country, point, extent }: PhotonFeatureInput) {
   return {
     type: 'Feature',
-    geometry: { type: 'Point', coordinates: [lon, lat] },
-    properties: { osm_type: 'R', osm_id: Math.round(Math.abs(lon * 1000)), name, country, extent },
+    geometry: { type: 'Point', coordinates: point },
+    properties: { osm_type: 'R', osm_id: id, name, type, state, country, extent },
   };
 }
 
+const VANU_FEATURES = [
+  getPhotonFeature({
+    id: 1,
+    name: 'Vanuatu',
+    type: 'country',
+    country: 'Vanuatu',
+    point: [167, -16],
+    extent: [166.5, -13, 170.2, -20.3],
+  }),
+  getPhotonFeature({
+    id: 2,
+    name: 'Vanua Levu',
+    type: 'state',
+    country: 'Fiji',
+    point: [179.2, -16.6],
+    extent: [178.4, -16.1, 180, -17.1],
+  }),
+];
+
+const GRANADA_FEATURES = [
+  getPhotonFeature({
+    id: 344685,
+    name: 'Granada',
+    type: 'city',
+    state: 'Andalucía',
+    country: 'España',
+    point: [-3.6, 37.17],
+    extent: [-3.7, 37.23, -3.5, 37.14],
+  }),
+  getPhotonFeature({
+    id: 349026,
+    name: 'Granada',
+    type: 'county',
+    state: 'Andalucía',
+    country: 'España',
+    point: [-3.24, 37.39],
+    extent: [-4.33, 38.08, -2.21, 36.69],
+  }),
+  getPhotonFeature({
+    id: 5745675,
+    name: 'Granada',
+    type: 'city',
+    state: 'Granada',
+    country: 'Nicaragua',
+    point: [-85.95, 11.93],
+  }),
+  getPhotonFeature({
+    id: 21816654,
+    name: 'Granada',
+    type: 'district',
+    state: 'Granada',
+    country: 'Nicaragua',
+    point: [-85.95, 11.93],
+  }),
+  getPhotonFeature({
+    id: 99,
+    name: 'Granada',
+    type: 'city',
+    state: 'Granada',
+    country: 'Nicaragua',
+    point: [-85.96, 11.94],
+  }),
+];
+
+function getPhotonFeatures(query: string) {
+  if (query.startsWith('vanu')) return VANU_FEATURES;
+  if (query.startsWith('granada')) return GRANADA_FEATURES;
+  return [];
+}
+
 function getPhotonResponse(url: URL): Response {
-  const query = url.searchParams.get('q') ?? '';
+  const query = (url.searchParams.get('q') ?? '').toLowerCase();
   if (query.startsWith('fail')) return new Response(null, { status: 429 });
-  const features = query.toLowerCase().startsWith('vanu')
-    ? [
-        getPhotonFeature('Vanuatu', 'Vanuatu', [167, -16], [166.5, -13, 170.2, -20.3]),
-        getPhotonFeature('Vanua Levu', 'Fiji', [179.2, -16.6], [178.4, -16.1, 180, -17.1]),
-      ]
-    : [];
-  return Response.json({ type: 'FeatureCollection', features });
+  return Response.json({ type: 'FeatureCollection', features: getPhotonFeatures(query) });
 }
 
 function stubPosition(latitude: number, longitude: number) {
@@ -162,6 +231,51 @@ describe('place search', () => {
     await expect
       .element(combobox)
       .toHaveAttribute('aria-controls', screen.getByRole('listbox').element().id);
+  });
+
+  it('groups the places under a heading per place type, without repeats', async () => {
+    const { screen, combobox } = await renderSearch();
+
+    await userEvent.type(combobox, 'granada');
+
+    const groups = screen.getByRole('group');
+    await expect.element(groups.nth(0)).toBeVisible();
+    expect(groups.elements()).toHaveLength(3);
+    await expect.element(groups.nth(0)).toHaveAccessibleName('Province');
+    await expect.element(groups.nth(1)).toHaveAccessibleName('City');
+    await expect.element(groups.nth(2)).toHaveAccessibleName('Area');
+    expect(
+      groups
+        .nth(1)
+        .getByRole('option')
+        .elements()
+        .map((option) => option.textContent),
+    ).toEqual(['Granada, Andalucía, España', 'Granada, Nicaragua']);
+    expect(screen.getByRole('option').elements()).toHaveLength(4);
+  });
+
+  it('moves over the options only, across the group headings, and picks with Enter', async () => {
+    const { screen, router, combobox } = await renderSearch();
+    await userEvent.type(combobox, 'granada');
+    const options = screen.getByRole('option');
+    await expect.element(options.nth(0)).toHaveAttribute('aria-selected', 'true');
+
+    await userEvent.keyboard('{ArrowDown}');
+
+    await expect.element(options.nth(1)).toHaveAttribute('aria-selected', 'true');
+    expect(combobox.element().getAttribute('aria-activedescendant')).toBe(
+      options.nth(1).element().id,
+    );
+    await userEvent.keyboard('{ArrowUp}');
+    await userEvent.keyboard('{ArrowUp}');
+    await expect.element(options.nth(3)).toHaveAttribute('aria-selected', 'true');
+    await userEvent.keyboard('{ArrowUp}');
+    await userEvent.keyboard('{ArrowUp}');
+    await userEvent.keyboard('{Enter}');
+
+    await expect
+      .poll(() => getAreaSearch(router))
+      .toEqual({ place: 'Granada', plat: 37.17, plon: -3.6, radius: 50 });
   });
 
   it('asks for three letters before searching', async () => {

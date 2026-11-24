@@ -8,6 +8,7 @@ export function getPhotonCollection(names: string[] = ['Granada']) {
         osm_type: 'R',
         osm_id: 344685 + index,
         name,
+        type: 'city',
         state: 'Andalucía',
         country: 'España',
       },

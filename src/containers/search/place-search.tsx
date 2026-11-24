@@ -6,6 +6,7 @@ import {
   useEffect,
   useId,
   useLayoutEffect,
+  useMemo,
   useRef,
   useState,
 } from 'react';
@@ -18,6 +19,12 @@ import {
   getRoundedCoordinate,
 } from '@/lib/earthquakes/search-schema';
 import type { Place } from '@/lib/places/photon';
+import {
+  type PlaceGroup,
+  type PlaceSection,
+  getPlaceSections,
+  getSectionPlaces,
+} from '@/lib/places/place-groups';
 import {
   PLACE_QUERY_DEBOUNCE_MS,
   PLACE_QUERY_MIN_LENGTH,
@@ -38,6 +45,14 @@ type PickedArea = {
   latitude: number;
   longitude: number;
   radiusKm: SearchRadiusKm;
+};
+
+const GROUP_HEADINGS: Record<PlaceGroup, (locale: Locale) => string> = {
+  country: (locale) => m.search_group_country({}, { locale }),
+  region: (locale) => m.search_group_region({}, { locale }),
+  province: (locale) => m.search_group_province({}, { locale }),
+  city: (locale) => m.search_group_city({}, { locale }),
+  area: (locale) => m.search_group_area({}, { locale }),
 };
 
 const LOCATE_ERROR_MESSAGES: Record<LocateError, (locale: Locale) => string> = {
@@ -116,35 +131,46 @@ function getNextIndex(index: number, step: number, count: number): number {
 
 type SuggestionsProps = {
   id: string;
-  suggestions: Place[];
+  sections: PlaceSection<Place>[];
   status: string;
   activeIndex: number;
   onPick: (suggestion: Place) => void;
 };
 
-function Suggestions({ id, suggestions, status, activeIndex, onPick }: SuggestionsProps) {
+function Suggestions({ id, sections, status, activeIndex, onPick }: SuggestionsProps) {
   const locale = getLocale();
 
-  if (suggestions.length === 0) {
+  if (sections.length === 0) {
     return <output className="block px-3 py-2 text-body-s text-muted">{status}</output>;
   }
   return (
     // oxlint-disable-next-line jsx-a11y/prefer-tag-over-role -- a native select or datalist cannot render the styled suggestions of the combobox pattern
     <div id={id} role="listbox" aria-label={m.search_suggestions({}, { locale })}>
-      {suggestions.map((suggestion, index) => (
-        // oxlint-disable-next-line jsx-a11y/click-events-have-key-events -- the combobox input owns the keyboard (https://www.w3.org/WAI/ARIA/apg/patterns/combobox/)
-        <div
-          key={suggestion.id}
-          id={`${id}-${index}`}
-          // oxlint-disable-next-line jsx-a11y/prefer-tag-over-role -- a native option cannot live outside a select
-          role="option"
-          tabIndex={-1}
-          aria-selected={index === activeIndex}
-          className={getOptionClassName(index === activeIndex)}
-          onMouseDown={(event) => event.preventDefault()}
-          onClick={() => onPick(suggestion)}
-        >
-          <span className="truncate text-body-s text-foreground">{suggestion.label}</span>
+      {sections.map(({ group, options }) => (
+        // oxlint-disable-next-line jsx-a11y/prefer-tag-over-role -- an optgroup cannot live outside a select (https://www.w3.org/WAI/ARIA/apg/patterns/listbox/examples/listbox-grouped/)
+        <div key={group} role="group" aria-labelledby={`${id}-${group}`}>
+          <div
+            id={`${id}-${group}`}
+            role="presentation"
+            className="px-3 pt-2 pb-1 text-label text-muted uppercase select-none"
+          >
+            {GROUP_HEADINGS[group](locale)}
+          </div>
+          {options.map(({ place, index }) => (
+            // oxlint-disable-next-line jsx-a11y/click-events-have-key-events -- the combobox input owns the keyboard (https://www.w3.org/WAI/ARIA/apg/patterns/combobox/)
+            <div
+              key={place.id}
+              id={`${id}-${index}`}
+              // oxlint-disable-next-line jsx-a11y/prefer-tag-over-role -- a native option cannot live outside a select
+              role="option"
+              tabIndex={-1}
+              aria-selected={index === activeIndex}
+              className={getOptionClassName(index === activeIndex)}
+              onClick={() => onPick(place)}
+            >
+              <span className="truncate text-body-s text-foreground">{place.label}</span>
+            </div>
+          ))}
         </div>
       ))}
     </div>
@@ -170,7 +196,11 @@ export function PlaceSearch() {
   const debouncedText = useDebouncedValue(text, PLACE_QUERY_DEBOUNCE_MS);
   const placesQuery = useQuery(placeSuggestionsQueryOptions(debouncedText));
   const isSearching = placesQuery.isFetching || text.trim() !== debouncedText.trim();
-  const suggestions = getSuggestions(placesQuery.data, isSearching);
+  const sections = useMemo(
+    () => getPlaceSections(getSuggestions(placesQuery.data, isSearching)),
+    [placesQuery.data, isSearching],
+  );
+  const suggestions = getSectionPlaces(sections);
   const errorMessage = getErrorMessage(locateError, placesQuery.isError, locale);
   const isListShown = isOpen && text.trim() !== '' && !placesQuery.isError;
   const hasOptions = isListShown && suggestions.length > 0;
@@ -302,10 +332,14 @@ export function PlaceSearch() {
       className="pointer-events-auto mt-4 flex flex-col md:absolute md:bottom-14 md:left-14 md:z-20 md:mt-0 md:block md:w-[257px]"
     >
       {isListShown && (
-        <div className="order-last mt-2 border border-line bg-glass-panel py-1 backdrop-blur-[50px] md:absolute md:inset-x-0 md:bottom-full md:mt-0 md:mb-2">
+        <div
+          role="presentation"
+          onMouseDown={(event) => event.preventDefault()}
+          className="order-last mt-2 border border-line bg-glass-panel py-1 backdrop-blur-[50px] md:absolute md:inset-x-0 md:bottom-full md:mt-0 md:mb-2"
+        >
           <Suggestions
             id={listboxId}
-            suggestions={suggestions}
+            sections={sections}
             status={getSuggestionStatus(text, isSearching, locale)}
             activeIndex={optionIndex}
             onPick={pick}
