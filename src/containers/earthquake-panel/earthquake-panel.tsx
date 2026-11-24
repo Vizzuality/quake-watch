@@ -446,7 +446,7 @@ function PanelNavigation({
   }, [isAtStart, isAtEnd]);
 
   return (
-    <div className="absolute top-[50px] right-4 left-4 flex items-center gap-2 md:top-13.5 md:right-14 md:left-79 md:gap-7">
+    <div className="absolute top-[50px] right-4 left-[max(1rem,env(safe-area-inset-left))] flex items-center gap-2 md:top-13.5 md:right-14 md:left-79 md:gap-7 short:right-84">
       <button
         type="button"
         onClick={onClose}
@@ -558,7 +558,7 @@ export default function EarthquakePanel({ quake }: { quake: string }) {
       )}
       <PanelNavigation position={position} locale={locale} onClose={close} onGoTo={goTo} />
       {earthquake && (
-        <div className="absolute top-24 left-4 flex items-center gap-2 md:top-29 md:left-139">
+        <div className="absolute top-24 left-[max(1rem,env(safe-area-inset-left))] flex items-center gap-2 md:top-29 md:left-139">
           <button
             type="button"
             disabled={position === null}

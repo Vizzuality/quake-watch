@@ -37,13 +37,13 @@ export type SectionContent = {
 export type PhoneSectionView = SectionBox & { unit: number };
 export type PlacedLabel = { x: number; y: number; anchor: 'start' | 'end'; box: SectionBox };
 
-export function getPhoneSectionBand({ detailSheetTop }: PhoneLayout): {
+export function getPhoneSectionBand({ detailMapBottom }: PhoneLayout): {
   top: number;
   height: number;
 } {
   return {
     top: PHONE_SECTION.top,
-    height: detailSheetTop - PHONE_SECTION.sheetGapPx - PHONE_SECTION.top,
+    height: detailMapBottom - PHONE_SECTION.sheetGapPx - PHONE_SECTION.top,
   };
 }
 

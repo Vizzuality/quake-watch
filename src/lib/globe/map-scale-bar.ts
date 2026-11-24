@@ -1,5 +1,5 @@
 import { getIntlLocale } from '@/lib/i18n/intl-locale';
-import { PHONE_MAX_WIDTH } from '@/lib/layout/phone';
+import { isPhoneViewport } from '@/lib/layout/phone';
 
 export const SCALE_BAR_MAX_PX = 140;
 const PHONE_SCALE_BAR_MAX_PX = 96;
@@ -13,8 +13,8 @@ const SCALE_BAR_STEPS_KM = [
 export type ScaleBar = { km: number; widthPx: number };
 export type ScaleBarLabels = { start: string; mid: string | null; end: string };
 
-export function getScaleBarMaxPx(width: number): number {
-  return width < PHONE_MAX_WIDTH ? PHONE_SCALE_BAR_MAX_PX : SCALE_BAR_MAX_PX;
+export function getScaleBarMaxPx(width: number, height: number): number {
+  return isPhoneViewport(width, height) ? PHONE_SCALE_BAR_MAX_PX : SCALE_BAR_MAX_PX;
 }
 
 export function getScaleBar(kmPerPx: number, maxWidthPx = SCALE_BAR_MAX_PX): ScaleBar | null {

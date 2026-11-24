@@ -287,7 +287,7 @@ export function PlaceSearch() {
             onFocus={handleFocus}
             onBlur={handleBlur}
             onSelect={updateCaret}
-            className="h-11 min-w-0 flex-1 bg-transparent text-base text-foreground uppercase caret-transparent outline-none placeholder:text-muted max-md:placeholder:text-[12px] max-md:placeholder:font-medium max-md:placeholder:tracking-[0.2em] md:h-4 md:text-label forced-colors:caret-[auto]"
+            className="h-11 min-w-0 flex-1 bg-transparent text-base text-foreground uppercase caret-transparent outline-none placeholder:text-muted md:h-4 md:text-label forced-colors:caret-[auto] max-md:placeholder:text-[12px] max-md:placeholder:font-medium max-md:placeholder:tracking-[0.2em]"
           />
           <span
             ref={mirrorRef}

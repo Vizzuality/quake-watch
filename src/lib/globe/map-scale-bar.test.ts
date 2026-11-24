@@ -53,11 +53,11 @@ describe('getScaleBarLabels', () => {
 
 describe('getScaleBarMaxPx', () => {
   it('keeps the 140 px bar on desktop', () => {
-    expect(getScaleBarMaxPx(1440)).toBe(SCALE_BAR_MAX_PX);
+    expect(getScaleBarMaxPx(1440, 900)).toBe(SCALE_BAR_MAX_PX);
   });
 
   it('shortens the bar on phones so it stays clear of the centred quake at 320 px', () => {
-    const maxPx = getScaleBarMaxPx(320);
+    const maxPx = getScaleBarMaxPx(320, 640);
     expect(320 - 18 - maxPx - 4).toBeGreaterThan(320 / 2 + 12 + 8);
   });
 });

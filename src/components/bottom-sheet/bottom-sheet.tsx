@@ -104,7 +104,7 @@ export function BottomSheet({
       data-dragging={dragOffset !== null || undefined}
       style={{ top }}
       className={cn(
-        'group/sheet absolute inset-x-0 bottom-0 z-20 flex flex-col rounded-t-sheet border-t border-line-sheet glass-sheet md:contents',
+        'group/sheet absolute inset-x-0 bottom-0 z-20 flex flex-col rounded-t-sheet border-t border-line-sheet glass-sheet short:left-auto short:w-80 short:rounded-none short:border-t-0 short:border-l md:contents',
         getTransitionClassName(dragOffset !== null),
         className,
       )}
@@ -126,7 +126,7 @@ export function BottomSheet({
       </button>
       <div
         ref={bodyRef}
-        className="min-h-0 flex-1 [scrollbar-width:none] overflow-y-auto overscroll-contain px-5 pb-7 md:contents"
+        className="min-h-0 flex-1 [scrollbar-width:none] overflow-y-auto overscroll-contain px-5 pb-[calc(1.75rem+env(safe-area-inset-bottom))] md:contents short:pr-[max(1.25rem,env(safe-area-inset-right))]"
       >
         {children}
       </div>

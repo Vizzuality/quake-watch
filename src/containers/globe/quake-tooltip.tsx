@@ -18,7 +18,7 @@ import {
 import type { Earthquake } from '@/lib/earthquakes/types';
 import { getKmLabel } from '@/lib/format';
 import { getGlobeFrame } from '@/lib/globe/frame';
-import { PHONE_MAX_WIDTH, getPhoneLayout } from '@/lib/layout/phone';
+import { getPhoneLayout, isPhoneViewport } from '@/lib/layout/phone';
 import { m } from '@/paraglide/messages';
 import { type Locale, getLocale } from '@/paraglide/runtime';
 
@@ -80,17 +80,25 @@ function getTooltipTop(
   return getClampedToEdges(y - TOOLTIP_RISE_PX[variant], height, containerHeight);
 }
 
-function getPinnedLeft(x: number, containerWidth: number): number {
+function getPinnedRight({ width, height }: Size): number {
+  if (!isPhoneViewport(width, height)) return width;
+  return getPhoneLayout(width, height).mapWidth;
+}
+
+function getPinnedLeft(x: number, containerSize: Size): number {
   const centred = x - PINNED.width / 2;
-  return Math.max(PINNED.edgePx, Math.min(centred, containerWidth - PINNED.edgePx - PINNED.width));
+  const right = getPinnedRight(containerSize);
+  return Math.max(PINNED.edgePx, Math.min(centred, right - PINNED.edgePx - PINNED.width));
 }
 
 function getPinnedBand({ width, height }: Size): Band {
-  if (width >= PHONE_MAX_WIDTH) return { top: PINNED.edgePx, bottom: height - PINNED.edgePx };
-  const { headerBottom, homeSheetTop } = getPhoneLayout(width, height);
+  if (!isPhoneViewport(width, height)) {
+    return { top: PINNED.edgePx, bottom: height - PINNED.edgePx };
+  }
+  const { headerBottom, homeMapBottom } = getPhoneLayout(width, height);
   return {
     top: headerBottom + PINNED.chromeGapPx,
-    bottom: homeSheetTop - PINNED.chromeGapPx,
+    bottom: homeMapBottom - PINNED.chromeGapPx,
   };
 }
 
@@ -127,7 +135,7 @@ function getPosition(
 ): Point {
   if (isPinned) {
     return {
-      x: getPinnedLeft(anchor.x, containerSize.width),
+      x: getPinnedLeft(anchor.x, containerSize),
       y: getPinnedTop(anchor.y, size.height, containerSize),
     };
   }

@@ -15,7 +15,7 @@ import { type TimeFilters, getEarthquakeFilters } from '@/lib/earthquakes/search
 import { getIntervalRange } from '@/lib/earthquakes/timeline';
 import { MAP_COLORS } from '@/lib/globe/map-style';
 import { getAreaCaption, getStripQuakeLabel, getStripTickLabel } from '@/lib/i18n/map-labels';
-import { PHONE_MAX_WIDTH } from '@/lib/layout/phone';
+import { isPhoneViewport } from '@/lib/layout/phone';
 import {
   getPhoneDetailOverlayStyle,
   getPhoneStripLabelLeft,
@@ -92,7 +92,7 @@ export function AreaStrip() {
   useLayoutEffect(() => {
     const figure = figureRef.current;
     const label = labelRef.current;
-    if (!layout || !figure || !label || window.innerWidth >= PHONE_MAX_WIDTH) {
+    if (!layout || !figure || !label || !isPhoneViewport(window.innerWidth, window.innerHeight)) {
       setPhonePlacement(null);
       return;
     }
@@ -128,7 +128,7 @@ export function AreaStrip() {
       ref={figureRef}
       data-testid="area-strip"
       style={getPhoneDetailOverlayStyle(phoneLayout)}
-      className="pointer-events-none absolute top-(--area-strip-top) right-[22px] left-[22px] block h-[111px] md:top-auto md:right-14 md:bottom-[57.55px] md:left-140 md:hidden lg:block"
+      className="pointer-events-none absolute top-(--area-strip-top) right-[22px] left-[22px] block h-[111px] md:top-auto md:right-14 md:bottom-[57.55px] md:left-140 md:hidden lg:block short:right-[342px]"
     >
       <svg className="absolute inset-0 size-full overflow-visible" aria-hidden="true">
         <line x1="0" x2="100%" y1={axisY} y2={axisY} className="stroke-line-tick" />
