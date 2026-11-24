@@ -132,6 +132,31 @@ describe('getPlacedLabels', () => {
     expect(getPlacedCount(2 * LABEL_PADDING_PX + 1)).toBe(2);
   });
 
+  it('drops a label that would land on an obstacle', () => {
+    const obstacle = { left: 90, top: 95, right: 110, bottom: 105 };
+    const placed = getPlacedLabels(
+      [
+        { lat: 0, lon: 0, rank: 2 },
+        { lat: 30, lon: 0, rank: 2 },
+      ],
+      [SIZE, SIZE],
+      CENTRED,
+      FRAME,
+      [obstacle],
+    );
+    expect(placed.map((label) => label.index)).toEqual([1]);
+  });
+
+  it('keeps a padding gap between a label and an obstacle', () => {
+    const point = { width: 0, height: 0 };
+    const getPlacedCount = (gapPx: number) =>
+      getPlacedLabels([{ lat: 0, lon: 0, rank: 2 }], [point], CENTRED, FRAME, [
+        { left: 100 + gapPx, top: 0, right: 200, bottom: 200 },
+      ]).length;
+    expect(getPlacedCount(LABEL_PADDING_PX - 1)).toBe(0);
+    expect(getPlacedCount(LABEL_PADDING_PX + 1)).toBe(1);
+  });
+
   it('reveals higher ranks as the view zooms in', () => {
     const label = [{ lat: 0, lon: 0, rank: 5 }];
     expect(getPlacedLabels(label, [SIZE], { ...CENTRED, zoom: 2 }, FRAME)).toEqual([]);

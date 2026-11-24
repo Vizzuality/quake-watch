@@ -255,6 +255,7 @@ export function PlaceSearch() {
   return (
     <div
       data-testid="place-search"
+      data-label-obstacle
       className="pointer-events-auto mt-4 flex flex-col md:absolute md:bottom-14 md:left-14 md:z-20 md:mt-0 md:block md:w-[257px]"
     >
       {isListShown && (

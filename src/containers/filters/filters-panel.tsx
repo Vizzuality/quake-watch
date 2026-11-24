@@ -81,6 +81,7 @@ export function FiltersPanel() {
     <section
       aria-label={m.filters_label()}
       data-ring-obstacle
+      data-label-obstacle
       className="pointer-events-auto mt-[18px] md:absolute md:top-[159px] md:right-14 md:z-10 md:mt-0 md:w-[230px] md:border-b md:border-line"
     >
       <h2 className="sr-only">{m.filters_label()}</h2>

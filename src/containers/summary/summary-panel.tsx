@@ -199,6 +199,7 @@ export function SummaryPanel() {
       inert={isQuakeSelected}
       data-testid="summary"
       data-ring-obstacle
+      data-label-obstacle
       className={getSummaryClassName(isQuakeSelected)}
     >
       {place !== undefined && (

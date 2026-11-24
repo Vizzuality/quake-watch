@@ -89,6 +89,7 @@ export default function ZoomButtons({
   return (
     <fieldset
       aria-label={m.globe_zoom_label()}
+      data-label-obstacle
       style={getZoomButtonsStyle(layout, isDetail)}
       className={`absolute top-(--zoom-buttons-top) right-(--zoom-buttons-right,16px) z-[1] flex gap-2.5 md:top-auto md:flex-col ${getZoomButtonsPlacement(isDetail)}`}
     >
