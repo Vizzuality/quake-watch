@@ -26,6 +26,7 @@ import { getShownCount, getSortedByTime } from '@/lib/earthquakes/timeline';
 import type { Earthquake } from '@/lib/earthquakes/types';
 import { getMinRingRadiusPx, isFeltRingShown } from '@/lib/globe/felt-rings';
 import { getGlobeFrame } from '@/lib/globe/frame';
+import { getLabelObstacleBoxes, getObstacleFeatures } from '@/lib/globe/label-obstacles';
 import { getFeltRing, getFeltRingBounds } from '@/lib/globe/map-felt-rings';
 import {
   MAP_FIELD_OF_VIEW,
@@ -41,6 +42,7 @@ import { type MapPadding, getDetailPadding } from '@/lib/globe/map-overlay';
 import { holdMapRepaints } from '@/lib/globe/map-repaint-hold';
 import {
   FELT_SOURCE_ID,
+  LABEL_OBSTACLE_SOURCE_ID,
   MAP_ATTRIBUTION,
   MAP_COLORS,
   MAP_STYLE_URL,
@@ -197,6 +199,12 @@ function getPointedEarthquake(
   const index = getPickedQuakeIndex(points, point.x, point.y);
   if (index === null) return null;
   return candidates[index];
+}
+
+function getLabelObstacleData(map: MapLibreMap) {
+  return getObstacleFeatures(getLabelObstacleBoxes(map.getContainer()), (x, y) =>
+    map.unproject([x, y]).toArray(),
+  );
 }
 
 function getElementDetailPadding(element: HTMLElement): MapPadding {
@@ -356,11 +364,13 @@ export default function GlobeMap({
     map.setVerticalFieldOfView(MAP_FIELD_OF_VIEW);
     let isStyleLoaded = false;
     let isReady = false;
+    let isShown = false;
     let isActive = false;
     let hasExited = false;
     let pinchDistance: number | null = null;
     let isSwallowingTouch = false;
     let releaseRepaints: (() => void) | null = null;
+    let labelObstacleKey = '';
 
     function getRadius(globeZoom: number): number {
       return getGlobeFrame(element.clientWidth, element.clientHeight).radius * globeZoom;
@@ -370,11 +380,23 @@ export default function GlobeMap({
       return getMapZoom(getRadius(ZOOM_RANGE[1]), map.getCenter().lat);
     }
 
+    function syncLabelObstacles() {
+      const source = map.getSource<GeoJSONSource>(LABEL_OBSTACLE_SOURCE_ID);
+      if (!isShown || !source) return;
+      const data = getLabelObstacleData(map);
+      const key = JSON.stringify(data);
+      if (key === labelObstacleKey) return;
+      labelObstacleKey = key;
+      source.setData(data);
+    }
+
     function setOpacity(view: GlobeView) {
       const opacity = getMapOpacity(isReady, isActive, view.zoom);
-      if (opacity > 0) attribution.onMapShown();
+      isShown = opacity > 0;
+      if (isShown) attribution.onMapShown();
       if (layer) layer.style.opacity = String(opacity);
       if (globe) globe.style.opacity = String(1 - opacity);
+      syncLabelObstacles();
     }
 
     function getHandoverPadding(): MapPadding {
@@ -601,6 +623,9 @@ export default function GlobeMap({
     handoverRef.current = { activate, centre, focus, exit, zoom };
     releaseDetailRef.current = releaseDetail;
     map.once('style.load', handleStyleLoad);
+    map.on('move', syncLabelObstacles);
+    map.on('resize', syncLabelObstacles);
+    map.on('idle', syncLabelObstacles);
     map.on('movestart', handleMoveStart);
     map.on('movestart', resumeRepaints);
     map.on('idle', holdRepaints);

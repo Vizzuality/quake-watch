@@ -7,6 +7,7 @@ import type {
 } from 'maplibre-gl';
 
 import { FELT_RING_LOOK } from './felt-rings';
+import { LABEL_OBSTACLE_ICON_ID } from './label-obstacles';
 import { TOWN_ICON_ID } from './map-images';
 import { QUAKE_MARKER_LOOK } from './quakes';
 
@@ -24,6 +25,8 @@ export const AREA_SOURCE_ID = 'area-ring';
 export const AREA_LAYER_ID = 'area-ring';
 export const SELECTED_LAYER_ID = 'selected-quake';
 export const SELECTED_RING_LAYER_ID = 'selected-quake-ring';
+export const LABEL_OBSTACLE_SOURCE_ID = 'label-obstacles';
+export const LABEL_OBSTACLE_LAYER_ID = 'label-obstacles';
 export const MAP_FONTS = {
   regular: 'Space Grotesk Regular',
   medium: 'Space Grotesk Medium',
@@ -509,6 +512,21 @@ function getLabelLayers(): LayerSpecification[] {
   ];
 }
 
+// Transparent icons over the UI chrome; the topmost symbol layer is placed first, so labels collide with them: https://github.com/maplibre/maplibre-gl-js/blob/v6.18.0/src/style/pauseable_placement.ts#L81
+function getLabelObstacleLayer(): LayerSpecification {
+  return {
+    id: LABEL_OBSTACLE_LAYER_ID,
+    type: 'symbol',
+    source: LABEL_OBSTACLE_SOURCE_ID,
+    layout: {
+      'icon-image': LABEL_OBSTACLE_ICON_ID,
+      'icon-size': ['get', 'iconSize'],
+      'icon-padding': 0,
+      'icon-allow-overlap': true,
+    },
+  };
+}
+
 export function getQuakeMapStyle(
   dark: StyleSpecification,
   fontUrls: MapFontUrls,
@@ -523,7 +541,8 @@ export function getQuakeMapStyle(
       [AREA_SOURCE_ID]: { type: 'geojson', data: EMPTY_COLLECTION },
       [FELT_SOURCE_ID]: { type: 'geojson', data: EMPTY_COLLECTION },
       [QUAKE_SOURCE_ID]: { type: 'geojson', data: EMPTY_COLLECTION },
+      [LABEL_OBSTACLE_SOURCE_ID]: { type: 'geojson', data: EMPTY_COLLECTION },
     },
-    layers: [...getBaseLayers(), ...getQuakeLayers(), ...getLabelLayers()],
+    layers: [...getBaseLayers(), ...getQuakeLayers(), ...getLabelLayers(), getLabelObstacleLayer()],
   };
 }
