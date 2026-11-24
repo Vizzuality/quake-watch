@@ -37,6 +37,11 @@ import { getPickedQuakeIndex, getQuakeScreenPoints } from '@/lib/globe/picking';
 import { getPlaceFocus } from '@/lib/globe/place-focus';
 import { getLatLonVector, getRotatedVector } from '@/lib/globe/sphere';
 import { getIsHomeSheetOpen, subscribeHomeSheet } from '@/lib/layout/home-sheet-store';
+import {
+  getIsSectionShown,
+  getIsSectionShownOnServer,
+  subscribeSectionShown,
+} from '@/lib/section/section-shown-store';
 import { m } from '@/paraglide/messages';
 
 import { subscribeGlobeFlyTo } from './globe-fly-to';
@@ -199,6 +204,11 @@ function GlobeCanvas() {
     getLiveSnapshot,
   );
   const isPaused = playback.playhead !== null && !playback.isPlaying;
+  const isSectionShown = useSyncExternalStore(
+    subscribeSectionShown,
+    getIsSectionShown,
+    getIsSectionShownOnServer,
+  );
   const [waves] = useState(() => createGlobeWaves(controls.isReducedMotion));
   const lastFlownRef = useRef<string | undefined>(undefined);
   const lastPlaceRef = useRef(initialView === undefined ? undefined : place);
@@ -476,6 +486,7 @@ function GlobeCanvas() {
             selectedEarthquake={selectedEarthquake}
             hoveredEarthquake={card?.earthquake}
             waves={waves}
+            isHidden={isMapActive || isSectionShown}
           />
           <Suspense fallback={null}>
             <GlobeLabels controls={controls} />
