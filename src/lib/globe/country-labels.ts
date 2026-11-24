@@ -5,8 +5,10 @@ import { getLatLonVector, getRotatedVector } from './sphere';
 
 export const LABEL_FADE_DEGREES = 15;
 export const LABEL_PADDING_PX = 4;
+export const LABEL_OBSTACLE_SELECTOR = '[data-label-obstacle]';
 
 export type LabelSize = { width: number; height: number };
+export type LabelBox = { left: number; top: number; right: number; bottom: number };
 export type PlacedLabel = { index: number; x: number; y: number; opacity: number };
 
 const DEGREES_PER_RADIAN = 180 / Math.PI;
@@ -43,10 +45,11 @@ export function getPlacedLabels(
   sizes: readonly LabelSize[],
   view: GlobeView,
   frame: GlobeFrame,
+  obstacles: readonly LabelBox[] = [],
 ): PlacedLabel[] {
   const scale = frame.radius * view.zoom;
   const placed: PlacedLabel[] = [];
-  const boxes: number[] = [];
+  const boxes = obstacles.flatMap(({ left, top, right, bottom }) => [left, top, right, bottom]);
   labels.forEach((label, index) => {
     if (!isLabelRankShown(label.rank, view.zoom)) return;
     const [vx, vy, depth] = getRotatedVector(

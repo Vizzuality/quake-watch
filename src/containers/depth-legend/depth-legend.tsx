@@ -22,6 +22,7 @@ export function DepthLegend() {
       inert={isQuakeSelected}
       data-testid="depth-legend"
       data-ring-obstacle
+      data-label-obstacle
       className={cn(
         'pointer-events-none m-0 mt-3 border-y border-line py-3.5 text-muted uppercase md:absolute md:right-[65px] md:bottom-[140px] md:z-10 md:mt-0 md:flex md:flex-col md:items-end md:gap-1 md:border-y-0 md:py-0 md:transition-[opacity,translate,visibility] md:duration-300 md:ease-out md:motion-reduce:transition-none',
         isQuakeSelected && 'md:invisible md:translate-x-6 md:opacity-0',

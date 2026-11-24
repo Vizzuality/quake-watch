@@ -100,15 +100,18 @@ export function Header() {
   const isPaused = hasLiveUpdates && isPausedSetting;
 
   return (
-    <header className={getHeaderClassName(isDetail)}>
-      <div className={getBrandClassName(isDetail)}>
+    <header data-label-obstacle className={getHeaderClassName(isDetail)}>
+      <div data-label-obstacle className={getBrandClassName(isDetail)}>
         <Wordmark className={getWordmarkClassName(isDetail)} />
         <div className="order-last md:contents [&>button]:min-h-11 md:[&>button]:min-h-0">
           <AboutDialog />
         </div>
       </div>
       {!isDetail && (
-        <div className="flex items-center md:absolute md:top-[56px] md:right-[71px] md:h-3 md:gap-6">
+        <div
+          data-label-obstacle
+          className="flex items-center md:absolute md:top-[56px] md:right-[71px] md:h-3 md:gap-6"
+        >
           <div className="flex items-center gap-1">
             <LiveStatus source={source} isPaused={isPaused} />
             {hasLiveUpdates && <LiveUpdatesToggle isPaused={isPaused} />}

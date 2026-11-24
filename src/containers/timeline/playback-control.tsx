@@ -52,7 +52,10 @@ export function PlaybackControl() {
 
   if (!range) return null;
   return (
-    <div className="pointer-events-auto absolute right-[65px] bottom-14 hidden items-center gap-4 md:flex">
+    <div
+      data-label-obstacle
+      className="pointer-events-auto absolute right-[65px] bottom-14 hidden items-center gap-4 md:flex"
+    >
       <div className="flex flex-col items-end gap-1.5 whitespace-nowrap uppercase">
         <p ref={timeRef} className="text-label text-foreground" />
         <p className="text-label-s text-muted">
