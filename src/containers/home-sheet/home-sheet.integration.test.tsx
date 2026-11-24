@@ -317,3 +317,37 @@ describe('home sheet on phones', () => {
     expect(getComputedStyle(sheet).display).toBe('none');
   });
 });
+
+describe('home sheet on short landscape screens', () => {
+  beforeEach(async () => {
+    await setViewport(844, 390);
+    await cdp().send('Emulation.setEmulatedMedia', {
+      features: [{ name: 'prefers-reduced-motion', value: 'reduce' }],
+    });
+  });
+
+  afterEach(async () => {
+    setHomeSheetOpen(false);
+    playbackClock.setRange(null);
+    await cdp().send('Emulation.setEmulatedMedia', { features: [] });
+    await setViewport(1280, 800);
+  });
+
+  it('docks the sheet right of the globe, collapsed and open', async () => {
+    const { screen, sheet } = await renderHomeSheet();
+    const { mapWidth } = getPhoneLayout(844, 390);
+
+    await expect.element(screen.getByTestId('summary-count')).toHaveTextContent('3');
+    expect(sheet.getBoundingClientRect().toJSON()).toMatchObject({
+      left: mapWidth,
+      top: 0,
+      right: 844,
+      bottom: 390,
+    });
+
+    await userEvent.click(screen.getByRole('button', { name: 'Filters & search' }));
+
+    await expect.element(screen.getByRole('combobox', { name: 'Search a place' })).toBeVisible();
+    expect(sheet.getBoundingClientRect().toJSON()).toMatchObject({ left: mapWidth, top: 0 });
+  });
+});

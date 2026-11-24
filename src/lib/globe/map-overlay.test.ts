@@ -74,6 +74,10 @@ describe('getDetailPadding', () => {
     expect(getDetailPadding(390, 844)).toEqual({ top: 0, bottom: 264, left: 0, right: 0 });
   });
 
+  it('puts the camera centre left of the side sheet and below the action row on short landscape screens', () => {
+    expect(getDetailPadding(844, 390)).toEqual({ top: 128, bottom: 0, left: 0, right: 320 });
+  });
+
   it('scales the phone camera centre with the screen height', () => {
     expect(getDetailPadding(320, 640)).toEqual({
       top: 0,
@@ -98,8 +102,8 @@ describe('getMapFadeMask', () => {
   });
 
   it('scales the fade with the globe frame', () => {
-    expect(getMapFadeMask(1440, 450, { x: 360, y: 231 })).toBe(
-      'radial-gradient(circle at 360px 231px, #000 143px, transparent 260px)',
+    expect(getMapFadeMask(1440, 600, { x: 360, y: 231 })).toBe(
+      'radial-gradient(circle at 360px 231px, #000 190.7px, transparent 346.7px)',
     );
   });
 });

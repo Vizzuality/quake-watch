@@ -6,6 +6,7 @@ import { requestGlobeSelect } from '@/containers/globe/globe-select';
 import { getQuakeKey } from '@/containers/globe/use-hovered-quake';
 import { useArrivals } from '@/hooks/use-arrivals';
 import { useIsQuakeSelected } from '@/hooks/use-is-quake-selected';
+import { usePhoneLayout } from '@/hooks/use-phone-layout';
 import { getNewestArrival, isNoteworthyArrival } from '@/lib/earthquakes/arrivals';
 import { getTooltipMagnitude } from '@/lib/earthquakes/tooltip';
 import type { Earthquake } from '@/lib/earthquakes/types';
@@ -16,13 +17,12 @@ import {
   getIsHomeSheetOpenOnServer,
   subscribeHomeSheet,
 } from '@/lib/layout/home-sheet-store';
-import { PHONE_HEADER_BOTTOM } from '@/lib/layout/phone';
 import { m } from '@/paraglide/messages';
 import { type Locale, getLocale } from '@/paraglide/runtime';
 
 const homeRoute = getRouteApi('/');
 const AUTO_DISMISS_MS = 15_000;
-const BANNER_TOP_PX = PHONE_HEADER_BOTTOM + 2;
+const BANNER_GAP_PX = 2;
 
 function getNoteworthyArrival(arrived: readonly Earthquake[]): Earthquake | undefined {
   return getNewestArrival(arrived.filter(isNoteworthyArrival));
@@ -69,6 +69,7 @@ function CloseIcon() {
 export function LiveBanner() {
   const navigate = homeRoute.useNavigate();
   const isQuakeSelected = useIsQuakeSelected();
+  const layout = usePhoneLayout();
   const isSheetOpen = useSyncExternalStore(
     subscribeHomeSheet,
     getIsHomeSheetOpen,
@@ -126,8 +127,8 @@ export function LiveBanner() {
       {shown && (
         <div
           ref={bannerRef}
-          style={{ top: BANNER_TOP_PX }}
-          className="pointer-events-auto absolute inset-x-4 z-10 flex items-center gap-3 rounded-[6px] border border-line-toast glass-toast px-3.5 py-3 text-foreground motion-safe:transition-[translate,opacity] motion-safe:duration-300 motion-safe:starting:-translate-y-2 motion-safe:starting:opacity-0"
+          style={{ top: (layout?.headerBottom ?? 0) + BANNER_GAP_PX }}
+          className="pointer-events-auto absolute right-4 left-[max(1rem,env(safe-area-inset-left))] z-10 flex items-center gap-3 rounded-[6px] border border-line-toast glass-toast px-3.5 py-3 text-foreground motion-safe:transition-[translate,opacity] motion-safe:duration-300 motion-safe:starting:-translate-y-2 motion-safe:starting:opacity-0 short:right-84"
           onFocus={() => setIsFocusWithin(true)}
           onBlur={handleBlur}
         >

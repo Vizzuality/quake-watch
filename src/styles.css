@@ -193,3 +193,9 @@
   background-color: var(--color-scrim);
   backdrop-filter: blur(6px);
 }
+
+/* md and lg also need 480px of height: short landscape screens get the phone layout with a side sheet. */
+@custom-variant md (@media (width >= 48rem) and (height >= 30rem));
+@custom-variant max-md (@media not all and (width >= 48rem) and (height >= 30rem));
+@custom-variant lg (@media (width >= 64rem) and (height >= 30rem));
+@custom-variant short (@media (height < 30rem) and (orientation: landscape));

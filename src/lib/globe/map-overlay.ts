@@ -1,4 +1,4 @@
-import { PHONE_MAX_WIDTH, getPhoneLayout } from '@/lib/layout/phone';
+import { SIDE_SHEET_WIDTH, getPhoneLayout, isPhoneViewport } from '@/lib/layout/phone';
 
 import { getGlobeFrame } from './frame';
 
@@ -73,19 +73,24 @@ function getEdgePadding(focus: number, size: number): [number, number] {
   return [Math.max(0, offset), Math.max(0, -offset)];
 }
 
+function getSideSheetPadding(isSide: boolean): number {
+  return isSide ? SIDE_SHEET_WIDTH : 0;
+}
+
 export function getDetailPadding(width: number, height: number): MapPadding {
-  if (width < PHONE_MAX_WIDTH) {
-    const [top, bottom] = getEdgePadding(getPhoneLayout(width, height).detailFocusY, height);
-    return { top, bottom, left: 0, right: 0 };
+  if (isPhoneViewport(width, height)) {
+    const { detailFocusY, isSide } = getPhoneLayout(width, height);
+    const [top, bottom] = getEdgePadding(detailFocusY, height);
+    return { top, bottom, left: 0, right: getSideSheetPadding(isSide) };
   }
   const [top, bottom] = getEdgePadding((height * DETAIL_FOCUS_Y) / BOARD.height, height);
   return { top, bottom, left: DETAIL_PANEL_RIGHT_PX, right: 0 };
 }
 
 function getFadeScale(width: number, height: number): number {
-  if (width >= PHONE_MAX_WIDTH) return getGlobeFrame(width, height).radius / BOARD.radiusPx;
-  const { detailSheetTop, detailFocusY } = getPhoneLayout(width, height);
-  return (detailSheetTop - detailFocusY) / (BOARD.height - DETAIL_FOCUS_Y);
+  if (!isPhoneViewport(width, height)) return getGlobeFrame(width, height).radius / BOARD.radiusPx;
+  const { detailMapBottom, detailFocusY } = getPhoneLayout(width, height);
+  return (detailMapBottom - detailFocusY) / (BOARD.height - DETAIL_FOCUS_Y);
 }
 
 export function getMapFadeMask(width: number, height: number, centre: ScreenPoint): string {

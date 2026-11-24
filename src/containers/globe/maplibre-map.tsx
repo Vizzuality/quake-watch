@@ -562,7 +562,7 @@ export default function GlobeMap({
     <>
       <div
         ref={containerRef}
-        className="size-full [&_.maplibregl-ctrl-bottom-right]:bottom-[calc(100%-var(--map-sheet-top))]! md:[&_.maplibregl-ctrl-bottom-right]:bottom-0!"
+        className="size-full [&_.maplibregl-ctrl-bottom-right]:bottom-[calc(100%-var(--map-sheet-top))]! md:[&_.maplibregl-ctrl-bottom-right]:bottom-0! short:[&_.maplibregl-ctrl-bottom-right]:right-80!"
         style={{
           backgroundColor: MAP_COLORS.background,
           ...getMapSheetTopStyle(phoneLayout, search.quake !== undefined),

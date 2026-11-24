@@ -22,7 +22,7 @@ const homeRoute = getRouteApi('/');
 function getRingLayerClassName(isSheetOpen: boolean): string {
   return cn(
     'pointer-events-none absolute inset-0 motion-safe:[transition:opacity_300ms_ease-out,visibility_300ms]',
-    isSheetOpen && 'invisible opacity-0 md:visible md:opacity-100',
+    isSheetOpen && 'invisible opacity-0 short:visible short:opacity-100 md:visible md:opacity-100',
   );
 }
 
