@@ -13,6 +13,8 @@ import { render } from 'vitest-browser-react';
 
 import { CAMERA_DEBOUNCE_MS, type Camera, useCameraSearch } from '@/hooks/use-camera-search';
 import { type FilterSearchPatch, useFilterSearch } from '@/hooks/use-filter-search';
+import { useToggleLiveUpdates } from '@/hooks/use-live-updates';
+import { setLiveUpdatesPaused } from '@/lib/earthquakes/live-updates';
 import { earthquakesQueryOptions } from '@/lib/earthquakes/query-options';
 import { EARTHQUAKE_SEARCH_ROUTE, getEarthquakeFilters } from '@/lib/earthquakes/search-schema';
 import { Route } from '@/routes/index';
@@ -22,6 +24,7 @@ import { stubFetch } from '@/test/stub-fetch';
 type Setters = {
   setCamera: (camera: Camera) => void;
   setSearch: (patch: FilterSearchPatch) => Promise<void>;
+  toggleLiveUpdates: () => void;
 };
 
 const LIST_PATH = '/fdsnws/event/1/query';
@@ -52,7 +55,12 @@ async function renderEarthquakesQuery(initialEntry = '/') {
     useQuery(earthquakesQueryOptions(getEarthquakeFilters(search)));
     const setCamera = useCameraSearch();
     const setSearch = useFilterSearch();
-    useImperativeHandle(settersRef, () => ({ setCamera, setSearch }), [setCamera, setSearch]);
+    const toggleLiveUpdates = useToggleLiveUpdates();
+    useImperativeHandle(settersRef, () => ({ setCamera, setSearch, toggleLiveUpdates }), [
+      setCamera,
+      setSearch,
+      toggleLiveUpdates,
+    ]);
     return null;
   }
 
@@ -100,6 +108,7 @@ describe('earthquakes query', () => {
     unmounts.splice(0).forEach((unmount) => unmount());
     vi.useRealTimers();
     focusManager.setFocused(undefined);
+    setLiveUpdatesPaused(false);
   });
 
   it('shares one list request between the loader and the observer, untouched by camera, place and quake', async () => {
@@ -152,6 +161,27 @@ describe('earthquakes query', () => {
       await vi.advanceTimersByTimeAsync(60_000);
       await expect.poll(() => getListUrls().length).toBe(expected);
     }
+  });
+
+  it('stops polling while live updates are paused and fetches as soon as they resume', async () => {
+    vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] });
+    const { setters, getListUrls } = await renderEarthquakesQuery('/?interval=24h');
+    await expect.poll(() => getListUrls().length).toBe(1);
+    await settle();
+
+    setters.toggleLiveUpdates();
+    for (let step = 0; step < 3; step += 1) {
+      await vi.advanceTimersByTimeAsync(60_000);
+    }
+    focusManager.setFocused(false);
+    focusManager.setFocused(true);
+    await settle();
+    expect(getListUrls()).toHaveLength(1);
+
+    setters.toggleLiveUpdates();
+    await expect.poll(() => getListUrls().length).toBe(2);
+    await vi.advanceTimersByTimeAsync(60_000);
+    await expect.poll(() => getListUrls().length).toBe(3);
   });
 
   it.each(['/?interval=3d', '/'])('does not poll for %s', async (initialEntry) => {

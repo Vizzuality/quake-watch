@@ -13,6 +13,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-react';
 import { userEvent } from 'vitest/browser';
 
+import { setWavePaused } from '@/containers/globe/wave-pause';
 import { EARTHQUAKE_SEARCH_ROUTE } from '@/lib/earthquakes/search-schema';
 import { CRUST_CELL_COUNT, getCrustLayersBuffer } from '@/lib/section/crust-layers';
 import { getSlabGridsBuffer } from '@/lib/section/slab-depth';
@@ -21,6 +22,7 @@ import { getEmscFeature, getFeatureCollection } from '@/test/fixtures/earthquake
 import { setViewport } from '@/test/set-viewport';
 import { stubFetch } from '@/test/stub-fetch';
 
+import { PULSE_RINGS } from './section-figure';
 import SectionView, { SectionNote } from './section-view';
 import { ViewToggle } from './view-toggle';
 
@@ -205,6 +207,27 @@ describe('section view', () => {
         }),
       )
       .toBeInTheDocument();
+  });
+
+  it('holds the wave rings still while the wave is paused and loops them again on play', async () => {
+    const { screen } = await renderSection(`/?quake=${QUAKE}&view=section`);
+    await expect.element(screen.getByTestId('section-figure')).toBeInTheDocument();
+    const rings = screen
+      .getByTestId('section-figure')
+      .element()
+      .querySelectorAll('g[clip-path] > circle');
+    function getRadii() {
+      return [...rings].map((circle) => Number(circle.getAttribute('r')));
+    }
+
+    setWavePaused(true);
+    await expect.poll(getRadii).toEqual(PULSE_RINGS.map(({ radius }) => radius));
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    expect(getRadii()).toEqual(PULSE_RINGS.map(({ radius }) => radius));
+
+    setWavePaused(false);
+    await expect.poll(getRadii).not.toEqual(PULSE_RINGS.map(({ radius }) => radius));
+    setWavePaused(null);
   });
 
   it('shows an inline error with a retry when the relief cannot load', async () => {
