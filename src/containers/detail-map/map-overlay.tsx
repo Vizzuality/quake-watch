@@ -39,6 +39,7 @@ import { EARTH_RADIUS_KM } from '@/lib/globe/quakes';
 import { getFeltRingLabel, getFeltRingShortLabel } from '@/lib/i18n/map-labels';
 import { isPhoneViewport } from '@/lib/layout/phone';
 import { getPhoneDetailOverlayStyle, getPhoneFeltLabelPlacement } from '@/lib/layout/phone-detail';
+import { getIsSectionShown, subscribeSectionShown } from '@/lib/section/section-shown-store';
 import { getLocale } from '@/paraglide/runtime';
 
 import { AreaStrip } from './area-strip';
@@ -59,6 +60,7 @@ const SCALE_LABEL_CLASS_NAME =
 type Point = { x: number; y: number };
 type Replay = { id: string; startedAt: number };
 type Motion = { replay: Replay | null; loopStartedAt: number | null };
+type OverlayCamera = { centre: Point; feltPx: number };
 type ScaleRefs = {
   root: RefObject<HTMLDivElement | null>;
   mid: RefObject<HTMLSpanElement | null>;
@@ -255,15 +257,13 @@ function setFadeMask(map: MapLibreMap) {
   canvas.style.webkitMaskImage = mask;
 }
 
-function syncOverlay(
+function syncCameraOverlay(
   map: MapLibreMap,
   refs: OverlayRefs,
   { earthquake, reachKm, areaRadiusKm, locale }: OverlayInput,
-  motion: Motion,
-  now: number,
-) {
+): OverlayCamera | null {
   setFadeMask(map);
-  if (!earthquake) return;
+  if (!earthquake) return null;
   const centre = getProjected(map, [earthquake.longitude, earthquake.latitude]);
   const east = getDestinationPoint(map, earthquake, reachKm, EAST_RADIANS);
   const feltPx = Math.hypot(east.x - centre.x, east.y - centre.y);
@@ -285,10 +285,21 @@ function syncOverlay(
     area.offsetPx,
     'translate(-100%, -100%)',
   );
-  const rings = reachKm > 0 ? getRings(motion, earthquake.id, now, feltPx) : [];
-  setRings(refs.rings.current, centre, rings, getRingStrokePx(motion, earthquake.id, now));
   setScaleBar(map, refs.scale, locale);
   setLocatorRect(map, refs.locatorRect.current);
+  return { centre, feltPx };
+}
+
+function syncRings(
+  refs: OverlayRefs,
+  camera: OverlayCamera | null,
+  { earthquake, reachKm }: OverlayInput,
+  motion: Motion,
+  now: number,
+) {
+  if (!earthquake || !camera) return;
+  const rings = reachKm > 0 ? getRings(motion, earthquake.id, now, camera.feltPx) : [];
+  setRings(refs.rings.current, camera.centre, rings, getRingStrokePx(motion, earthquake.id, now));
 }
 
 function isMoving(
@@ -433,25 +444,37 @@ export function MapOverlay({ map }: { map: MapLibreMap }) {
     };
     const input: OverlayInput = { earthquake: selected, reachKm, areaRadiusKm, locale };
     let request = 0;
+    let camera: OverlayCamera | null = null;
+    let isCameraStale = true;
     function sync(now: number) {
       request = 0;
-      if (!isMapLayerShown(map)) return;
-      syncOverlay(map, refs, input, motionRef.current, now);
+      if (!isMapLayerShown(map) || getIsSectionShown()) return;
+      if (isCameraStale) {
+        camera = syncCameraOverlay(map, refs, input);
+        isCameraStale = false;
+      }
+      syncRings(refs, camera, input, motionRef.current, now);
       if (isMoving(motionRef.current, selected, reachKm, now)) schedule();
     }
     function schedule() {
       if (request) return;
       request = requestAnimationFrame(sync);
     }
+    function handleCameraChange() {
+      isCameraStale = true;
+      schedule();
+    }
     scheduleRef.current = schedule;
     schedule();
-    map.on('move', schedule);
-    map.on('resize', schedule);
-    map.on('idle', schedule);
+    map.on('move', handleCameraChange);
+    map.on('resize', handleCameraChange);
+    map.on('idle', handleCameraChange);
+    const unsubscribeSection = subscribeSectionShown(handleCameraChange);
     return () => {
-      map.off('move', schedule);
-      map.off('resize', schedule);
-      map.off('idle', schedule);
+      unsubscribeSection();
+      map.off('move', handleCameraChange);
+      map.off('resize', handleCameraChange);
+      map.off('idle', handleCameraChange);
       cancelAnimationFrame(request);
       scheduleRef.current = () => {};
     };

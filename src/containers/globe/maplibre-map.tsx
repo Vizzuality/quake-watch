@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { getRouteApi } from '@tanstack/react-router';
 import {
   type GeoJSONSource,
+  type JumpToOptions,
   Map as MapLibreMap,
   type MapMouseEvent,
   type ProjectionSpecification,
@@ -37,6 +38,7 @@ import {
   getUrlZoom,
 } from '@/lib/globe/map-handover';
 import { type MapPadding, getDetailPadding } from '@/lib/globe/map-overlay';
+import { holdMapRepaints } from '@/lib/globe/map-repaint-hold';
 import {
   FELT_SOURCE_ID,
   MAP_ATTRIBUTION,
@@ -51,6 +53,7 @@ import { type GlobeView, ZOOM_RANGE, getViewCamera } from '@/lib/globe/motion';
 import { PICK_TOLERANCE_PX, getPickedQuakeIndex } from '@/lib/globe/picking';
 import { getEpicentreRadiusPx } from '@/lib/globe/quakes';
 import { getMapSheetTopStyle } from '@/lib/layout/phone-detail';
+import { getIsSectionShown, subscribeSectionShown } from '@/lib/section/section-shown-store';
 
 import { watchAttributionCollapse } from './attribution-collapse';
 import { QuakeTooltip } from './quake-tooltip';
@@ -353,6 +356,7 @@ export default function GlobeMap({
     let hasExited = false;
     let pinchDistance: number | null = null;
     let isSwallowingTouch = false;
+    let releaseRepaints: (() => void) | null = null;
 
     function getRadius(globeZoom: number): number {
       return getGlobeFrame(element.clientWidth, element.clientHeight).radius * globeZoom;
@@ -424,7 +428,12 @@ export default function GlobeMap({
     }
 
     function centre({ latitude, longitude }: Earthquake) {
-      map.flyTo({ center: [longitude, latitude], padding: getElementDetailPadding(element) });
+      const camera: JumpToOptions = {
+        center: [longitude, latitude],
+        padding: getElementDetailPadding(element),
+      };
+      if (getIsSectionShown()) map.jumpTo(camera);
+      else map.flyTo(camera);
     }
 
     function getFocusZoom(earthquake: Earthquake, padding: MapPadding): number {
@@ -480,6 +489,7 @@ export default function GlobeMap({
         setOpacity(controls.viewRef.current);
         setReadyMap(map);
         callbacksRef.current.onReady();
+        handleSectionShown();
       });
     }
 
@@ -560,12 +570,30 @@ export default function GlobeMap({
       if (earthquake) callbacksRef.current.onSelect(earthquake);
     }
 
+    function holdRepaints() {
+      if (!isReady || !getIsSectionShown() || map.isMoving()) return;
+      releaseRepaints ??= holdMapRepaints(map);
+    }
+
+    function resumeRepaints() {
+      releaseRepaints?.();
+      releaseRepaints = null;
+    }
+
+    function handleSectionShown() {
+      if (getIsSectionShown()) holdRepaints();
+      else resumeRepaints();
+    }
+
     sync(controls.viewRef.current);
+    const unsubscribeSection = subscribeSectionShown(handleSectionShown);
     controls.setFrameListener(sync);
     handoverRef.current = { activate, centre, focus, exit };
     releaseDetailRef.current = releaseDetail;
     map.once('style.load', handleStyleLoad);
     map.on('movestart', handleMoveStart);
+    map.on('movestart', resumeRepaints);
+    map.on('idle', holdRepaints);
     map.on('moveend', handleMoveEnd);
     map.on('mousemove', handlePointerMove);
     map.on('mouseout', handlePointerOut);
@@ -577,6 +605,7 @@ export default function GlobeMap({
     element.addEventListener('keydown', handleKeyDown, { capture: true });
     if (import.meta.env.DEV) window.__globeMap = map;
     return () => {
+      unsubscribeSection();
       controls.setFrameListener(null);
       handoverRef.current = null;
       releaseDetailRef.current = () => {};

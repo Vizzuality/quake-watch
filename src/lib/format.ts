@@ -1,4 +1,4 @@
-import { getIntlLocale } from '@/lib/i18n/intl-locale';
+import { getCachedFormat, getIntlLocale } from '@/lib/i18n/intl-locale';
 
 const MINUTE_MS = 60_000;
 const HOUR_MS = 3_600_000;
@@ -37,10 +37,14 @@ export function getKmLabel(km: number, locale: string, fractionDigits = 0): stri
   }).format(km);
 }
 
+const decimalFormats = new Map<string, Intl.NumberFormat>();
+
 export function getDecimalLabel(value: number, locale: string, fractionDigits = 0): string {
-  return new Intl.NumberFormat(getIntlLocale(locale), {
-    maximumFractionDigits: fractionDigits,
-  }).format(value);
+  return getCachedFormat(
+    decimalFormats,
+    `${locale}:${fractionDigits}`,
+    () => new Intl.NumberFormat(getIntlLocale(locale), { maximumFractionDigits: fractionDigits }),
+  ).format(value);
 }
 
 export function getDegreesLabel(degrees: number, locale: string, fractionDigits = 0): string {
