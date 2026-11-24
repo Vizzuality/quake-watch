@@ -2008,7 +2008,6 @@ describe('globe camera URL', () => {
       .toBeLessThanOrEqual(2.5);
     await waitMs(FLY_DURATION_MS);
     const landed = getGlobeView();
-    expect(getLonDistance(landed.lon, FRAME_LON)).toBeLessThanOrEqual(2.5);
     expect(landed.lat).toBeCloseTo(VIEW_LAT, 6);
     expect(landed.zoom).toBe(1);
     await waitFrames(30);

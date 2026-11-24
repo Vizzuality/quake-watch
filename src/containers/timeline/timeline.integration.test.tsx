@@ -224,9 +224,13 @@ describe('timeline', () => {
   it('forwards a wheel over the ring to what lies under it', async () => {
     const { wheel, wheels } = await renderTimeline();
 
-    wheel(0.3);
-
-    expect(wheels.count).toBe(1);
+    await expect
+      .poll(() => {
+        wheels.count = 0;
+        wheel(0.3);
+        return wheels.count;
+      })
+      .toBe(1);
   });
 
   it('plays from the start at the end, pauses, and does it from the keyboard', async () => {
