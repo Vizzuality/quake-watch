@@ -25,8 +25,6 @@ const MAX_FRAME_SECONDS = 0.1;
 const RELEASE_WINDOW_MS = 100;
 const RELEASE_PAUSE_MS = 50;
 const RELEASE_MIN_SPAN_MS = 16;
-const KEY_ROTATE_PX = 60;
-export const KEY_ZOOM_FACTOR = 1.5;
 export const MAX_RELEASE_SPEED = 3;
 export const REDUCED_MOTION_QUERY = '(prefers-reduced-motion: reduce)';
 
@@ -60,6 +58,7 @@ export type GlobeControls = {
   setHeld: (held: boolean) => void;
   setFrameListener: (listener: ((view: GlobeView) => void) | null) => void;
   zoomBy: (factor: number) => void;
+  rotateBy: (dx: number, dy: number) => void;
   isAnimating: () => boolean;
   isReducedMotion: () => boolean;
 };
@@ -83,20 +82,6 @@ function getReleaseVelocity(samples: Sample[], releaseTime: number): GlobeVeloci
   const lat = (last.lat - first.lat) / seconds;
   const scale = Math.min(1, MAX_RELEASE_SPEED / Math.hypot(lon, lat));
   return { lon: lon * scale, lat: lat * scale };
-}
-
-function getKeyNudge(key: string): Point | null {
-  if (key === 'ArrowLeft') return { x: KEY_ROTATE_PX, y: 0 };
-  if (key === 'ArrowRight') return { x: -KEY_ROTATE_PX, y: 0 };
-  if (key === 'ArrowUp') return { x: 0, y: KEY_ROTATE_PX };
-  if (key === 'ArrowDown') return { x: 0, y: -KEY_ROTATE_PX };
-  return null;
-}
-
-function getKeyZoomFactor(key: string): number | null {
-  if (key === '+' || key === '=') return KEY_ZOOM_FACTOR;
-  if (key === '-' || key === '_') return 1 / KEY_ZOOM_FACTOR;
-  return null;
 }
 
 function getRelativePoint(element: HTMLElement, event: PointerEvent): Point {
@@ -242,6 +227,19 @@ export function useGlobeControls(
         optionsRef.current.onZoom?.(viewRef.current);
         optionsRef.current.onSettle?.(viewRef.current);
       },
+      rotateBy: (dx, dy) => {
+        const element = targetRef.current;
+        if (!element) return;
+        markInteraction(idleClock);
+        optionsRef.current.onHover?.(null, IMMEDIATE);
+        flyRef.current = null;
+        velocityRef.current = STOPPED;
+        const { radius } = getGlobeFrame(element.clientWidth, element.clientHeight);
+        viewRef.current = getDraggedView(viewRef.current, dx, dy, radius);
+        isTouchedRef.current = true;
+        invalidate();
+        optionsRef.current.onSettle?.(viewRef.current);
+      },
       advance: (dtSeconds) => {
         const view = getNextView(dtSeconds);
         frameListenerRef.current?.(view);
@@ -249,7 +247,7 @@ export function useGlobeControls(
       },
     };
     return [globeControls, idleClock];
-  }, []);
+  }, [targetRef]);
 
   useLayoutEffect(() => {
     optionsRef.current = options;
@@ -404,28 +402,6 @@ export function useGlobeControls(
       if (gestureRef.current?.kind === 'drag' && point) startDrag(point, gestureRef.current.moved);
     }
 
-    function rotateBy({ x, y }: Point) {
-      markInteraction(idle);
-      optionsRef.current.onHover?.(null, IMMEDIATE);
-      flyRef.current = null;
-      velocityRef.current = STOPPED;
-      const { radius } = getGlobeFrame(element.clientWidth, element.clientHeight);
-      viewRef.current = getDraggedView(viewRef.current, x, y, radius);
-      isTouchedRef.current = true;
-      invalidate();
-      optionsRef.current.onSettle?.(viewRef.current);
-    }
-
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.target !== element || event.altKey || event.ctrlKey || event.metaKey) return;
-      const nudge = getKeyNudge(event.key);
-      const factor = getKeyZoomFactor(event.key);
-      if (nudge) rotateBy(nudge);
-      else if (factor) controls.zoomBy(factor);
-      else return;
-      event.preventDefault();
-    }
-
     function handleReducedMotionChange(event: MediaQueryListEvent) {
       isReducedMotionRef.current = event.matches;
       invalidate();
@@ -437,7 +413,6 @@ export function useGlobeControls(
     element.addEventListener('pointercancel', handlePointerEnd);
     element.addEventListener('pointerleave', handlePointerLeave);
     element.addEventListener('wheel', handleWheel, { passive: false });
-    element.addEventListener('keydown', handleKeyDown);
     reducedMotion.addEventListener('change', handleReducedMotionChange);
     return () => {
       element.removeEventListener('pointerdown', handlePointerDown);
@@ -446,11 +421,10 @@ export function useGlobeControls(
       element.removeEventListener('pointercancel', handlePointerEnd);
       element.removeEventListener('pointerleave', handlePointerLeave);
       element.removeEventListener('wheel', handleWheel);
-      element.removeEventListener('keydown', handleKeyDown);
       reducedMotion.removeEventListener('change', handleReducedMotionChange);
       clearTimeout(idle.timer.id);
     };
-  }, [targetRef, idle, controls]);
+  }, [targetRef, idle]);
 
   return controls;
 }

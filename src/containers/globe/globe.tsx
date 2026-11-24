@@ -52,7 +52,7 @@ import { type GlobeWaves, createGlobeWaves } from './globe-waves';
 import type { MapCentre, MapHandover } from './maplibre-map';
 import { QuakeTooltip } from './quake-tooltip';
 import { SceneCanvas } from './scene-canvas';
-import { type HoverOptions, KEY_ZOOM_FACTOR, useGlobeControls } from './use-globe-controls';
+import { type HoverOptions, useGlobeControls } from './use-globe-controls';
 import {
   type HoveredQuake,
   type Point,
@@ -79,6 +79,7 @@ const GlobeMap = lazy(() => import('./maplibre-map'));
 const GlobeLabels = lazy(() => import('./globe-labels').catch(() => ({ default: () => null })));
 const ZoomButtons = lazy(() => import('./zoom-buttons').catch(() => ({ default: () => null })));
 const CENTRE_TOLERANCE = 1e-4;
+const ZOOM_STEP_FACTOR = 1.5;
 
 function isWebGLAvailable(): boolean {
   const context = document.createElement('canvas').getContext('webgl2');
@@ -287,7 +288,7 @@ function GlobeCanvas() {
 
   function handleZoomButton(direction: 1 | -1) {
     if (isMapActive) mapHandoverRef.current?.zoom(direction);
-    else controls.zoomBy(KEY_ZOOM_FACTOR ** direction);
+    else controls.zoomBy(ZOOM_STEP_FACTOR ** direction);
   }
 
   function dropPendingQuake(view: GlobeView) {
@@ -526,7 +527,12 @@ function GlobeCanvas() {
       )}
       {!isSectionShown && (
         <Suspense fallback={null}>
-          <ZoomButtons isDetail={quake !== undefined} onZoom={handleZoomButton} />
+          <ZoomButtons
+            isDetail={quake !== undefined}
+            keyTargetRef={containerRef}
+            onZoom={handleZoomButton}
+            onRotate={controls.rotateBy}
+          />
         </Suspense>
       )}
       {card && (

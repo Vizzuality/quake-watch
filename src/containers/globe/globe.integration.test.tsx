@@ -575,6 +575,7 @@ describe('globe', () => {
     overwriteGetLocale(() => 'es');
     const { screen } = await renderGlobe();
     const globe = screen.getByRole('application').element() as HTMLElement;
+    await expect.element(screen.getByRole('button', { name: 'Alejar' })).toBeVisible();
 
     await userEvent.tab();
     expect(document.activeElement).toBe(globe);
@@ -585,7 +586,6 @@ describe('globe', () => {
     await userEvent.keyboard('+');
     expect(window.__globeView?.().zoom).toBeCloseTo(1.5, 6);
 
-    await expect.element(screen.getByRole('button', { name: 'Alejar' })).toBeVisible();
     const zoomOut = screen.getByRole('button', { name: 'Alejar' }).element() as HTMLElement;
     const hitArea = getComputedStyle(zoomOut, '::before');
     expect(zoomOut.getBoundingClientRect().width).toBe(34);
@@ -595,6 +595,36 @@ describe('globe', () => {
     expect(window.__globeView?.().zoom).toBe(1);
     (screen.getByRole('button', { name: 'Acercar' }).element() as HTMLElement).click();
     expect(window.__globeView?.().zoom).toBeCloseTo(1.5, 6);
+  });
+
+  it('rotates with the arrow keys, zooms with + = − _ and ignores modified or other keys', async () => {
+    const { screen } = await renderGlobe();
+    const globe = screen.getByRole('application').element() as HTMLElement;
+    await expect.element(screen.getByRole('button', { name: 'Zoom in' })).toBeVisible();
+
+    function press(key: string, init: KeyboardEventInit = {}): KeyboardEvent {
+      const event = new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true, ...init });
+      globe.dispatchEvent(event);
+      return event;
+    }
+    function getView() {
+      return window.__globeView?.();
+    }
+
+    const start = getView();
+    expect(press('ArrowLeft').defaultPrevented).toBe(true);
+    expect(getView()?.lon).toBeLessThan(start?.lon ?? 0);
+    press('ArrowUp');
+    expect(getView()?.lat).toBeGreaterThan(start?.lat ?? 0);
+    press('=');
+    expect(getView()?.zoom).toBeCloseTo(1.5, 6);
+    press('_');
+    expect(getView()?.zoom).toBeCloseTo(1, 6);
+
+    const before = getView();
+    expect(press('ArrowRight', { ctrlKey: true }).defaultPrevented).toBe(false);
+    expect(press('a').defaultPrevented).toBe(false);
+    expect(getView()).toEqual(before);
   });
 
   it('drops the globe and the zoom buttons from the Tab order under the section view', async () => {
@@ -2348,34 +2378,23 @@ describe('globe controls', () => {
     expect(step(60)).toEqual(dragged);
   });
 
-  it('rotates 60 px with the arrow keys and zooms by 1.5 with + and −', async () => {
+  it('rotates like a drag of the same length and zooms past the max into the map handover', async () => {
     const onZoomPastMax = vi.fn<NonNullable<GlobeControlsOptions['onZoomPastMax']>>();
-    const { controls, target } = await renderControls({ onZoomPastMax });
+    const { controls } = await renderControls({ onZoomPastMax });
 
-    function press(key: string, init: KeyboardEventInit = {}): KeyboardEvent {
-      const event = new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true, ...init });
-      target.dispatchEvent(event);
-      return event;
-    }
-
-    expect(press('ArrowLeft').defaultPrevented).toBe(true);
+    controls.rotateBy(60, 0);
     expect(controls.viewRef.current.lon).toBeCloseTo(INITIAL_VIEW.lon - 60 / RADIUS, 6);
-    press('ArrowUp');
+    controls.rotateBy(0, 60);
     expect(controls.viewRef.current.lat).toBeCloseTo(INITIAL_VIEW.lat + 60 / RADIUS, 6);
-    press('+');
+    controls.zoomBy(1.5);
     expect(controls.viewRef.current.zoom).toBeCloseTo(1.5, 6);
-    press('-');
+    controls.zoomBy(1 / 1.5);
     expect(controls.viewRef.current.zoom).toBeCloseTo(1, 6);
 
-    const before = controls.viewRef.current;
-    expect(press('ArrowRight', { ctrlKey: true }).defaultPrevented).toBe(false);
-    expect(press('a').defaultPrevented).toBe(false);
-    expect(controls.viewRef.current).toEqual(before);
-
-    for (let i = 0; i < 4; i++) press('=');
+    for (let i = 0; i < 4; i++) controls.zoomBy(1.5);
     expect(controls.viewRef.current.zoom).toBe(ZOOM_RANGE[1]);
     expect(onZoomPastMax).not.toHaveBeenCalled();
-    press('+');
+    controls.zoomBy(1.5);
     expect(onZoomPastMax).toHaveBeenCalledOnce();
   });
 
