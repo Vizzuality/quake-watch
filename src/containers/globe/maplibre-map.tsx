@@ -18,8 +18,10 @@ import { getWrappedLongitude, useCameraSearch } from '@/hooks/use-camera-search'
 import { usePhoneLayout } from '@/hooks/use-phone-layout';
 import { getDepthColor } from '@/lib/earthquakes/depth-color';
 import { getFeltReachKm } from '@/lib/earthquakes/intensity';
+import { playbackClock } from '@/lib/earthquakes/playback-clock';
 import { earthquakesQueryOptions } from '@/lib/earthquakes/query-options';
 import { getEarthquakeFilters } from '@/lib/earthquakes/search-schema';
+import { getShownCount, getSortedByTime } from '@/lib/earthquakes/timeline';
 import type { Earthquake } from '@/lib/earthquakes/types';
 import { getMinRingRadiusPx, isFeltRingShown } from '@/lib/globe/felt-rings';
 import { getGlobeFrame } from '@/lib/globe/frame';
@@ -43,6 +45,7 @@ import {
   QUAKE_LAYER_ID,
   QUAKE_SOURCE_ID,
   getQuakeMapStyle,
+  getReplayFilters,
 } from '@/lib/globe/map-style';
 import { type GlobeView, ZOOM_RANGE, getViewCamera } from '@/lib/globe/motion';
 import { PICK_TOLERANCE_PX, getPickedQuakeIndex } from '@/lib/globe/picking';
@@ -116,6 +119,7 @@ function getQuakeFeatures(earthquakes: readonly Earthquake[], selected: Earthqua
         radius: getEpicentreRadiusPx(earthquake.magnitude),
         ringRadius: getMinRingRadiusPx(earthquake.magnitude),
         isFelt: isFeltShown(earthquake, selected),
+        time: earthquake.time,
       },
     })),
   };
@@ -128,7 +132,7 @@ function getFeltFeatures(earthquakes: readonly Earthquake[], selected: Earthquak
       if (!isFeltShown(earthquake, selected)) return [];
       const reachKm = getFeltReachKm(earthquake);
       const { polygon, outline } = getFeltRing(earthquake.latitude, earthquake.longitude, reachKm);
-      const properties = { color: getDepthColor(earthquake.depthKm) };
+      const properties = { color: getDepthColor(earthquake.depthKm), time: earthquake.time };
       return [
         {
           type: 'Feature' as const,
@@ -152,6 +156,18 @@ function setQuakeData(
 ) {
   map.getSource<GeoJSONSource>(QUAKE_SOURCE_ID)?.setData(getQuakeFeatures(earthquakes, selected));
   map.getSource<GeoJSONSource>(FELT_SOURCE_ID)?.setData(getFeltFeatures(earthquakes, selected));
+}
+
+function isReplaySourceLoaded(map: MapLibreMap): boolean {
+  return map.isSourceLoaded(QUAKE_SOURCE_ID) && map.isSourceLoaded(FELT_SOURCE_ID);
+}
+
+function setReplayFilters(map: MapLibreMap, playhead: number | null) {
+  for (const [layerId, filter] of getReplayFilters(playhead)) map.setFilter(layerId, filter);
+}
+
+function getSortedTimes(earthquakes: readonly Earthquake[]): Float64Array {
+  return Float64Array.from(getSortedByTime(earthquakes), ({ time }) => time);
 }
 
 function getPointedEarthquake(
@@ -276,6 +292,27 @@ export default function GlobeMap({
   useEffect(() => {
     if (mapRef.current) setQuakeData(mapRef.current, earthquakes, selectedEarthquake);
   }, [earthquakes, selectedEarthquake]);
+
+  useEffect(() => {
+    if (!readyMap) return;
+    const map = readyMap;
+    const sortedTimes = getSortedTimes(earthquakes);
+    let shownCount: number | null | undefined;
+    function update() {
+      const playhead = playbackClock.getPlayhead();
+      const next = playhead === null ? null : getShownCount(sortedTimes, playhead);
+      if (next === shownCount || !isReplaySourceLoaded(map)) return;
+      shownCount = next;
+      setReplayFilters(map, playhead);
+    }
+    update();
+    map.on('sourcedata', update);
+    const unsubscribe = playbackClock.subscribeFrame(update);
+    return () => {
+      map.off('sourcedata', update);
+      unsubscribe();
+    };
+  }, [earthquakes, readyMap]);
 
   useEffect(() => {
     if (!hovered) return;

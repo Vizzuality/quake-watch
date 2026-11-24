@@ -78,7 +78,15 @@ const NAME: ExpressionSpecification = [
   ['get', 'name'],
 ];
 const POINT_FILTER: FilterSpecification = ['==', ['geometry-type'], 'Point'];
-const LINE_FILTER: FilterSpecification = ['==', ['geometry-type'], 'LineString'];
+const LINE_FILTER: ExpressionSpecification = ['==', ['geometry-type'], 'LineString'];
+const POLYGON_FILTER: ExpressionSpecification = ['==', ['geometry-type'], 'Polygon'];
+const UNFELT_FILTER: ExpressionSpecification = ['!', ['get', 'isFelt']];
+const REPLAY_BASE_FILTERS: ReadonlyArray<[string, ExpressionSpecification | null]> = [
+  [QUAKE_LAYER_ID, null],
+  [QUAKE_RING_LAYER_ID, UNFELT_FILTER],
+  [FELT_FILL_LAYER_ID, POLYGON_FILTER],
+  [FELT_LINE_LAYER_ID, LINE_FILTER],
+];
 
 type MapFontFiles = { latin: string; latinExt: string };
 export type MapFontUrls = Record<keyof typeof MAP_FONTS, MapFontFiles>;
@@ -120,6 +128,22 @@ function getZoomedRadius(
 
 export function getSelectedQuakeFilter(key: string | null): FilterSpecification {
   return ['==', ['get', 'key'], key ?? ''];
+}
+
+function getReplayFilter(
+  base: ExpressionSpecification | null,
+  playhead: number | null,
+): ExpressionSpecification | null {
+  if (playhead === null) return base;
+  const shown: ExpressionSpecification = ['<=', ['get', 'time'], playhead];
+  if (base === null) return shown;
+  return ['all', base, shown];
+}
+
+export function getReplayFilters(
+  playhead: number | null,
+): Array<[string, ExpressionSpecification | null]> {
+  return REPLAY_BASE_FILTERS.map(([layerId, base]) => [layerId, getReplayFilter(base, playhead)]);
 }
 
 export function getFeltRingPaint(isSelected: boolean): FeltRingPaint {
@@ -263,7 +287,7 @@ function getQuakeLayers(): LayerSpecification[] {
       id: FELT_FILL_LAYER_ID,
       type: 'fill',
       source: FELT_SOURCE_ID,
-      filter: ['==', ['geometry-type'], 'Polygon'],
+      filter: POLYGON_FILTER,
       paint: { 'fill-color': ['get', 'color'], 'fill-opacity': feltPaint.fillOpacity },
     },
     {
@@ -281,7 +305,7 @@ function getQuakeLayers(): LayerSpecification[] {
       id: QUAKE_RING_LAYER_ID,
       type: 'circle',
       source: QUAKE_SOURCE_ID,
-      filter: ['!', ['get', 'isFelt']],
+      filter: UNFELT_FILTER,
       paint: {
         'circle-radius': getZoomedRadius(getScaledRingRadius),
         'circle-opacity': 0,

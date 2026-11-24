@@ -8,7 +8,7 @@ import {
   createRoute,
   createRouter,
 } from '@tanstack/react-router';
-import { Profiler } from 'react';
+import { type CSSProperties, Profiler } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-react';
 import { userEvent } from 'vitest/browser';
@@ -45,7 +45,7 @@ function waitFrames(count: number): Promise<void> {
   });
 }
 
-async function renderTimeline() {
+async function renderTimeline(obstacle?: CSSProperties) {
   vi.useFakeTimers({ toFake: ['Date'] });
   vi.setSystemTime(NOW);
   vi.spyOn(Element.prototype, 'setPointerCapture').mockImplementation(() => {});
@@ -79,6 +79,7 @@ async function renderTimeline() {
         <Profiler id="timeline" onRender={() => (commits.count += 1)}>
           <Timeline />
         </Profiler>
+        {obstacle && <div data-ring-obstacle style={{ position: 'absolute', ...obstacle }} />}
       </div>
     ),
   });
@@ -130,7 +131,26 @@ async function renderTimeline() {
     return now?.getAttribute('class') ?? '';
   }
 
-  return { screen, router, slider, commits, wheels, pointer, wheel, getNowClassName };
+  function getLabelStates() {
+    const labels = screen.container.querySelectorAll('[data-testid=time-ring-labels] text');
+    return [...labels].map((label) => ({
+      text: label.textContent,
+      right: label.getBoundingClientRect().right,
+      visibility: getComputedStyle(label).visibility,
+    }));
+  }
+
+  return {
+    screen,
+    router,
+    slider,
+    commits,
+    wheels,
+    pointer,
+    wheel,
+    getNowClassName,
+    getLabelStates,
+  };
 }
 
 describe('timeline', () => {
@@ -178,7 +198,7 @@ describe('timeline', () => {
     expect(router.state.location.href).toBe(href);
   });
 
-  it('scrubs with the arrow, Home and End keys', async () => {
+  it('scrubs with the four arrow keys, Home and End', async () => {
     const { slider, getNowClassName } = await renderTimeline();
 
     expect(getNowClassName()).toContain('fill-accent');
@@ -188,6 +208,11 @@ describe('timeline', () => {
     await userEvent.keyboard('{Home}');
     await expect.element(slider).toHaveAttribute('aria-valuenow', String(START));
     await userEvent.keyboard('{ArrowRight}');
+    await expect.element(slider).toHaveAttribute('aria-valuenow', String(START + STEP));
+    await userEvent.keyboard('{ArrowUp}');
+    await expect.element(slider).toHaveAttribute('aria-valuenow', String(START + 2 * STEP));
+    await expect.element(slider).toHaveAttribute('aria-valuetext', 'Mon 26.10 · 07:00 UTC');
+    await userEvent.keyboard('{ArrowDown}');
     await expect.element(slider).toHaveAttribute('aria-valuenow', String(START + STEP));
     expect(getNowClassName()).toContain('fill-foreground');
     await userEvent.keyboard('{End}');
@@ -334,5 +359,34 @@ describe('timeline', () => {
     expect(getComputedStyle(ring).opacity).toBe('1');
     expect(getComputedStyle(ring).visibility).toBe('visible');
     setHomeSheetOpen(false);
+  });
+
+  it('hides the ring labels that would run into a panel on desktop', async () => {
+    const frame = getGlobeFrame(WIDTH, HEIGHT);
+    const panelLeft = frame.cx + TIME_RING_LOOK.radius * frame.scale;
+    const { getLabelStates } = await renderTimeline({
+      left: panelLeft,
+      top: 0,
+      right: 0,
+      bottom: 0,
+    });
+
+    await expect
+      .poll(() => getLabelStates().filter(({ visibility }) => visibility === 'hidden').length)
+      .toBeGreaterThan(0);
+    const states = getLabelStates();
+    expect(states.filter(({ visibility }) => visibility === 'visible').length).toBeGreaterThan(0);
+    for (const { right, visibility } of states) {
+      expect(visibility).toBe(right > panelLeft - 8 ? 'hidden' : 'visible');
+    }
+  });
+
+  it('keeps every ring label on phones, where the panels sit in the sheet', async () => {
+    await setViewport(390, 844);
+    const { getLabelStates } = await renderTimeline({ inset: 0 });
+
+    await waitFrames(5);
+    expect(getLabelStates().length).toBeGreaterThan(0);
+    expect(getLabelStates().every(({ visibility }) => visibility === 'visible')).toBe(true);
   });
 });

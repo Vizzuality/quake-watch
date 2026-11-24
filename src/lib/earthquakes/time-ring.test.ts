@@ -13,12 +13,14 @@ import {
   getRingBarsPath,
   getRingFraction,
   getRingFractionAt,
+  getRingKeyTarget,
   getRingMarks,
   getRingOpacity,
   getRingPoint,
   getRingTicks,
   getScrubStepMs,
   getSpeedLabel,
+  isRingLabelBlocked,
 } from './time-ring';
 import { getPlaybackSpeed } from './timeline';
 import type { Earthquake } from './types';
@@ -241,5 +243,50 @@ describe('getNeedleEarthquake', () => {
 
   it('finds nothing in a quiet stretch', () => {
     expect(getNeedleEarthquake([getQuake('old', 0, 7)], 3 * DAY, range)).toBeUndefined();
+  });
+});
+
+describe('isRingLabelBlocked', () => {
+  const panel = { left: 1154, top: 159, right: 1384, bottom: 460 };
+
+  it('blocks a label that overlaps a panel or comes within 8 px of it', () => {
+    expect(isRingLabelBlocked({ left: 1118, top: 456, right: 1158, bottom: 468 }, [panel])).toBe(
+      true,
+    );
+    expect(isRingLabelBlocked({ left: 1110, top: 370, right: 1149, bottom: 382 }, [panel])).toBe(
+      true,
+    );
+  });
+
+  it('keeps a label more than 8 px clear of every panel', () => {
+    expect(isRingLabelBlocked({ left: 1078, top: 280, right: 1119, bottom: 292 }, [panel])).toBe(
+      false,
+    );
+    expect(isRingLabelBlocked({ left: 1110, top: 470, right: 1149, bottom: 482 }, [panel])).toBe(
+      false,
+    );
+    expect(isRingLabelBlocked({ left: 1110, top: 370, right: 1149, bottom: 382 }, [])).toBe(false);
+  });
+});
+
+describe('getRingKeyTarget', () => {
+  const range = { start: 0, end: 4800 };
+
+  it('steps forward with Right and Up, back with Left and Down', () => {
+    expect(getRingKeyTarget('ArrowRight', 1000, range)).toBe(1100);
+    expect(getRingKeyTarget('ArrowUp', 1000, range)).toBe(1100);
+    expect(getRingKeyTarget('ArrowLeft', 1000, range)).toBe(900);
+    expect(getRingKeyTarget('ArrowDown', 1000, range)).toBe(900);
+  });
+
+  it('jumps six steps with Page Up and Page Down, and to the ends with Home and End', () => {
+    expect(getRingKeyTarget('PageUp', 1000, range)).toBe(1600);
+    expect(getRingKeyTarget('PageDown', 1000, range)).toBe(400);
+    expect(getRingKeyTarget('Home', 1000, range)).toBe(0);
+    expect(getRingKeyTarget('End', 1000, range)).toBe(4800);
+  });
+
+  it('ignores other keys', () => {
+    expect(getRingKeyTarget('Enter', 1000, range)).toBeNull();
   });
 });

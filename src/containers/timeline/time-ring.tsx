@@ -16,6 +16,7 @@ import { getLiveSnapshot, playbackClock } from '@/lib/earthquakes/playback-clock
 import { earthquakesQueryOptions } from '@/lib/earthquakes/query-options';
 import { getEarthquakeFilters } from '@/lib/earthquakes/search-schema';
 import {
+  RING_OBSTACLE_SELECTOR,
   type RingTick,
   TIME_RING_LOOK,
   getActiveRingTicks,
@@ -26,15 +27,17 @@ import {
   getRingBarsPath,
   getRingFraction,
   getRingFractionAt,
+  getRingKeyTarget,
   getRingMarks,
   getRingPoint,
   getRingTicks,
-  getScrubStepMs,
+  isRingLabelBlocked,
 } from '@/lib/earthquakes/time-ring';
 import type { TimeRange } from '@/lib/earthquakes/timeline';
 import { getTooltipDate, getTooltipMagnitude } from '@/lib/earthquakes/tooltip';
 import type { Earthquake } from '@/lib/earthquakes/types';
 import { getGlobeFrame } from '@/lib/globe/frame';
+import { PHONE_QUERY } from '@/lib/layout/phone';
 import { m } from '@/paraglide/messages';
 import { type Locale, getLocale } from '@/paraglide/runtime';
 
@@ -46,7 +49,6 @@ const R0 = TIME_RING_LOOK.radius;
 const PAST_CLIP_RADIUS = R0 + TIME_RING_LOOK.barInset + TIME_RING_LOOK.barMax + 4;
 const HIT_RADIUS = R0 + (TIME_RING_LOOK.hitOuter - TIME_RING_LOOK.hitInner) / 2;
 const HIT_WIDTH = TIME_RING_LOOK.hitOuter + TIME_RING_LOOK.hitInner;
-const PAGE_STEPS = 6;
 const SVG_NS = 'http://www.w3.org/2000/svg';
 const ACTIVE_BAR_OPACITY = '0.95';
 
@@ -78,21 +80,6 @@ function syncActiveBars(group: SVGGElement | null, active: readonly RingTick[]) 
   group.replaceChildren(...active.map(getActiveBarElement));
 }
 
-function getKeyTarget(key: string, current: number, range: TimeRange): number | null {
-  const step = getScrubStepMs(range);
-  const targets: Record<string, number> = {
-    ArrowRight: current + step,
-    ArrowUp: current + step,
-    ArrowLeft: current - step,
-    ArrowDown: current - step,
-    PageUp: current + step * PAGE_STEPS,
-    PageDown: current - step * PAGE_STEPS,
-    Home: range.start,
-    End: range.end,
-  };
-  return targets[key] ?? null;
-}
-
 function getWheelTarget(event: WheelEvent, svg: SVGSVGElement): Element | undefined {
   return document
     .elementsFromPoint(event.clientX, event.clientY)
@@ -106,6 +93,25 @@ function getNeedleTitle(earthquake: Earthquake, locale: Locale): string {
 
 function getNeedleDate(time: number, locale: Locale): string {
   return getTooltipDate(time, locale).replace(/ UTC$/, '');
+}
+
+function getObstacles(): Element[] {
+  if (window.matchMedia(PHONE_QUERY).matches) return [];
+  return [...document.querySelectorAll(RING_OBSTACLE_SELECTOR)];
+}
+
+function getLabelVisibility(isBlocked: boolean): 'hidden' | 'visible' {
+  return isBlocked ? 'hidden' : 'visible';
+}
+
+function syncLabelVisibility(group: SVGGElement, obstacles: readonly Element[]) {
+  const boxes = obstacles
+    .map((obstacle) => obstacle.getBoundingClientRect())
+    .filter(({ width, height }) => width > 0 && height > 0);
+  for (const label of group.querySelectorAll('text')) {
+    const isBlocked = isRingLabelBlocked(label.getBoundingClientRect(), boxes);
+    label.setAttribute('visibility', getLabelVisibility(isBlocked));
+  }
 }
 
 function getTextAnchor(isRight: boolean): 'start' | 'end' {
@@ -168,6 +174,7 @@ export function TimeRing({ opacity }: { opacity: number }) {
   const needleRef = useRef<SVGGElement>(null);
   const activeRef = useRef<SVGGElement>(null);
   const hitRef = useRef<SVGCircleElement>(null);
+  const labelsRef = useRef<SVGGElement>(null);
   const isDraggingRef = useRef(false);
   const clipId = useId();
   const [size, setSize] = useState<Size | null>(null);
@@ -179,6 +186,7 @@ export function TimeRing({ opacity }: { opacity: number }) {
   );
   const barsPath = useMemo(() => getRingBarsPath(ticks), [ticks]);
   const marks = range ? getRingMarks(range, locale) : [];
+  const marksKey = marks.map(({ fraction, label }) => `${fraction}:${label}`).join(' ');
   const isLive = playhead === null;
   const frame = size && getGlobeFrame(size.width, size.height);
   const isInteractive = opacity > 0 && range !== null;
@@ -213,7 +221,7 @@ export function TimeRing({ opacity }: { opacity: number }) {
   function handleKeyDown(event: KeyboardEvent<SVGCircleElement>) {
     if (!range) return;
     const current = playbackClock.getPlayhead() ?? range.end;
-    const target = getKeyTarget(event.key, current, range);
+    const target = getRingKeyTarget(event.key, current, range);
     if (target === null) return;
     event.preventDefault();
     playbackClock.seek(target);
@@ -243,6 +251,25 @@ export function TimeRing({ opacity }: { opacity: number }) {
     update();
     return playbackClock.subscribeFrame(update);
   }, [range, ticks, isLive, size]);
+
+  useLayoutEffect(() => {
+    const group = labelsRef.current;
+    if (!group || !size) return;
+    const labels = group;
+    const obstacles = getObstacles();
+    let isCurrent = true;
+    function update() {
+      if (isCurrent) syncLabelVisibility(labels, obstacles);
+    }
+    update();
+    void document.fonts.ready.then(update);
+    const observer = new ResizeObserver(update);
+    for (const obstacle of obstacles) observer.observe(obstacle);
+    return () => {
+      isCurrent = false;
+      observer.disconnect();
+    };
+  }, [size, marksKey]);
 
   useEffect(() => {
     const hit = hitRef.current;
@@ -278,7 +305,7 @@ export function TimeRing({ opacity }: { opacity: number }) {
               d={barsPath}
               clipPath={`url(#${clipId})`}
               vectorEffect="non-scaling-stroke"
-              className="stroke-foreground/40"
+              className="stroke-foreground/50"
             />
             <g ref={activeRef} data-testid="time-ring-active" />
             {marks.map(({ fraction }) => {
@@ -359,23 +386,25 @@ export function TimeRing({ opacity }: { opacity: number }) {
             dominantBaseline="middle"
             className="text-label-s uppercase"
           >
-            {marks.flatMap(({ fraction, label }) => {
-              if (label === null) return [];
-              const point = getRingPoint(
-                getRingAngle(fraction),
-                (R0 + TIME_RING_LOOK.labelOffset) * frame.scale,
-              );
-              return (
-                <text
-                  key={fraction}
-                  x={frame.cx + point.x}
-                  y={frame.cy + point.y}
-                  className="fill-muted"
-                >
-                  {label}
-                </text>
-              );
-            })}
+            <g ref={labelsRef} data-testid="time-ring-labels">
+              {marks.flatMap(({ fraction, label }) => {
+                if (label === null) return [];
+                const point = getRingPoint(
+                  getRingAngle(fraction),
+                  (R0 + TIME_RING_LOOK.labelOffset) * frame.scale,
+                );
+                return (
+                  <text
+                    key={fraction}
+                    x={frame.cx + point.x}
+                    y={frame.cy + point.y}
+                    className="fill-muted"
+                  >
+                    {label}
+                  </text>
+                );
+              })}
+            </g>
             <text
               x={frame.cx}
               y={frame.cy - (R0 + TIME_RING_LOOK.nowLabelOffset) * frame.scale}
