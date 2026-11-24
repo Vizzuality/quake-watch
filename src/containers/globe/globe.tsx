@@ -497,6 +497,7 @@ function GlobeCanvas() {
             earthquakes={earthquakes}
             selectedEarthquake={selectedEarthquake}
             hoveredEarthquake={card?.earthquake}
+            area={area}
             waves={waves}
             isHidden={isMapActive || isSectionShown}
           />

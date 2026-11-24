@@ -23,6 +23,7 @@ import {
   getPulseRingRadiusPx,
 } from '@/lib/earthquakes/arrivals';
 import { playbackClock } from '@/lib/earthquakes/playback-clock';
+import type { SearchArea } from '@/lib/earthquakes/search-area';
 import {
   type TimeRange,
   getPlaybackSpeed,
@@ -51,6 +52,7 @@ import {
   getEmberMs,
   getQuakeMarkerAttributes,
 } from '@/lib/globe/quakes';
+import { getSearchAreaAngle } from '@/lib/globe/search-area-ring';
 import {
   getCoastSegments,
   getFibonacciPoints,
@@ -60,6 +62,8 @@ import {
 
 import { type GlobeWaves, getWaveStartValues, getWaveStarts } from './globe-waves';
 import {
+  AREA_FRAGMENT_SHADER,
+  AREA_VERTEX_SHADER,
   COAST_FRAGMENT_SHADER,
   COAST_VERTEX_SHADER,
   DISC_FRAGMENT_SHADER,
@@ -220,6 +224,7 @@ function getGlobeAssets() {
     uGlowAlpha: { value: 0 },
   };
   const coast = { uAlpha: { value: 0 } };
+  const area = { uAreaDirection: { value: new Vector3() }, uAreaAngle: { value: 0 } };
   const quakeUniforms = { ...view, ...clock };
   const { halo, haloA, haloFrom, haloTo, veil, veilA } = GLOBE_LOOK;
   return {
@@ -228,6 +233,7 @@ function getGlobeAssets() {
     waves,
     pulse,
     coast,
+    area,
     quad: getQuadGeometry(),
     dotMaterials: getFaceMaterials(DOT_VERTEX_SHADER, DOT_FRAGMENT_SHADER, {
       ...view,
@@ -256,6 +262,12 @@ function getGlobeAssets() {
       COAST_VERTEX_SHADER,
       COAST_FRAGMENT_SHADER,
       { ...view, ...coast },
+      'normal',
+    ),
+    areaMaterial: getMaterial(
+      AREA_VERTEX_SHADER,
+      AREA_FRAGMENT_SHADER,
+      { ...view, ...area },
       'normal',
     ),
     markerMaterials: getFaceMaterials(QUAKE_VERTEX_SHADER, QUAKE_FRAGMENT_SHADER, quakeUniforms),
@@ -410,6 +422,12 @@ function setPulseUniforms(
     pulse.uPulseDirection.value.set(...getLatLonVector(earthquake.latitude, earthquake.longitude));
 }
 
+function setAreaUniforms(assets: GlobeAssets, searchArea: SearchArea) {
+  const { area } = assets;
+  area.uAreaDirection.value.set(...getLatLonVector(searchArea.latitude, searchArea.longitude));
+  area.uAreaAngle.value = getSearchAreaAngle(searchArea);
+}
+
 function setShownCount(quakes: QuakeGeometries, count: number) {
   quakes.markerGeometry.setDrawRange(0, count * 2);
   quakes.needleGeometry.setDrawRange(0, count * 2);
@@ -485,6 +503,7 @@ export function GlobeScene({
   earthquakes,
   selectedEarthquake,
   hoveredEarthquake,
+  area = null,
   waves,
   isHidden = false,
 }: {
@@ -492,6 +511,7 @@ export function GlobeScene({
   earthquakes: readonly Earthquake[];
   selectedEarthquake: Earthquake | undefined;
   hoveredEarthquake?: Earthquake;
+  area?: SearchArea | null;
   waves: GlobeWaves;
   isHidden?: boolean;
 }) {
@@ -608,6 +628,11 @@ export function GlobeScene({
   }, [invalidate, selectedIndex, hoveredIndex]);
 
   useEffect(() => {
+    if (area) setAreaUniforms(assets, area);
+    invalidate();
+  }, [assets, area, invalidate]);
+
+  useEffect(() => {
     let isMounted = true;
     let loaded: Surface | null = null;
     getSurface()
@@ -683,11 +708,19 @@ export function GlobeScene({
           frustumCulled={false}
         />
       )}
-      {hasQuakes && <QuakeLayers quakes={quakes} assets={assets} face={1} renderOrder={8} />}
+      {area && (
+        <mesh
+          geometry={assets.quad}
+          material={assets.areaMaterial}
+          renderOrder={8}
+          frustumCulled={false}
+        />
+      )}
+      {hasQuakes && <QuakeLayers quakes={quakes} assets={assets} face={1} renderOrder={9} />}
       <mesh
         geometry={assets.quad}
         material={assets.pulseMaterial}
-        renderOrder={11}
+        renderOrder={12}
         frustumCulled={false}
       />
     </>
