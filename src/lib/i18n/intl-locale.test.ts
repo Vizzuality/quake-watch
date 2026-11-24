@@ -2,7 +2,25 @@ import { describe, expect, it } from 'vitest';
 
 import { getDetailTitle } from '@/lib/seo/detail-meta';
 
-import { getIntlLocale } from './intl-locale';
+import { getCachedFormat, getIntlLocale } from './intl-locale';
+
+describe('getCachedFormat', () => {
+  it('creates a format once per key and reuses it', () => {
+    const cache = new Map<string, Intl.NumberFormat>();
+    let created = 0;
+    function create() {
+      created += 1;
+      return new Intl.NumberFormat('en');
+    }
+
+    const first = getCachedFormat(cache, 'en', create);
+    const second = getCachedFormat(cache, 'en', create);
+    getCachedFormat(cache, 'es', create);
+
+    expect(second).toBe(first);
+    expect(created).toBe(2);
+  });
+});
 
 describe('getIntlLocale', () => {
   it('formats Portuguese as European Portuguese and keeps the other locales', () => {
