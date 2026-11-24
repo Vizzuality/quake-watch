@@ -85,6 +85,8 @@ describe('getQuakeMapStyle', () => {
       'label-road',
       'label-sea-line',
       'label-sea',
+      'label-island',
+      'label-region',
       'label-neighbourhood',
       'label-town',
       'label-country',
@@ -229,6 +231,55 @@ describe('getQuakeMapStyle', () => {
         },
         paint: { 'text-color': MAP_COLORS.muted, 'text-halo-color': MAP_COLORS.ocean },
       });
+    }
+  });
+
+  it('names states and provinces from zoom 5 in muted spaced uppercase, fading out by zoom 9', () => {
+    expect(getLayer('label-region')).toMatchObject({
+      'source-layer': 'place',
+      minzoom: 5,
+      maxzoom: 9,
+      filter: ['match', ['get', 'class'], ['state', 'province'], true, false],
+      layout: {
+        'symbol-sort-key': ['get', 'rank'],
+        'text-font': [MAP_FONTS.medium],
+        'text-size': 9,
+        'text-letter-spacing': 0.24,
+        'text-transform': 'uppercase',
+      },
+      paint: {
+        'text-color': MAP_COLORS.muted,
+        'text-halo-color': MAP_COLORS.land,
+        'text-opacity': ['interpolate', ['linear'], ['zoom'], 7, 1, 9, 0],
+      },
+    });
+  });
+
+  it('names islands in muted mixed case, largest first', () => {
+    const island = getLayer('label-island');
+    expect(island).toMatchObject({
+      'source-layer': 'place',
+      filter: ['==', ['get', 'class'], 'island'],
+      layout: {
+        'symbol-sort-key': ['get', 'rank'],
+        'text-font': [MAP_FONTS.regular],
+        'text-size': 10,
+        'text-letter-spacing': 0.06,
+      },
+      paint: {
+        'text-color': MAP_COLORS.muted,
+        'text-halo-color': MAP_COLORS.land,
+        'text-opacity': 0.9,
+      },
+    });
+    expect(island.layout).not.toHaveProperty('text-transform');
+  });
+
+  it('places towns and countries above regions and islands so collisions keep them', () => {
+    const ids = style.layers.map(({ id }) => id);
+    for (const area of ['label-region', 'label-island']) {
+      expect(ids.indexOf(area)).toBeLessThan(ids.indexOf('label-town'));
+      expect(ids.indexOf(area)).toBeLessThan(ids.indexOf('label-country'));
     }
   });
 
