@@ -2,7 +2,7 @@ import type { CSSProperties } from 'react';
 
 import { MINI_GLOBE_LOOK } from '@/lib/globe/map-locator';
 
-import { PHONE_ACTION_ROW_BOTTOM, type PhoneLayout } from './phone';
+import { PHONE_ACTION_ROW_BOTTOM, type PhoneLayout, SIDE_SHEET_WIDTH } from './phone';
 
 const OPEN_SHEET_BELOW_ROW_PX = 22;
 const FELT_LABEL = { gapPx: 8, chordPaddingPx: 4, markerClearPx: 16 } as const;
@@ -10,6 +10,7 @@ const FELT_LABEL_MIN_TOP_PX = PHONE_ACTION_ROW_BOTTOM + FELT_LABEL.gapPx;
 const TICK_LABEL = { gapPx: 8, overhangPx: 6 } as const;
 const MINI_GLOBE = { rightPx: 38, belowRowPx: 36, radiusPx: 22 } as const;
 const STRIP = { heightPx: 111, sheetGapPx: 6, scaleBarGapPx: 10, labelGapPx: 6 } as const;
+const ZOOM_BUTTONS = { gapPx: 12, edgePx: 16, sizePx: 34 } as const;
 const MINI_GLOBE_HALF_BOX_PX = MINI_GLOBE_LOOK.radiusPx + MINI_GLOBE_LOOK.marginPx;
 
 export type PhoneDetailOverlay = {
@@ -29,6 +30,20 @@ export function getPhoneDetailOverlay({ k, detailMapBottom }: PhoneLayout): Phon
     scaleBarTop: stripTop - STRIP.scaleBarGapPx,
     stripTop,
   };
+}
+
+export function getPhoneZoomButtonsTop(
+  { k, headerBottom }: PhoneLayout,
+  isDetail: boolean,
+): number {
+  if (!isDetail) return headerBottom + ZOOM_BUTTONS.gapPx;
+  return PHONE_ACTION_ROW_BOTTOM + MINI_GLOBE.belowRowPx * k - ZOOM_BUTTONS.sizePx / 2;
+}
+
+export function getPhoneZoomButtonsRight({ k, isSide }: PhoneLayout, isDetail: boolean): number {
+  const mapRight = isSide ? SIDE_SHEET_WIDTH : 0;
+  if (!isDetail) return mapRight + ZOOM_BUTTONS.edgePx;
+  return mapRight + (MINI_GLOBE.rightPx + MINI_GLOBE.radiusPx) * k + ZOOM_BUTTONS.gapPx;
 }
 
 export function getDetailSheetOpenTop({ detailSheetOpenTop, isSide }: PhoneLayout): number {

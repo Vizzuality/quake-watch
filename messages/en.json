@@ -40,7 +40,7 @@
   "not_found_line": "Nothing here.",
   "error_line": "Something went wrong.",
   "back_to_globe": "Back to the globe",
-  "globe_label": "Globe of Earthquakes. Drag to rotate, scroll to zoom.",
+  "globe_label": "Globe of Earthquakes. Drag or use the arrow keys to rotate; scroll or press + and − to zoom.",
   "globe_unavailable": "Your browser can't draw the globe.",
   "tooltip_age_minutes": "{count} min ago",
   "tooltip_age_hours": "{count} h ago",
@@ -255,5 +255,11 @@
   "live_row_paused": "Paused",
   "live_row_paused_checks": "updates paused",
   "skip_to_summary": "Skip to summary",
-  "skip_to_details": "Skip to earthquake details"
+  "skip_to_details": "Skip to earthquake details",
+  "globe_zoom_in": "Zoom in",
+  "globe_zoom_out": "Zoom out",
+  "globe_zoom_label": "Zoom",
+  "map_label": "Map of Earthquakes. Drag or use the arrow keys to move; scroll or press + and − to zoom.",
+  "map_toggle_attribution": "Show or hide map credits",
+  "map_feedback": "Map feedback"
 }

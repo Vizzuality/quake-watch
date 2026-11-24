@@ -40,7 +40,7 @@
   "not_found_line": "Não há nada aqui.",
   "error_line": "Algo correu mal.",
   "back_to_globe": "Voltar ao globo",
-  "globe_label": "Globo de sismos. Arraste para rodar e faça scroll para ampliar.",
+  "globe_label": "Globo de sismos. Arraste ou use as setas para rodar; faça scroll ou prima + e − para ampliar.",
   "globe_unavailable": "O seu navegador não consegue desenhar o globo.",
   "tooltip_age_minutes": "há {count} min",
   "tooltip_age_hours": "há {count} h",
@@ -255,5 +255,11 @@
   "live_row_paused": "Em pausa",
   "live_row_paused_checks": "atualizações em pausa",
   "skip_to_summary": "Saltar para o resumo",
-  "skip_to_details": "Saltar para os detalhes do sismo"
+  "skip_to_details": "Saltar para os detalhes do sismo",
+  "globe_zoom_in": "Ampliar",
+  "globe_zoom_out": "Reduzir",
+  "globe_zoom_label": "Zoom",
+  "map_label": "Mapa de sismos. Arraste ou use as setas para mover; faça scroll ou prima + e − para ampliar.",
+  "map_toggle_attribution": "Mostrar ou ocultar os créditos do mapa",
+  "map_feedback": "Comentários sobre o mapa"
 }

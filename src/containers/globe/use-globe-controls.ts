@@ -57,6 +57,8 @@ export type GlobeControls = {
   jumpTo: (target: GlobeView) => void;
   setHeld: (held: boolean) => void;
   setFrameListener: (listener: ((view: GlobeView) => void) | null) => void;
+  zoomBy: (factor: number) => void;
+  rotateBy: (dx: number, dy: number) => void;
   isAnimating: () => boolean;
   isReducedMotion: () => boolean;
 };
@@ -211,6 +213,33 @@ export function useGlobeControls(
       setFrameListener: (listener) => {
         frameListenerRef.current = listener;
       },
+      zoomBy: (factor) => {
+        markInteraction(idleClock);
+        optionsRef.current.onHover?.(null, IMMEDIATE);
+        flyRef.current = null;
+        velocityRef.current = STOPPED;
+        if (factor > 1 && viewRef.current.zoom >= ZOOM_RANGE[1]) {
+          optionsRef.current.onZoomPastMax?.(viewRef.current);
+        }
+        viewRef.current = getZoomedView(viewRef.current, factor);
+        isTouchedRef.current = true;
+        invalidate();
+        optionsRef.current.onZoom?.(viewRef.current);
+        optionsRef.current.onSettle?.(viewRef.current);
+      },
+      rotateBy: (dx, dy) => {
+        const element = targetRef.current;
+        if (!element) return;
+        markInteraction(idleClock);
+        optionsRef.current.onHover?.(null, IMMEDIATE);
+        flyRef.current = null;
+        velocityRef.current = STOPPED;
+        const { radius } = getGlobeFrame(element.clientWidth, element.clientHeight);
+        viewRef.current = getDraggedView(viewRef.current, dx, dy, radius);
+        isTouchedRef.current = true;
+        invalidate();
+        optionsRef.current.onSettle?.(viewRef.current);
+      },
       advance: (dtSeconds) => {
         const view = getNextView(dtSeconds);
         frameListenerRef.current?.(view);
@@ -218,7 +247,7 @@ export function useGlobeControls(
       },
     };
     return [globeControls, idleClock];
-  }, []);
+  }, [targetRef]);
 
   useLayoutEffect(() => {
     optionsRef.current = options;

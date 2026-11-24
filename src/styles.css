@@ -158,6 +158,20 @@
     outline-offset: 3px;
   }
 
+  .maplibregl-canvas:focus-visible {
+    outline: none;
+  }
+
+  /* The opaque WebGL canvas paints over its own inset outline, so the ring sits on a layer above it. */
+  .maplibregl-map:has(.maplibregl-canvas:focus-visible)::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    border: 2px solid var(--color-accent);
+    pointer-events: none;
+  }
+
   ::selection {
     background: color-mix(in srgb, var(--color-accent) 35%, transparent);
     color: var(--color-foreground);

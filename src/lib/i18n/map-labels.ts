@@ -98,3 +98,11 @@ export function getAreaCaption(filters: TimeFilters, count: number, locale: Loca
   }
   return AREA_CAPTIONS[filters.interval]({ count: countLabel }, { locale });
 }
+
+export function getMapLibreLocale(locale: Locale): Record<string, string> {
+  return {
+    'Map.Title': m.map_label({}, { locale }),
+    'AttributionControl.ToggleAttribution': m.map_toggle_attribution({}, { locale }),
+    'AttributionControl.MapFeedback': m.map_feedback({}, { locale }),
+  };
+}

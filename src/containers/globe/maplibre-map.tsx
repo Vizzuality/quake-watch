@@ -52,8 +52,10 @@ import {
 import { type GlobeView, ZOOM_RANGE, getViewCamera } from '@/lib/globe/motion';
 import { PICK_TOLERANCE_PX, getPickedQuakeIndex } from '@/lib/globe/picking';
 import { getEpicentreRadiusPx } from '@/lib/globe/quakes';
+import { getMapLibreLocale } from '@/lib/i18n/map-labels';
 import { getMapSheetTopStyle } from '@/lib/layout/phone-detail';
 import { getIsSectionShown, subscribeSectionShown } from '@/lib/section/section-shown-store';
+import { getLocale } from '@/paraglide/runtime';
 
 import { watchAttributionCollapse } from './attribution-collapse';
 import { QuakeTooltip } from './quake-tooltip';
@@ -71,6 +73,7 @@ export type MapHandover = {
   centre: (earthquake: Earthquake) => void;
   focus: (earthquake: Earthquake) => void;
   exit: () => void;
+  zoom: (direction: 1 | -1) => void;
 };
 
 type GlobeMapProps = {
@@ -79,7 +82,7 @@ type GlobeMapProps = {
   layerRef: RefObject<HTMLDivElement | null>;
   handoverRef: RefObject<MapHandover | null>;
   onReady: () => void;
-  onExit: (centre: MapCentre) => void;
+  onExit: (centre: MapCentre, hadFocus: boolean) => void;
 };
 
 declare global {
@@ -343,6 +346,7 @@ export default function GlobeMap({
       // Overrides the default 4, which fetches tiles past a source's maxzoom and defeats the z0 underlay: https://maplibre.org/maplibre-gl-js/docs/API/type-aliases/MapOptions/#zoomlevelstooverscale
       zoomLevelsToOverscale: undefined,
       attributionControl: { compact: true, customAttribution: MAP_ATTRIBUTION },
+      locale: getMapLibreLocale(getLocale()),
     });
     mapRef.current = map;
     const attribution = watchAttributionCollapse(map);
@@ -466,14 +470,20 @@ export default function GlobeMap({
       hasExited = true;
       isActive = false;
       map.setMinZoom(null);
+      const hadFocus = element.contains(document.activeElement);
       setInput(false);
       const frame = getGlobeFrame(element.clientWidth, element.clientHeight);
       const { lat, lng } = map.unproject([frame.cx, frame.cy]);
-      callbacksRef.current.onExit({ lat, lon: lng });
+      callbacksRef.current.onExit({ lat, lon: lng }, hadFocus);
     }
 
     function isAtMinZoom(): boolean {
       return isActive && map.getZoom() <= getMinZoom() + EXIT_ZOOM_TOLERANCE;
+    }
+
+    function zoom(direction: 1 | -1) {
+      if (direction < 0 && isAtMinZoom()) exit();
+      else map.zoomTo(map.getZoom() + direction);
     }
 
     function handleStyleLoad() {
@@ -588,7 +598,7 @@ export default function GlobeMap({
     sync(controls.viewRef.current);
     const unsubscribeSection = subscribeSectionShown(handleSectionShown);
     controls.setFrameListener(sync);
-    handoverRef.current = { activate, centre, focus, exit };
+    handoverRef.current = { activate, centre, focus, exit, zoom };
     releaseDetailRef.current = releaseDetail;
     map.once('style.load', handleStyleLoad);
     map.on('movestart', handleMoveStart);

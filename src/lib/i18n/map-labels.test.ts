@@ -4,6 +4,7 @@ import {
   getAreaCaption,
   getFeltRingLabel,
   getFeltRingShortLabel,
+  getMapLibreLocale,
   getStripQuakeLabel,
   getStripTickLabel,
 } from './map-labels';
@@ -69,5 +70,17 @@ describe('getAreaCaption', () => {
     expect(
       getAreaCaption({ interval: 'custom', from: '2026-01-01', to: '2026-01-31' }, 2, 'en'),
     ).toBe('In this area from Jan 1, 2026 to Jan 31, 2026 · 2 earthquakes · Size = magnitude');
+  });
+});
+
+describe('getMapLibreLocale', () => {
+  it('names the map canvas and the attribution toggle in the page language', () => {
+    expect(getMapLibreLocale('es')).toEqual({
+      'Map.Title':
+        'Mapa de terremotos. Arrastra o usa las flechas para moverte; desplázate o pulsa + y − para hacer zoom.',
+      'AttributionControl.ToggleAttribution': 'Mostrar u ocultar los créditos del mapa',
+      'AttributionControl.MapFeedback': 'Comentarios sobre el mapa',
+    });
+    expect(getMapLibreLocale('pt')['Map.Title']).toMatch(/^Mapa de sismos\./);
   });
 });
