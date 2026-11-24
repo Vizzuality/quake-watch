@@ -12,10 +12,57 @@ describe('getPlacesFromPhoton', () => {
         id: 'R344685',
         name: 'Granada',
         label: 'Granada, Andalucía, España',
+        group: 'city',
         latitude: 37.1773,
         longitude: -3.5986,
+        radiusKm: 100,
       },
     ]);
+  });
+
+  it('sizes the search radius from the place extent', () => {
+    const json = getPhotonCollection();
+    const spain = {
+      ...json,
+      features: json.features.map((f) => ({
+        ...f,
+        properties: { ...f.properties, extent: [-18.39, 43.99, 4.59, 27.43] },
+      })),
+    };
+    expect(getPlacesFromPhoton(spain)[0]?.radiusKm).toBe(500);
+  });
+
+  it('groups a Photon county as a province', () => {
+    const json = getPhotonCollection();
+    const typed = {
+      ...json,
+      features: json.features.map((f) => ({
+        ...f,
+        properties: { ...f.properties, type: 'county' },
+      })),
+    };
+    expect(getPlacesFromPhoton(typed)[0]?.group).toBe('province');
+  });
+
+  it.each(['house', 'street', 'other', undefined])('drops a Photon %s result', (type) => {
+    const json = getPhotonCollection();
+    const typed = {
+      ...json,
+      features: json.features.map((f) => ({ ...f, properties: { ...f.properties, type } })),
+    };
+    expect(getPlacesFromPhoton(typed)).toEqual([]);
+  });
+
+  it('names a country once in its label', () => {
+    const json = getPhotonCollection(['España']);
+    const country = {
+      ...json,
+      features: json.features.map((f) => ({
+        ...f,
+        properties: { ...f.properties, state: undefined },
+      })),
+    };
+    expect(getPlacesFromPhoton(country)[0]?.label).toBe('España');
   });
 
   it('drops features without a name', () => {
@@ -32,7 +79,7 @@ describe('getPlacesFromPhoton', () => {
 });
 
 describe('getPlaceSuggestions', () => {
-  it('asks Photon for five results without a language', async () => {
+  it('asks Photon for ten area-sized results without a language', async () => {
     const fetchMock = stubFetch([
       {
         match: (url) => url.hostname === 'photon.komoot.io',
@@ -41,7 +88,17 @@ describe('getPlaceSuggestions', () => {
     ]);
     await getPlaceSuggestions('granada', new AbortController().signal);
     const url = new URL(String(fetchMock.mock.calls[0]?.[0]));
-    expect(Object.fromEntries(url.searchParams)).toEqual({ q: 'granada', limit: '5' });
+    expect(url.searchParams.get('q')).toBe('granada');
+    expect(url.searchParams.get('limit')).toBe('10');
+    expect(url.searchParams.has('lang')).toBe(false);
+    expect(url.searchParams.getAll('layer')).toEqual([
+      'country',
+      'state',
+      'county',
+      'city',
+      'district',
+      'locality',
+    ]);
   });
 
   it('throws when Photon fails', async () => {

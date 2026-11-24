@@ -10,7 +10,7 @@ import { useIsQuakeSelected } from '@/hooks/use-is-quake-selected';
 import { getMagnitudeValueLabel } from '@/lib/earthquakes/details-panel';
 import { playbackClock } from '@/lib/earthquakes/playback-clock';
 import { earthquakesQueryOptions } from '@/lib/earthquakes/query-options';
-import { getRegionEarthquakes } from '@/lib/earthquakes/regions';
+import { getAreaEarthquakes, getSearchArea } from '@/lib/earthquakes/search-area';
 import { getEarthquakeFilters } from '@/lib/earthquakes/search-schema';
 import {
   type SummaryStats,
@@ -20,6 +20,7 @@ import {
 } from '@/lib/earthquakes/summary';
 import type { Earthquake } from '@/lib/earthquakes/types';
 import { getDecimalLabel } from '@/lib/format';
+import { getPlaceLabel } from '@/lib/i18n/labels';
 import { SUMMARY_ID } from '@/lib/layout/skip-targets';
 import { cn } from '@/lib/utils';
 import { m } from '@/paraglide/messages';
@@ -32,12 +33,8 @@ const EMPTY_EARTHQUAKES: Earthquake[] = [];
 const NO_VALUE = '—';
 const FOCUS_RETURN_FRAMES = 3;
 
-function getLargestLabel(
-  largest: Earthquake | null,
-  place: string | undefined,
-  locale: Locale,
-): string {
-  if (place !== undefined) return m.summary_largest_here({}, { locale });
+function getLargestLabel(largest: Earthquake | null, hasArea: boolean, locale: Locale): string {
+  if (hasArea) return m.summary_largest_here({}, { locale });
   if (!largest?.place) return m.summary_largest({}, { locale });
   return m.summary_largest_at({ place: largest.place }, { locale });
 }
@@ -72,12 +69,8 @@ function getSummaryClassName(isHidden: boolean): string {
   );
 }
 
-function getAreaEarthquakes(earthquakes: Earthquake[], place: string | undefined): Earthquake[] {
-  return place === undefined ? earthquakes : getRegionEarthquakes(earthquakes, place);
-}
-
-function getCountClassName(place: string | undefined): string {
-  const padding = place === undefined ? 'md:py-6' : 'pt-1 md:pt-2 md:pb-6';
+function getCountClassName(hasArea: boolean): string {
+  const padding = hasArea ? 'pt-1 md:pt-2 md:pb-6' : 'md:py-6';
   return `flex items-baseline gap-3 text-foreground md:flex-col md:items-stretch md:gap-2 ${padding}`;
 }
 
@@ -144,15 +137,17 @@ export function SummaryPanel() {
   const isQuakeSelected = useIsQuakeSelected();
   const setSearch = useFilterSearch();
   const locale = getLocale();
-  const { place, quake } = search;
+  const { quake, plat, plon, radius } = search;
   const earthquakes = data?.earthquakes ?? EMPTY_EARTHQUAKES;
+  const area = useMemo(() => getSearchArea({ plat, plon, radius }), [plat, plon, radius]);
+  const hasArea = area !== null;
   const index = useMemo(
-    () => getSummaryIndex(getAreaEarthquakes(earthquakes, place)),
-    [earthquakes, place],
+    () => getSummaryIndex(getAreaEarthquakes(earthquakes, area)),
+    [earthquakes, area],
   );
   const [shownCount, setShownCount] = useState<number | null>(null);
   const stats: SummaryStats = getSummaryStats(index, shownCount ?? index.sortedTimes.length);
-  const isAreaEmpty = place !== undefined && stats.count === 0;
+  const isAreaEmpty = hasArea && stats.count === 0;
   const largestKey = getOptionalQuakeKey(stats.largest);
   const largestRef = useRef<HTMLButtonElement>(null);
   const previousQuakeRef = useRef(quake);
@@ -202,12 +197,12 @@ export function SummaryPanel() {
       data-label-obstacle
       className={getSummaryClassName(isQuakeSelected)}
     >
-      {place !== undefined && (
+      {hasArea && (
         <p
           data-testid="summary-eyebrow"
           className="truncate text-label text-muted uppercase md:pt-6"
         >
-          {m.summary_in_view({ place }, { locale })}
+          {m.summary_in_view({ place: getPlaceLabel(search, locale) }, { locale })}
         </p>
       )}
       {isAreaEmpty ? (
@@ -216,7 +211,7 @@ export function SummaryPanel() {
         </h2>
       ) : (
         <>
-          <h2 className={getCountClassName(place)}>
+          <h2 className={getCountClassName(hasArea)}>
             <span data-testid="summary-count" className="text-stat md:text-numeral-l">
               {getDecimalLabel(stats.count, locale)}
             </span>{' '}
@@ -231,7 +226,7 @@ export function SummaryPanel() {
               value={getDecimalLabel(stats.feltCount, locale)}
             />
             <SummaryStat
-              label={getLargestLabel(stats.largest, place, locale)}
+              label={getLargestLabel(stats.largest, hasArea, locale)}
               info={m.info_summary_largest({}, { locale })}
               value={getLargestValue(stats.largest, locale)}
               select={getLargestSelect(stats.largest, locale, selectQuake)}

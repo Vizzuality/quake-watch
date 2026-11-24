@@ -17,7 +17,7 @@ import { type Camera, getWrappedLongitude, useCameraSearch } from '@/hooks/use-c
 import { getNewestArrival, isNoteworthyArrival } from '@/lib/earthquakes/arrivals';
 import { getLiveSnapshot, playbackClock } from '@/lib/earthquakes/playback-clock';
 import { earthquakesQueryOptions } from '@/lib/earthquakes/query-options';
-import { getRegionEarthquakes } from '@/lib/earthquakes/regions';
+import { getSearchArea } from '@/lib/earthquakes/search-area';
 import { type EarthquakeSearch, getEarthquakeFilters } from '@/lib/earthquakes/search-schema';
 import { getShownEarthquakes } from '@/lib/earthquakes/timeline';
 import type { Earthquake } from '@/lib/earthquakes/types';
@@ -34,7 +34,6 @@ import {
   getViewCamera,
 } from '@/lib/globe/motion';
 import { getPickedQuakeIndex, getQuakeScreenPoints } from '@/lib/globe/picking';
-import { getPlaceFocus } from '@/lib/globe/place-focus';
 import { getLatLonVector, getRotatedVector } from '@/lib/globe/sphere';
 import { getIsHomeSheetOpen, subscribeHomeSheet } from '@/lib/layout/home-sheet-store';
 import {
@@ -80,6 +79,7 @@ const GlobeLabels = lazy(() => import('./globe-labels').catch(() => ({ default: 
 const ZoomButtons = lazy(() => import('./zoom-buttons').catch(() => ({ default: () => null })));
 const CENTRE_TOLERANCE = 1e-4;
 const ZOOM_STEP_FACTOR = 1.5;
+const PLACE_ZOOM = 3;
 
 function isWebGLAvailable(): boolean {
   const context = document.createElement('canvas').getContext('webgl2');
@@ -106,8 +106,9 @@ function isViewCentredOn(view: GlobeView, { latitude, longitude }: Earthquake): 
   );
 }
 
-function isPlaceFound(earthquakes: readonly Earthquake[], place: string | undefined): boolean {
-  return place !== undefined && getRegionEarthquakes(earthquakes, place).length > 0;
+function getAreaKey({ plat, plon, radius }: EarthquakeSearch): string | undefined {
+  if (plat === undefined || plon === undefined) return undefined;
+  return `${plat},${plon},${radius}`;
 }
 
 function isPinningTap(
@@ -193,7 +194,9 @@ function GlobeCanvas() {
   } = useHoveredQuake();
   const tooltipId = useId();
   const earthquakes = data?.earthquakes ?? EMPTY_EARTHQUAKES;
-  const { quake, place } = search;
+  const { quake, plat, plon, radius } = search;
+  const area = useMemo(() => getSearchArea({ plat, plon, radius }), [plat, plon, radius]);
+  const areaKey = getAreaKey(search);
   const selectedEarthquake = useMemo(
     () => getSelectedEarthquake(earthquakes, quake),
     [earthquakes, quake],
@@ -214,7 +217,7 @@ function GlobeCanvas() {
   const isGlobeHidden = isMapActive || isSectionShown;
   const [waves] = useState(() => createGlobeWaves(controls.isReducedMotion));
   const lastFlownRef = useRef<string | undefined>(undefined);
-  const lastPlaceRef = useRef(initialView === undefined ? undefined : place);
+  const lastAreaKeyRef = useRef(initialView === undefined ? undefined : areaKey);
   const isFramingDecidedRef = useRef(false);
 
   function getPointedQuake(point: Point): HoveredQuake | null {
@@ -423,29 +426,26 @@ function GlobeCanvas() {
     if (data === undefined || isFramingDecidedRef.current) return;
     isFramingDecidedRef.current = true;
     if (initialView !== undefined || quake !== undefined) return;
-    if (isPlaceFound(data.earthquakes, place)) return;
+    if (areaKey !== undefined) return;
     const longitude = getFramedLongitude(data.earthquakes);
     if (longitude === undefined) return;
     controls.frameTo(getFramedView(longitude, controls.viewRef.current));
-  }, [data, initialView, quake, place, controls]);
+  }, [data, initialView, quake, areaKey, controls]);
 
   useEffect(() => {
-    if (place === lastPlaceRef.current || quake !== undefined) return;
+    if (areaKey === lastAreaKeyRef.current || quake !== undefined) return;
     if (isMapActive) {
       mapHandoverRef.current?.exit();
       return;
     }
     const view = controls.viewRef.current;
-    if (place === undefined) {
-      lastPlaceRef.current = undefined;
+    lastAreaKeyRef.current = areaKey;
+    if (area === null) {
       controls.flyTo(getFramedView(getViewCamera(view).lon, view));
       return;
     }
-    const focus = getPlaceFocus(getRegionEarthquakes(earthquakes, place));
-    if (!focus) return;
-    lastPlaceRef.current = place;
-    controls.flyTo({ ...getCenteredView(focus.latitude, focus.longitude, view), zoom: focus.zoom });
-  }, [place, quake, earthquakes, controls, isMapActive]);
+    controls.flyTo({ ...getCenteredView(area.latitude, area.longitude, view), zoom: PLACE_ZOOM });
+  }, [areaKey, area, quake, controls, isMapActive]);
 
   useEffect(() => {
     const pending = pendingMapQuakeRef.current;
@@ -468,9 +468,9 @@ function GlobeCanvas() {
 
   useEffect(() => {
     controls.setHeld(
-      card !== null || selectedEarthquake !== undefined || place !== undefined || isPaused,
+      card !== null || selectedEarthquake !== undefined || areaKey !== undefined || isPaused,
     );
-  }, [controls, card, selectedEarthquake, place, isPaused]);
+  }, [controls, card, selectedEarthquake, areaKey, isPaused]);
 
   useEffect(() => {
     if (!card) return;

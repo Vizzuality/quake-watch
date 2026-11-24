@@ -20,10 +20,104 @@ import { EARTHQUAKE_SEARCH_ROUTE } from '@/lib/earthquakes/search-schema';
 import { getEmscFeature, getFeatureCollection } from '@/test/fixtures/earthquakes';
 import { stubFetch } from '@/test/stub-fetch';
 
-const EMPTY_COPY = 'No earthquakes near a place with that name. Try a country or region.';
 const DENIED_COPY =
   'Location access is blocked. Allow it in your browser settings to find earthquakes near you.';
 const VANUATU = { lat: -17.7, lon: 168.3 };
+const VANUATU_AREA = '/?place=Vanuatu&plat=-16&plon=167&radius=250';
+
+type PhotonFeatureInput = {
+  id: number;
+  name: string;
+  type: string;
+  state?: string;
+  country: string;
+  point: [number, number];
+  extent?: number[];
+};
+
+function getPhotonFeature({ id, name, type, state, country, point, extent }: PhotonFeatureInput) {
+  return {
+    type: 'Feature',
+    geometry: { type: 'Point', coordinates: point },
+    properties: { osm_type: 'R', osm_id: id, name, type, state, country, extent },
+  };
+}
+
+const VANU_FEATURES = [
+  getPhotonFeature({
+    id: 1,
+    name: 'Vanuatu',
+    type: 'country',
+    country: 'Vanuatu',
+    point: [167, -16],
+    extent: [166.5, -13, 170.2, -20.3],
+  }),
+  getPhotonFeature({
+    id: 2,
+    name: 'Vanua Levu',
+    type: 'state',
+    country: 'Fiji',
+    point: [179.2, -16.6],
+    extent: [178.4, -16.1, 180, -17.1],
+  }),
+];
+
+const GRANADA_FEATURES = [
+  getPhotonFeature({
+    id: 344685,
+    name: 'Granada',
+    type: 'city',
+    state: 'Andalucía',
+    country: 'España',
+    point: [-3.6, 37.17],
+    extent: [-3.7, 37.23, -3.5, 37.14],
+  }),
+  getPhotonFeature({
+    id: 349026,
+    name: 'Granada',
+    type: 'county',
+    state: 'Andalucía',
+    country: 'España',
+    point: [-3.24, 37.39],
+    extent: [-4.33, 38.08, -2.21, 36.69],
+  }),
+  getPhotonFeature({
+    id: 5745675,
+    name: 'Granada',
+    type: 'city',
+    state: 'Granada',
+    country: 'Nicaragua',
+    point: [-85.95, 11.93],
+  }),
+  getPhotonFeature({
+    id: 21816654,
+    name: 'Granada',
+    type: 'district',
+    state: 'Granada',
+    country: 'Nicaragua',
+    point: [-85.95, 11.93],
+  }),
+  getPhotonFeature({
+    id: 99,
+    name: 'Granada',
+    type: 'city',
+    state: 'Granada',
+    country: 'Nicaragua',
+    point: [-85.96, 11.94],
+  }),
+];
+
+function getPhotonFeatures(query: string) {
+  if (query.startsWith('vanu')) return VANU_FEATURES;
+  if (query.startsWith('granada')) return GRANADA_FEATURES;
+  return [];
+}
+
+function getPhotonResponse(url: URL): Response {
+  const query = (url.searchParams.get('q') ?? '').toLowerCase();
+  if (query.startsWith('fail')) return new Response(null, { status: 429 });
+  return Response.json({ type: 'FeatureCollection', features: getPhotonFeatures(query) });
+}
 
 function stubPosition(latitude: number, longitude: number) {
   return vi
@@ -41,12 +135,23 @@ function stubPositionError(code: number) {
     );
 }
 
+type AreaSearch = { place?: string; plat?: number; plon?: number; radius?: number };
+
+function getAreaSearch(router: { state: { location: { search: unknown } } }): AreaSearch {
+  const { place, plat, plon, radius } = router.state.location.search as AreaSearch;
+  return { place, plat, plon, radius };
+}
+
 function getPlaceSearch(router: { state: { location: { search: unknown } } }) {
-  return (router.state.location.search as { place?: string }).place;
+  return getAreaSearch(router).place;
 }
 
 async function renderSearch(initialEntry = '/') {
   stubFetch([
+    {
+      match: (url) => url.hostname === 'photon.komoot.io',
+      respond: getPhotonResponse,
+    },
     {
       match: () => true,
       respond: () =>
@@ -113,19 +218,73 @@ describe('place search', () => {
     await page.viewport(1280, 800);
   });
 
-  it('lists the places matching the text with their counts, Vanuatu first', async () => {
+  it('lists the geocoded places matching the text', async () => {
     const { screen, combobox } = await renderSearch();
 
     await userEvent.type(combobox, 'Vanu');
 
     const options = screen.getByRole('option');
-    await expect.element(options.nth(0)).toHaveTextContent('Vanuatu 2');
-    await expect.element(options.nth(1)).toHaveTextContent('Vanuatu Islands 1');
+    await expect.element(options.nth(0)).toHaveTextContent('Vanuatu');
+    await expect.element(options.nth(1)).toHaveTextContent('Vanua Levu, Fiji');
     expect(options.elements()).toHaveLength(2);
     await expect.element(combobox).toHaveAttribute('aria-expanded', 'true');
     await expect
       .element(combobox)
       .toHaveAttribute('aria-controls', screen.getByRole('listbox').element().id);
+  });
+
+  it('groups the places under a heading per place type, without repeats', async () => {
+    const { screen, combobox } = await renderSearch();
+
+    await userEvent.type(combobox, 'granada');
+
+    const groups = screen.getByRole('group');
+    await expect.element(groups.nth(0)).toBeVisible();
+    expect(groups.elements()).toHaveLength(3);
+    await expect.element(groups.nth(0)).toHaveAccessibleName('Province');
+    await expect.element(groups.nth(1)).toHaveAccessibleName('City');
+    await expect.element(groups.nth(2)).toHaveAccessibleName('Area');
+    expect(
+      groups
+        .nth(1)
+        .getByRole('option')
+        .elements()
+        .map((option) => option.textContent),
+    ).toEqual(['Granada, Andalucía, España', 'Granada, Nicaragua']);
+    expect(screen.getByRole('option').elements()).toHaveLength(4);
+  });
+
+  it('moves over the options only, across the group headings, and picks with Enter', async () => {
+    const { screen, router, combobox } = await renderSearch();
+    await userEvent.type(combobox, 'granada');
+    const options = screen.getByRole('option');
+    await expect.element(options.nth(0)).toHaveAttribute('aria-selected', 'true');
+
+    await userEvent.keyboard('{ArrowDown}');
+
+    await expect.element(options.nth(1)).toHaveAttribute('aria-selected', 'true');
+    expect(combobox.element().getAttribute('aria-activedescendant')).toBe(
+      options.nth(1).element().id,
+    );
+    await userEvent.keyboard('{ArrowUp}');
+    await userEvent.keyboard('{ArrowUp}');
+    await expect.element(options.nth(3)).toHaveAttribute('aria-selected', 'true');
+    await userEvent.keyboard('{ArrowUp}');
+    await userEvent.keyboard('{ArrowUp}');
+    await userEvent.keyboard('{Enter}');
+
+    await expect
+      .poll(() => getAreaSearch(router))
+      .toEqual({ place: 'Granada', plat: 37.17, plon: -3.6, radius: 50 });
+  });
+
+  it('asks for three letters before searching', async () => {
+    const { screen, combobox } = await renderSearch();
+
+    await userEvent.type(combobox, 'Va');
+
+    await expect.element(screen.getByRole('status')).toHaveTextContent('Type at least 3 letters.');
+    await expect.element(combobox).toHaveAttribute('aria-expanded', 'false');
   });
 
   it('moves the active option with the arrows and picks it with Enter', async () => {
@@ -144,32 +303,14 @@ describe('place search', () => {
     );
     await userEvent.keyboard('{ArrowDown}');
     await expect.element(options.nth(0)).toHaveAttribute('aria-selected', 'true');
-    await userEvent.keyboard('{ArrowUp}');
-    await userEvent.keyboard('{ArrowUp}');
     await userEvent.keyboard('{Enter}');
 
-    await expect.poll(() => getPlaceSearch(router)).toBe('Vanuatu');
+    await expect
+      .poll(() => getAreaSearch(router))
+      .toEqual({ place: 'Vanuatu', plat: -16, plon: 167, radius: 250 });
     await expect.element(combobox).toHaveValue('Vanuatu');
     await expect.element(combobox).toHaveAttribute('aria-expanded', 'false');
     await expect.element(screen.getByRole('listbox')).not.toBeInTheDocument();
-  });
-
-  it('starts from the first option again after picking a later one', async () => {
-    const { screen, router, combobox } = await renderSearch();
-    await userEvent.type(combobox, 'Vanu');
-    await expect.element(screen.getByRole('option').nth(1)).toBeVisible();
-
-    await userEvent.keyboard('{ArrowDown}');
-    await userEvent.keyboard('{Enter}');
-    await expect.poll(() => getPlaceSearch(router)).toBe('Vanuatu Islands');
-    await userEvent.keyboard('{ArrowDown}');
-
-    const first = screen.getByRole('option').nth(0);
-    await expect.element(first).toHaveTextContent('Vanuatu Islands 1');
-    expect(combobox.element().getAttribute('aria-activedescendant')).toBe(first.element().id);
-    await userEvent.keyboard('{Enter}');
-    await expect.poll(() => getPlaceSearch(router)).toBe('Vanuatu Islands');
-    await expect.element(combobox).toHaveValue('Vanuatu Islands');
   });
 
   it('closes the list on Escape without closing the layer under it', async () => {
@@ -189,7 +330,7 @@ describe('place search', () => {
     stopListening();
   });
 
-  it('picks a suggestion by click and switches the Summary to that place', async () => {
+  it('picks a place by click and counts the Earthquakes within its radius', async () => {
     const { screen, router, combobox } = await renderSearch();
     await expect.element(screen.getByTestId('summary-count')).toHaveTextContent('4');
 
@@ -200,48 +341,59 @@ describe('place search', () => {
     await expect
       .element(screen.getByTestId('summary-eyebrow'))
       .toHaveTextContent('In view · Vanuatu');
-    await expect.element(screen.getByTestId('summary-count')).toHaveTextContent('2');
+    await expect.element(screen.getByTestId('summary-count')).toHaveTextContent('3');
     await expect
       .element(screen.getByRole('term').nth(1).getByText('Largest here', { exact: true }))
       .toBeVisible();
     await expect.element(screen.getByRole('definition').nth(1)).toHaveTextContent('6.2');
   });
 
-  it('shows the empty-state copy for a place without Earthquakes', async () => {
+  it('says when no place matches the text', async () => {
     const { screen, combobox } = await renderSearch();
 
     await userEvent.type(combobox, 'Atlantis');
 
-    await expect.element(screen.getByRole('status')).toHaveTextContent(EMPTY_COPY);
+    await expect
+      .element(screen.getByRole('status'))
+      .toHaveTextContent('No places match that name.');
     await expect.element(combobox).toHaveAttribute('aria-expanded', 'false');
-    await userEvent.keyboard('{Enter}');
-    await expect.element(screen.getByRole('status')).toBeVisible();
   });
 
-  it('removes the place and leaves area mode when the field is cleared', async () => {
-    const { screen, router, combobox } = await renderSearch('/?place=Vanuatu');
+  it('keeps an inline alert next to the field when the place search fails', async () => {
+    const { screen, combobox } = await renderSearch();
+
+    await userEvent.type(combobox, 'failing');
+
+    await expect
+      .element(screen.getByRole('alert'))
+      .toHaveTextContent("Place search isn't available right now. Try again in a moment.");
+    await expect.element(screen.getByRole('listbox')).not.toBeInTheDocument();
+  });
+
+  it('removes the area and leaves area mode when the field is cleared', async () => {
+    const { screen, router, combobox } = await renderSearch(VANUATU_AREA);
     await expect.element(combobox).toHaveValue('Vanuatu');
     await expect.element(screen.getByTestId('summary-eyebrow')).toBeVisible();
 
     await screen.getByRole('button', { name: 'Clear search' }).click();
 
-    await expect.poll(() => getPlaceSearch(router)).toBeUndefined();
+    await expect.poll(() => getAreaSearch(router)).toEqual({});
     await expect.element(combobox).toHaveValue('');
     await expect.element(combobox).toHaveFocus();
     await expect.element(screen.getByTestId('summary-eyebrow')).not.toBeInTheDocument();
     await expect.element(screen.getByTestId('summary-count')).toHaveTextContent('4');
   });
 
-  it('removes the place when the text is deleted', async () => {
-    const { router, combobox } = await renderSearch('/?place=Vanuatu');
+  it('removes the area when the text is deleted', async () => {
+    const { router, combobox } = await renderSearch(VANUATU_AREA);
 
     await userEvent.clear(combobox);
 
-    await expect.poll(() => getPlaceSearch(router)).toBeUndefined();
+    await expect.poll(() => getAreaSearch(router)).toEqual({});
   });
 
   it('shows the area empty state when the place has no Earthquakes at the playhead', async () => {
-    const { screen } = await renderSearch('/?place=Vanuatu');
+    const { screen } = await renderSearch(VANUATU_AREA);
     playbackClock.setRange({
       start: Date.parse('2026-10-26T00:00:00.000Z'),
       end: Date.parse('2026-11-02T00:00:00.000Z'),
@@ -262,17 +414,22 @@ describe('place search', () => {
     await expect.element(screen.getByTestId('summary-count')).not.toBeInTheDocument();
   });
 
-  it('selects the area of the nearest Earthquakes from the user location', async () => {
-    const { screen, router, combobox } = await renderSearch();
-    stubPosition(-17.5, 168.5);
+  it('filters the Earthquakes within 100 km of the user location', async () => {
+    const { screen, router, combobox } = await renderSearch(VANUATU_AREA);
+    stubPosition(37.2, -3.6);
 
     await screen.getByRole('button', { name: 'Use my location' }).click();
 
-    await expect.poll(() => getPlaceSearch(router)).toBe('Vanuatu');
-    await expect.element(combobox).toHaveValue('Vanuatu');
+    await expect
+      .poll(() => getAreaSearch(router))
+      .toEqual({ place: undefined, plat: 37.2, plon: -3.6, radius: undefined });
+    await expect.element(combobox).toHaveValue('');
+    await expect.element(combobox).toHaveAttribute('placeholder', 'My location');
     await expect
       .element(screen.getByTestId('summary-eyebrow'))
-      .toHaveTextContent('In view · Vanuatu');
+      .toHaveTextContent('In view · My location');
+    await expect.element(screen.getByTestId('summary-count')).toHaveTextContent('1');
+    await expect.element(screen.getByRole('button', { name: 'Clear search' })).toBeVisible();
   });
 
   it('keeps an inline message next to the field when location access is denied', async () => {
@@ -289,20 +446,6 @@ describe('place search', () => {
 
     await userEvent.type(combobox, 'V');
     await expect.element(screen.getByRole('alert')).not.toBeInTheDocument();
-  });
-
-  it('says there are no Earthquakes near when the nearest is farther than 1500 km', async () => {
-    const { screen, router } = await renderSearch();
-    stubPosition(-33, 168.3);
-
-    await screen.getByRole('button', { name: 'Use my location' }).click();
-
-    await expect
-      .element(screen.getByRole('alert'))
-      .toHaveTextContent(
-        'No earthquakes in this view to match your location. Try a longer interval.',
-      );
-    expect(getPlaceSearch(router)).toBeUndefined();
   });
 
   it('says the location is unavailable when the position cannot be read', async () => {

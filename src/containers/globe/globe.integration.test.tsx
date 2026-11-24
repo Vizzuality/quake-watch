@@ -2081,26 +2081,25 @@ describe('globe camera URL', () => {
     expect(getGlobeView().zoom).toBe(2.5);
   });
 
-  it("flies to the place's Earthquakes and back to the world view once it is cleared", async () => {
-    const vanuatu: TestQuake[] = [
-      { lat: -15, lon: 167, depth: 10, mag: 5, region: 'VANUATU' },
-      { lat: -19, lon: 169, depth: 10, mag: 4, region: 'VANUATU' },
-    ];
-    const globe = await renderTooltipGlobe([...vanuatu, ...FRAME_QUAKES], {
-      initialEntries: ['/?place=Vanuatu'],
+  it('flies to the searched place and back to the world view once it is cleared', async () => {
+    const globe = await renderTooltipGlobe(FRAME_QUAKES, {
+      initialEntries: ['/?place=Vanuatu&plat=-17&plon=168&radius=250'],
     });
 
     await expect.poll(() => getGlobeView().zoom).toBeGreaterThan(SELECT_MIN_ZOOM);
     expect(Math.abs(getGlobeView().lat + 17)).toBeLessThanOrEqual(0.1);
     expect(getLonDistance(getGlobeView().lon, 168)).toBeLessThanOrEqual(0.1);
 
-    await globe.router.navigate({ to: '/', search: (prev) => ({ ...prev, place: undefined }) });
+    await globe.router.navigate({
+      to: '/',
+      search: (prev) => ({ ...prev, place: undefined, plat: undefined, plon: undefined }),
+    });
 
     await expect.poll(() => getGlobeView().zoom).toBe(ZOOM_RANGE[0]);
     expect(Math.abs(getGlobeView().lat - VIEW_LAT)).toBeLessThanOrEqual(0.1);
   });
 
-  it('frames the most active window for a place without Earthquakes', async () => {
+  it('frames the most active window for a place name without a search centre', async () => {
     await renderTooltipGlobe(FRAME_QUAKES, {
       initialEntries: ['/?place=Atlantis'],
       reducedMotion: false,

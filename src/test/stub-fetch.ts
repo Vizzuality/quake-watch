@@ -1,6 +1,9 @@
 import { vi } from 'vitest';
 
-type FetchRoute = { match: (url: URL) => boolean; respond: () => Response | Promise<Response> };
+type FetchRoute = {
+  match: (url: URL) => boolean;
+  respond: (url: URL) => Response | Promise<Response>;
+};
 
 export function stubFetch(routes: FetchRoute[]) {
   const fetchMock = vi.fn<(input: RequestInfo | URL, init?: RequestInit) => Promise<Response>>(
@@ -8,7 +11,7 @@ export function stubFetch(routes: FetchRoute[]) {
       const url = new URL(input instanceof Request ? input.url : String(input));
       const route = routes.find(({ match }) => match(url));
       if (!route) throw new Error(`Unexpected network request: ${url}`);
-      return route.respond();
+      return route.respond(url);
     },
   );
   vi.stubGlobal('fetch', fetchMock);
