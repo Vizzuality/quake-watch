@@ -4,12 +4,15 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { getEmscFeature, getFeatureCollection, getUsgsFeature } from '@/test/fixtures/earthquakes';
 import { stubFetch } from '@/test/stub-fetch';
 
+import { setLiveUpdatesPaused } from './live-updates';
 import {
   ARCHIVE_STALE_MS,
   EARTHQUAKE_LIMIT,
   earthquakesQueryOptions,
   getEarthquakes,
+  getEarthquakesFreshMs,
   getEarthquakesQueryKey,
+  getEarthquakesRefetchMs,
   getSourceLabel,
   LIVE_REFETCH_MS,
   LIVE_STALE_MS,
@@ -39,6 +42,7 @@ function stubResponse(respond: () => Response) {
 afterEach(() => {
   vi.useRealTimers();
   vi.unstubAllGlobals();
+  setLiveUpdatesPaused(false);
 });
 
 describe('getEarthquakesQueryKey', () => {
@@ -110,10 +114,22 @@ describe('earthquakesQueryOptions', () => {
     ['3d', false, ARCHIVE_STALE_MS],
     ['7d', false, ARCHIVE_STALE_MS],
   ] as const)('%s refetches every %s ms and stays fresh %s ms', (interval, refetch, stale) => {
-    const options = earthquakesQueryOptions(getSearch({ interval }));
-    expect(options.refetchInterval).toBe(refetch);
-    expect(options.staleTime).toBe(stale);
+    expect(getEarthquakesRefetchMs(interval)).toBe(refetch);
+    expect(getEarthquakesFreshMs(interval)).toBe(stale);
   });
+
+  it.each([
+    ['24h', Infinity],
+    ['3d', ARCHIVE_STALE_MS],
+    ['7d', ARCHIVE_STALE_MS],
+  ] as const)(
+    '%s stops refetching and stays fresh %s ms while live updates are paused',
+    (interval, stale) => {
+      setLiveUpdatesPaused(true);
+      expect(getEarthquakesRefetchMs(interval)).toBe(false);
+      expect(getEarthquakesFreshMs(interval)).toBe(stale);
+    },
+  );
 
   it('uses 60 s polling, 30 s live and 5 min archive staleness', () => {
     expect([LIVE_REFETCH_MS, LIVE_STALE_MS, ARCHIVE_STALE_MS]).toEqual([60_000, 30_000, 300_000]);

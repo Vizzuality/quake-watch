@@ -16,6 +16,7 @@ import {
 import { BottomSheet } from '@/components/bottom-sheet/bottom-sheet';
 import { InfoLabel } from '@/components/info-button/info-button';
 import { getQuakeKey, getSelectedEarthquake } from '@/containers/globe/use-hovered-quake';
+import { setWavePaused, useIsWavePaused } from '@/containers/globe/wave-pause';
 import { requestWaveReplay } from '@/containers/globe/wave-replay';
 import { ViewToggle } from '@/containers/section-view/view-toggle';
 import { usePhoneLayout } from '@/hooks/use-phone-layout';
@@ -146,6 +147,14 @@ function PlayIcon() {
   return (
     <svg aria-hidden="true" viewBox="0 0 24 24" fill="currentColor" className="size-3">
       <path d="M21.69 10.8928L8.1825 2.63062C7.98324 2.50841 7.75496 2.44163 7.52126 2.43718C7.28755 2.43273 7.05689 2.49077 6.85313 2.60531C6.65045 2.71662 6.48161 2.8806 6.36444 3.07995C6.24728 3.27929 6.18614 3.50659 6.1875 3.73781V20.2622C6.18614 20.4934 6.24728 20.7207 6.36444 20.9201C6.48161 21.1194 6.65045 21.2834 6.85313 21.3947C7.05689 21.5092 7.28755 21.5673 7.52126 21.5628C7.75496 21.5584 7.98324 21.4916 8.1825 21.3694L21.69 13.1072C21.8801 12.9916 22.0373 12.8291 22.1464 12.6352C22.2554 12.4412 22.3127 12.2225 22.3127 12C22.3127 11.7775 22.2554 11.5588 22.1464 11.3648C22.0373 11.1709 21.8801 11.0084 21.69 10.8928ZM21.1031 12.1472L7.59375 20.4094C7.56459 20.4269 7.53121 20.4362 7.49719 20.4362C7.46317 20.4362 7.42979 20.4269 7.40063 20.4094C7.37237 20.3956 7.34858 20.3741 7.33199 20.3474C7.3154 20.3207 7.3067 20.2899 7.30688 20.2584V3.73781C7.3067 3.70638 7.3154 3.67553 7.33199 3.64883C7.34858 3.62213 7.37237 3.60065 7.40063 3.58687C7.43096 3.56996 7.46529 3.56154 7.5 3.5625C7.53328 3.56369 7.56564 3.57372 7.59375 3.59156L21.1031 11.8528C21.1288 11.8679 21.1501 11.8894 21.1649 11.9152C21.1797 11.941 21.1874 11.9702 21.1874 12C21.1874 12.0298 21.1797 12.059 21.1649 12.0848C21.1501 12.1106 21.1288 12.1321 21.1031 12.1472Z" />
+    </svg>
+  );
+}
+
+function PauseIcon() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 256 256" fill="currentColor" className="size-3">
+      <path d="M200,34H160a14,14,0,0,0-14,14V208a14,14,0,0,0,14,14h40a14,14,0,0,0,14-14V48A14,14,0,0,0,200,34Zm2,174a2,2,0,0,1-2,2H160a2,2,0,0,1-2-2V48a2,2,0,0,1,2-2h40a2,2,0,0,1,2,2ZM96,34H56A14,14,0,0,0,42,48V208a14,14,0,0,0,14,14H96a14,14,0,0,0,14-14V48A14,14,0,0,0,96,34Zm2,174a2,2,0,0,1-2,2H56a2,2,0,0,1-2-2V48a2,2,0,0,1,2-2H96a2,2,0,0,1,2,2Z" />
     </svg>
   );
 }
@@ -390,6 +399,21 @@ function RelatedEarthquakes({
   );
 }
 
+function WavePauseButton() {
+  const isPaused = useIsWavePaused();
+
+  return (
+    <button
+      type="button"
+      aria-label={isPaused ? m.details_wave_play() : m.details_wave_pause()}
+      onClick={() => setWavePaused(!isPaused)}
+      className={`${PILL_BASE_CLASS_NAME} relative size-8 justify-center border-foreground before:absolute before:-inset-[7px] md:size-[34px] md:border-muted md:before:hidden`}
+    >
+      {isPaused ? <PlayIcon /> : <PauseIcon />}
+    </button>
+  );
+}
+
 function PanelNavigation({
   position,
   locale,
@@ -534,18 +558,21 @@ export default function EarthquakePanel({ quake }: { quake: string }) {
       )}
       <PanelNavigation position={position} locale={locale} onClose={close} onGoTo={goTo} />
       {earthquake && (
-        <button
-          type="button"
-          disabled={position === null}
-          onClick={() => requestWaveReplay(earthquake.id)}
-          className={`${PILL_BASE_CLASS_NAME} ${ROW_HIT_CLASS_NAME} absolute top-24 left-4 h-8 border-foreground px-3 text-button md:top-29 md:left-139 md:h-auto md:border-muted md:px-4 md:py-2.5 md:text-[9.5px]`}
-        >
-          <PlayIcon />
-          <span aria-hidden="true" className="md:hidden">
-            {m.details_replay_short()}
-          </span>
-          <span className="sr-only md:not-sr-only">{m.details_replay()}</span>
-        </button>
+        <div className="absolute top-24 left-4 flex items-center gap-2 md:top-29 md:left-139">
+          <button
+            type="button"
+            disabled={position === null}
+            onClick={() => requestWaveReplay(earthquake.id)}
+            className={`${PILL_BASE_CLASS_NAME} ${ROW_HIT_CLASS_NAME} relative h-8 border-foreground px-3 text-button md:h-auto md:border-muted md:px-4 md:py-2.5 md:text-[9.5px]`}
+          >
+            <PlayIcon />
+            <span aria-hidden="true" className="md:hidden">
+              {m.details_replay_short()}
+            </span>
+            <span className="sr-only md:not-sr-only">{m.details_replay()}</span>
+          </button>
+          <WavePauseButton />
+        </div>
       )}
       {earthquake && <ViewToggle />}
       <BottomSheet
