@@ -486,12 +486,14 @@ export function GlobeScene({
   selectedEarthquake,
   hoveredEarthquake,
   waves,
+  isHidden = false,
 }: {
   controls: GlobeControls;
   earthquakes: readonly Earthquake[];
   selectedEarthquake: Earthquake | undefined;
   hoveredEarthquake?: Earthquake;
   waves: GlobeWaves;
+  isHidden?: boolean;
 }) {
   const gl = useThree((state) => state.gl);
   const invalidate = useThree((state) => state.invalidate);
@@ -574,7 +576,7 @@ export function GlobeScene({
     setPulseUniforms(assets, pulseIndex === undefined ? undefined : sorted[pulseIndex], pulseMs);
     const isPulsing = pulseRef.current !== null || pendingPulseRef.current !== null;
     const isWaving = time <= wavesEndRef.current + FRAME_SECONDS || isPulsing;
-    isContinuingRef.current = controls.isAnimating() || isWaving;
+    isContinuingRef.current = !isHidden && (controls.isAnimating() || isWaving);
     if (isContinuingRef.current) state.invalidate();
   });
 
@@ -595,7 +597,11 @@ export function GlobeScene({
     [assets],
   );
 
-  useEffect(() => playbackClock.subscribeFrame(invalidate), [invalidate]);
+  useEffect(() => {
+    if (isHidden) return;
+    invalidate();
+    return playbackClock.subscribeFrame(invalidate);
+  }, [invalidate, isHidden]);
 
   useEffect(() => {
     invalidate();

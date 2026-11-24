@@ -1,5 +1,5 @@
 import type { RelativeInterval, TimeFilters } from '@/lib/earthquakes/search-schema';
-import { getIntlLocale } from '@/lib/i18n/intl-locale';
+import { getCachedFormat, getIntlLocale } from '@/lib/i18n/intl-locale';
 import { getRangeInputs } from '@/lib/i18n/labels';
 import { m } from '@/paraglide/messages';
 import type { Locale } from '@/paraglide/runtime';
@@ -13,8 +13,15 @@ const COUNT_PHRASES: Record<RelativeInterval, { one: CountPhrase; other: CountPh
   '1y': { one: m.summary_earthquakes_1y_one, other: m.summary_earthquakes_1y_other },
 };
 
+const pluralRules = new Map<string, Intl.PluralRules>();
+
 export function getCountPhrase(filters: TimeFilters, count: number, locale: Locale): string {
-  const isOne = new Intl.PluralRules(getIntlLocale(locale)).select(count) === 'one';
+  const rules = getCachedFormat(
+    pluralRules,
+    locale,
+    () => new Intl.PluralRules(getIntlLocale(locale)),
+  );
+  const isOne = rules.select(count) === 'one';
   if (filters.interval === 'custom') {
     const inputs = getRangeInputs(filters, locale);
     if (isOne) return m.summary_earthquakes_custom_one(inputs, { locale });

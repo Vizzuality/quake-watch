@@ -51,6 +51,7 @@ import { QUAKE_MARKER_LOOK, getEpicentreRadiusPx, getHypocentreRadius } from '@/
 import { getLatLonVector, getRotatedVector } from '@/lib/globe/sphere';
 import { setHomeSheetOpen } from '@/lib/layout/home-sheet-store';
 import { getPhoneLayout } from '@/lib/layout/phone';
+import { setSectionShown } from '@/lib/section/section-shown-store';
 import { overwriteGetLocale } from '@/paraglide/runtime';
 import { getEmscFeature, getFeatureCollection } from '@/test/fixtures/earthquakes';
 import { setViewport } from '@/test/set-viewport';
@@ -597,15 +598,18 @@ describe('globe', () => {
   });
 
   it('drops the globe and the zoom buttons from the Tab order under the section view', async () => {
-    const { screen } = await renderGlobe(
-      {},
-      { initialEntries: ['/?quake=emsc:test_0&view=section'] },
-    );
-    const globe = screen.getByRole('application', { includeHidden: true }).element();
+    const { screen } = await renderGlobe();
+    await expect.element(screen.getByRole('button', { name: 'Zoom in' })).toBeVisible();
 
-    await vi.waitFor(() => expect(globe.getAttribute('tabindex')).toBe('-1'));
-    expect(globe.getAttribute('aria-hidden')).toBe('true');
-    expect(screen.container.querySelector('fieldset')).toBeNull();
+    setSectionShown(true);
+    try {
+      const globe = screen.getByRole('application', { includeHidden: true }).element();
+      await vi.waitFor(() => expect(globe.getAttribute('tabindex')).toBe('-1'));
+      expect(globe.getAttribute('aria-hidden')).toBe('true');
+      expect(screen.container.querySelector('fieldset')).toBeNull();
+    } finally {
+      setSectionShown(false);
+    }
   });
 
   it('leaves the canvas transparent past the halo and paints the halo and dots', async () => {

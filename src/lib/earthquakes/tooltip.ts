@@ -1,5 +1,5 @@
 import { getDecimalLabel, getKmLabel } from '@/lib/format';
-import { getIntlLocale } from '@/lib/i18n/intl-locale';
+import { getCachedFormat, getIntlLocale } from '@/lib/i18n/intl-locale';
 import { m } from '@/paraglide/messages';
 import type { Locale } from '@/paraglide/runtime';
 
@@ -13,16 +13,24 @@ const HOURS_LIMIT_MS = 48 * HOUR_MS;
 
 type DateParts = Record<'weekday' | 'day' | 'month' | 'hour' | 'minute', string>;
 
+const utcDateFormats = new Map<string, Intl.DateTimeFormat>();
+
 function getUtcDateParts(time: number, locale: Locale): DateParts {
-  const parts = new Intl.DateTimeFormat(getIntlLocale(locale), {
-    weekday: 'short',
-    day: '2-digit',
-    month: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    hourCycle: 'h23',
-    timeZone: 'UTC',
-  }).formatToParts(time);
+  const format = getCachedFormat(
+    utcDateFormats,
+    locale,
+    () =>
+      new Intl.DateTimeFormat(getIntlLocale(locale), {
+        weekday: 'short',
+        day: '2-digit',
+        month: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        hourCycle: 'h23',
+        timeZone: 'UTC',
+      }),
+  );
+  const parts = format.formatToParts(time);
   const getPart = (type: keyof DateParts) => parts.find((part) => part.type === type)?.value ?? '';
   return {
     weekday: getPart('weekday'),

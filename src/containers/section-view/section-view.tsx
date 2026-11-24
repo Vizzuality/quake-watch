@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 
 import { AreaStrip } from '@/containers/detail-map/area-strip';
@@ -19,6 +19,7 @@ import {
   getUpperLabel,
 } from '@/lib/section/section-labels';
 import type { SectionModel } from '@/lib/section/section-model';
+import { setSectionShown } from '@/lib/section/section-shown-store';
 import { m } from '@/paraglide/messages';
 import { type Locale, getLocale } from '@/paraglide/runtime';
 
@@ -174,12 +175,14 @@ export default function SectionView({ quake }: { quake: string }) {
   const layout = usePhoneLayout();
   const { earthquake, model, isError, isFetching, retry } = useSectionData(quake);
   const [host, setHost] = useState<HTMLElement | null>(null);
+  const viewRef = useRef<HTMLDivElement>(null);
   const hostRef = useCallback((node: HTMLSpanElement | null) => {
     setHost(node?.closest('main') ?? null);
   }, []);
 
   const view = (
     <div
+      ref={viewRef}
       data-testid="section-view"
       style={getPhoneSectionBandStyle(layout)}
       className="pointer-events-auto absolute inset-0 z-[5] block bg-background bg-page md:hidden lg:block"
@@ -209,6 +212,20 @@ export default function SectionView({ quake }: { quake: string }) {
       </div>
     </div>
   );
+
+  useLayoutEffect(() => {
+    const element = viewRef.current;
+    if (!element) return;
+    const observer = new ResizeObserver(([entry]) => {
+      setSectionShown(entry.contentRect.width > 0);
+    });
+    observer.observe(element);
+    setSectionShown(element.getBoundingClientRect().width > 0);
+    return () => {
+      observer.disconnect();
+      setSectionShown(false);
+    };
+  }, [host]);
 
   return (
     <>

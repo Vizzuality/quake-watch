@@ -16,6 +16,7 @@ import { userEvent } from 'vitest/browser';
 import { setWavePaused } from '@/containers/globe/wave-pause';
 import { EARTHQUAKE_SEARCH_ROUTE } from '@/lib/earthquakes/search-schema';
 import { CRUST_CELL_COUNT, getCrustLayersBuffer } from '@/lib/section/crust-layers';
+import { getIsSectionShown } from '@/lib/section/section-shown-store';
 import { getSlabGridsBuffer } from '@/lib/section/slab-depth';
 import { TERRARIUM_TILE_URL, TILE_SIZE } from '@/lib/section/terrarium';
 import { getEmscFeature, getFeatureCollection } from '@/test/fixtures/earthquakes';
@@ -181,6 +182,22 @@ describe('section view', () => {
     await expect.element(map).toBeChecked();
     expect(router.state.location.search).not.toHaveProperty('view');
     expect(screen.getByTestId('section-view').query()).toBeNull();
+  });
+
+  it('reports itself shown only while it covers the map', async () => {
+    const { screen } = await renderSection(`/?quake=${QUAKE}&view=section`);
+
+    await expect.poll(getIsSectionShown).toBe(true);
+
+    await setViewport(900, 800);
+    await expect.poll(getIsSectionShown).toBe(false);
+
+    await setViewport(390, 844);
+    await expect.poll(getIsSectionShown).toBe(true);
+
+    await setViewport(1280, 800);
+    await screen.getByText('Map', { exact: true }).click();
+    await expect.poll(getIsSectionShown).toBe(false);
   });
 
   it('draws the slice with its layers, plate, neighbours and a text alternative', async () => {

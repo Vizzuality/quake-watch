@@ -51,6 +51,7 @@ const HIT_RADIUS = R0 + (TIME_RING_LOOK.hitOuter - TIME_RING_LOOK.hitInner) / 2;
 const HIT_WIDTH = TIME_RING_LOOK.hitOuter + TIME_RING_LOOK.hitInner;
 const SVG_NS = 'http://www.w3.org/2000/svg';
 const ACTIVE_BAR_OPACITY = '0.95';
+const activeBars = new WeakMap<SVGGElement, Map<string, SVGPathElement>>();
 
 function getDegrees(fraction: number): number {
   return (getRingAngle(fraction) * 180) / Math.PI + 90;
@@ -77,7 +78,16 @@ function syncActiveBars(group: SVGGElement | null, active: readonly RingTick[]) 
   const ids = active.map(({ id }) => id).join(' ');
   if (group.dataset.ids === ids) return;
   group.dataset.ids = ids;
-  group.replaceChildren(...active.map(getActiveBarElement));
+  const previous = activeBars.get(group);
+  const bars = active.map((tick) => previous?.get(tick.id) ?? getActiveBarElement(tick));
+  activeBars.set(group, new Map(active.map(({ id }, index) => [id, bars[index]])));
+  group.replaceChildren(...bars);
+}
+
+function clearActiveBars(group: SVGGElement | null) {
+  if (!group) return;
+  delete group.dataset.ids;
+  activeBars.delete(group);
 }
 
 function getWheelTarget(event: WheelEvent, svg: SVGSVGElement): Element | undefined {
@@ -240,7 +250,7 @@ export function TimeRing({ opacity }: { opacity: number }) {
   useLayoutEffect(() => {
     if (!range) return;
     const ringRange = range;
-    if (activeRef.current) delete activeRef.current.dataset.ids;
+    clearActiveBars(activeRef.current);
     function update() {
       const fraction = getPlayheadFraction(ringRange);
       const playhead = playbackClock.getPlayhead() ?? ringRange.end;
