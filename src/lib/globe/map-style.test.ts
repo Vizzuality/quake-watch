@@ -156,11 +156,12 @@ describe('getQuakeMapStyle', () => {
     });
   });
 
-  it('outlines the coast with a 0.6 px primary line', () => {
+  it('outlines only the sea coast with a 0.6 px primary line, leaving lakes, reservoirs and rivers unstroked', () => {
     expect(getLayer('coastline')).toMatchObject({
       type: 'line',
       source: 'openmaptiles',
       'source-layer': 'water',
+      filter: ['==', ['get', 'class'], 'ocean'],
       paint: { 'line-color': MAP_COLORS.primary, 'line-width': 0.6 },
     });
   });

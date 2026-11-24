@@ -263,6 +263,7 @@ function getBaseLayers(): LayerSpecification[] {
       type: 'line',
       source: MAP_SOURCE_ID,
       'source-layer': 'water',
+      filter: ['==', ['get', 'class'], 'ocean'],
       paint: { 'line-color': MAP_COLORS.primary, 'line-width': MAP_LOOK.coastlinePx },
     },
     ...getBoundaryLayers(),
