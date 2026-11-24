@@ -1,3 +1,4 @@
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import {
   Outlet,
   RouterProvider,
@@ -11,10 +12,17 @@ import { render } from 'vitest-browser-react';
 import { page, userEvent } from 'vitest/browser';
 
 import { FiltersPanel } from '@/containers/filters/filters-panel';
-import { EARTHQUAKE_SEARCH_ROUTE } from '@/lib/earthquakes/search-schema';
+import { getEarthquakesQueryKey } from '@/lib/earthquakes/query-options';
+import {
+  EARTHQUAKE_SEARCH_ROUTE,
+  earthquakeSearchSchema,
+  getIsoDate,
+} from '@/lib/earthquakes/search-schema';
 import { overwriteGetLocale } from '@/paraglide/runtime';
 
-async function renderPanel(initialEntry = '/') {
+const DAY_MS = 86_400_000;
+
+async function renderPanel(initialEntry = '/', queryClient = getQueryClient()) {
   const rootRoute = createRootRoute({ component: Outlet });
   const indexRoute = createRoute({
     getParentRoute: () => rootRoute,
@@ -31,8 +39,16 @@ async function renderPanel(initialEntry = '/') {
     history: createMemoryHistory({ initialEntries: [initialEntry] }),
   });
   await router.load();
-  const screen = await render(<RouterProvider router={router} />);
+  const screen = await render(
+    <QueryClientProvider client={queryClient}>
+      <RouterProvider router={router} />
+    </QueryClientProvider>,
+  );
   return { router, screen };
+}
+
+function getQueryClient() {
+  return new QueryClient({ defaultOptions: { queries: { retry: false } } });
 }
 
 describe('filters panel', () => {
@@ -90,9 +106,9 @@ describe('filters panel', () => {
 
     await userEvent.click(time.getByText('7d', { exact: true }));
     await userEvent.keyboard('{ArrowRight}');
-    await expect.poll(() => router.state.location.searchStr).toBe('?interval=24h');
-    await expect.element(time.getByRole('radio', { name: '24h' })).toHaveFocus();
-    await expect.element(time.getByRole('radio', { name: '24h' })).toBeChecked();
+    await expect.poll(() => router.state.location.searchStr).toBe('?interval=1y');
+    await expect.element(time.getByRole('radio', { name: '1y' })).toHaveFocus();
+    await expect.element(time.getByRole('radio', { name: '1y' })).toBeChecked();
 
     await userEvent.keyboard('{ArrowLeft}');
     await expect.poll(() => router.state.location.searchStr).toBe('');
@@ -149,4 +165,77 @@ describe('filters panel', () => {
     await expect.element(screen.getByRole('radio', { name: 'Intermédio' })).toBeVisible();
     await expect.element(screen.getByRole('radio', { name: 'Todos' }).first()).toBeVisible();
   });
+
+  it('offers 1y, Custom and All in the design order', async () => {
+    const { screen } = await renderPanel();
+    const time = screen.getByRole('radiogroup', { name: 'Time' });
+    const source = screen.getByRole('radiogroup', { name: 'Source' });
+    expect(time.element().textContent).toBe('24h3d7d1yCustom');
+    expect(source.element().textContent).toBe('AllUSGSEMSC');
+  });
+
+  it('writes a 30-day custom range to the URL, rejects reversed dates inline and reloads it', async () => {
+    const { router, screen } = await renderPanel('/?source=all');
+    await userEvent.click(screen.getByText('Custom', { exact: true }));
+    const today = getIsoDate(Date.now());
+    const start = getIsoDate(Date.now() - 29 * DAY_MS);
+    await expect
+      .poll(() => router.state.location.searchStr)
+      .toBe(`?source=all&interval=custom&from=${start}&to=${today}`);
+
+    const from = screen.getByLabelText('From');
+    await expect.element(from).toHaveValue(start);
+    await userEvent.fill(from, today);
+    await expect.poll(() => router.state.location.search.from).toBe(today);
+
+    await userEvent.fill(screen.getByLabelText('To'), getIsoDate(Date.now() - 2 * DAY_MS));
+    await expect
+      .element(screen.getByRole('alert'))
+      .toHaveTextContent('The start date must be on or before the end date.');
+    await expect.element(from).toHaveAttribute('aria-invalid', 'true');
+    expect(router.state.location.search.to).toBe(today);
+
+    const href = router.state.location.href;
+    screen.unmount();
+    const reloaded = await renderPanel(href);
+    await expect.element(reloaded.screen.getByRole('radio', { name: 'Custom' })).toBeChecked();
+    await expect.element(reloaded.screen.getByLabelText('From')).toHaveValue(today);
+
+    await userEvent.click(reloaded.screen.getByText('1y', { exact: true }));
+    await expect
+      .poll(() => reloaded.router.state.location.searchStr)
+      .toBe('?source=all&interval=1y');
+  });
+
+  it('says when a year was cut to the largest earthquakes', async () => {
+    const queryClient = getQueryClient();
+    const filters = earthquakeSearchSchema.parse({ interval: '1y', source: 'all' });
+    queryClient.setQueryData(getEarthquakesQueryKey(filters), {
+      earthquakes: [],
+      isTruncated: true,
+      fetchedAt: Date.now(),
+    });
+    const { screen } = await renderPanel('/?interval=1y&source=all', queryClient);
+    await expect
+      .element(screen.getByTestId('filter-truncated'))
+      .toHaveTextContent('Largest 5,000 per catalogue shown');
+  });
+
+  it.each(['en', 'es', 'pt'] as const)(
+    'keeps the Time options and both dates on one line each at 320 px in %s',
+    async (locale) => {
+      overwriteGetLocale(() => locale);
+      await page.viewport(320, 640);
+      const { screen } = await renderPanel('/?interval=custom&from=2026-01-01&to=2026-01-31');
+      const panel = screen.getByRole('region').element();
+      (panel.parentElement as HTMLElement).style.padding = '0 20px';
+      const options = [...panel.querySelectorAll('[role=radiogroup]')[0].children];
+      const tops = new Set(options.map((option) => option.getBoundingClientRect().top));
+      expect(tops.size).toBe(1);
+      for (const element of [...options, ...panel.querySelectorAll('input[type=date]')]) {
+        expect(element.getBoundingClientRect().right).toBeLessThanOrEqual(300);
+      }
+      expect(document.documentElement.scrollWidth).toBe(320);
+    },
+  );
 });

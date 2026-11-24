@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { earthquakeSearchSchema } from '@/lib/earthquakes/search-schema';
+import { earthquakeSearchFieldsSchema } from '@/lib/earthquakes/search-schema';
 
 import { getLegacyRedirect } from './legacy-redirect';
 
@@ -18,7 +18,7 @@ describe('getLegacyRedirect', () => {
     ['/en/map?minmag=2.5&period=7d', '/en'],
     ['/en/map?period=30d&minmag=2.5&radius=250&sort=time.desc', '/en'],
     ['/en/map?minmag=4.5&period=24h&source=usgs', '/en?source=usgs&interval=24h&minmag=4'],
-    ['/en/map?period=1y', '/en'],
+    ['/en/map?period=1y', '/en?interval=1y'],
     ['/en/map?period=custom', '/en'],
     ['/en/map?minmag=7.2', '/en?minmag=6'],
     ['/en/map?minmag=-1', '/en'],
@@ -65,7 +65,7 @@ describe('getLegacyRedirect', () => {
   it('produces a quake value the search schema accepts', () => {
     const target = getRedirectFor('/en/earthquakes/usgs/us7000abcd') ?? '';
     const quake = new URLSearchParams(target.slice(target.indexOf('?'))).get('quake');
-    expect(earthquakeSearchSchema.shape.quake.parse(quake)).toBe('usgs:us7000abcd');
+    expect(earthquakeSearchFieldsSchema.shape.quake.parse(quake)).toBe('usgs:us7000abcd');
   });
 
   it.each([

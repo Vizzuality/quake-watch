@@ -3,7 +3,7 @@ import { z } from 'zod';
 import type { EarthquakeFilters } from '../search-schema';
 import type { Earthquake } from '../types';
 import { coordinatesSchema, getFdsnQueryParams } from './feature-collection';
-import type { SourceAdapter } from './feature-collection';
+import type { FdsnQuery, SourceAdapter } from './feature-collection';
 
 export const EMSC_QUERY_URL = 'https://www.seismicportal.eu/fdsnws/event/1/query';
 const EMSC_EVENT_URL = 'https://www.seismicportal.eu/eventdetails.html';
@@ -30,11 +30,8 @@ function getRegionLabel(region: string | null | undefined): string | null {
     .join(' ');
 }
 
-function getQueryUrl(filters: EarthquakeFilters, now: Date, limit: number): string {
-  const params = new URLSearchParams([
-    ['format', 'json'],
-    ...getFdsnQueryParams(filters, now, limit),
-  ]);
+function getQueryUrl(filters: EarthquakeFilters, query: FdsnQuery): string {
+  const params = new URLSearchParams([['format', 'json'], ...getFdsnQueryParams(filters, query)]);
   return `${EMSC_QUERY_URL}?${params}`;
 }
 

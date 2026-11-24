@@ -2,7 +2,7 @@ import { defaultStringifySearch } from '@tanstack/react-router';
 
 import {
   EARTHQUAKE_SEARCH_DEFAULTS,
-  earthquakeSearchSchema,
+  earthquakeSearchFieldsSchema,
   MIN_MAGNITUDES,
 } from '@/lib/earthquakes/search-schema';
 
@@ -13,7 +13,7 @@ const LEGACY_PERIOD_INTERVALS: Record<string, string> = {
   '24h': '24h',
   '7d': '7d',
   '30d': '7d',
-  '1y': '7d',
+  '1y': '1y',
 };
 
 type MappedKey = 'source' | 'place' | 'interval' | 'minmag' | 'lat' | 'lon';
@@ -42,7 +42,7 @@ function getRouterParsedValue(raw: string | null): unknown {
 
 function getCanonicalValue(key: MappedKey, value: unknown): unknown {
   if (value === undefined) return undefined;
-  const result = earthquakeSearchSchema.shape[key].safeParse(value);
+  const result = earthquakeSearchFieldsSchema.shape[key].safeParse(value);
   if (!result.success) return undefined;
   const defaults: Record<string, unknown> = EARTHQUAKE_SEARCH_DEFAULTS;
   if (defaults[key] === result.data) return undefined;

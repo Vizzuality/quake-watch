@@ -30,6 +30,11 @@ describe('getStripTickLabel', () => {
     expect(getStripTickLabel({ time: Date.UTC(2026, 10, 2), kind: 'day' }, 'en')).toBe('Mon 02');
   });
 
+  it('names a week tick by day and month, and a month tick by month', () => {
+    expect(getStripTickLabel({ time: Date.UTC(2026, 9, 5), kind: 'date' }, 'en')).toBe('05 Oct');
+    expect(getStripTickLabel({ time: Date.UTC(2026, 9, 1), kind: 'month' }, 'es')).toBe('oct');
+  });
+
   it('shows the UTC hour between days', () => {
     expect(getStripTickLabel({ time: Date.UTC(2026, 9, 27, 15), kind: 'hour' }, 'en')).toBe(
       '15:00',
@@ -46,14 +51,23 @@ describe('getStripQuakeLabel', () => {
 
 describe('getAreaCaption', () => {
   it('names the Interval and counts the earthquakes in the area', () => {
-    expect(getAreaCaption('7d', 33, 'en')).toBe(
+    expect(getAreaCaption({ interval: '7d' }, 33, 'en')).toBe(
       'In this area this week · 33 earthquakes · Size = magnitude',
     );
-    expect(getAreaCaption('24h', 1, 'en')).toBe(
+    expect(getAreaCaption({ interval: '24h' }, 1, 'en')).toBe(
       'In this area in the last 24 hours · 1 earthquake · Size = magnitude',
     );
-    expect(getAreaCaption('3d', 2, 'es')).toBe(
+    expect(getAreaCaption({ interval: '3d' }, 2, 'es')).toBe(
       'En esta zona en los últimos 3 días · 2 terremotos · Tamaño = magnitud',
     );
+  });
+
+  it('names the year and the dates of a custom range', () => {
+    expect(getAreaCaption({ interval: '1y' }, 2, 'en')).toBe(
+      'In this area in the last year · 2 earthquakes · Size = magnitude',
+    );
+    expect(
+      getAreaCaption({ interval: 'custom', from: '2026-01-01', to: '2026-01-31' }, 2, 'en'),
+    ).toBe('In this area from Jan 1, 2026 to Jan 31, 2026 · 2 earthquakes · Size = magnitude');
   });
 });

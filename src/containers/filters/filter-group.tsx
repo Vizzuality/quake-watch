@@ -1,4 +1,4 @@
-import { useId } from 'react';
+import { type ReactNode, useId } from 'react';
 
 import { InfoLabel } from '@/components/info-button/info-button';
 
@@ -10,6 +10,7 @@ type FilterGroupProps<T> = {
   options: readonly FilterGroupOption<T>[];
   value: T;
   onChange: (value: T) => void;
+  children?: ReactNode;
 };
 
 export function FilterGroup<T extends string | number>({
@@ -18,6 +19,7 @@ export function FilterGroup<T extends string | number>({
   options,
   value,
   onChange,
+  children,
 }: FilterGroupProps<T>) {
   const id = useId();
   const labelId = `${id}-label`;
@@ -55,6 +57,7 @@ export function FilterGroup<T extends string | number>({
           </label>
         ))}
       </div>
+      {children}
     </div>
   );
 }

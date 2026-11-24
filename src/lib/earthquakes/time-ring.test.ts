@@ -179,12 +179,34 @@ describe('getRingMarks', () => {
   });
 });
 
+describe('getRingMarks over long ranges', () => {
+  it('marks each Monday of a month-long range by day and month', () => {
+    const range = { start: Date.UTC(2026, 9, 1), end: Date.UTC(2026, 9, 31) };
+    expect(getRingMarks(range, 'en').map(({ label }) => label)).toEqual([
+      '05 Oct',
+      '12 Oct',
+      '19 Oct',
+      '26 Oct',
+    ]);
+  });
+
+  it('marks each month of a year by name', () => {
+    const range = { start: Date.UTC(2025, 10, 20, 12), end: Date.UTC(2026, 10, 20, 12) };
+    const labels = getRingMarks(range, 'es').map(({ label }) => label);
+    expect(labels).toHaveLength(12);
+    expect(labels.at(1)).toBe('ene');
+  });
+});
+
 describe('getSpeedLabel', () => {
   it('names the playback speed per interval', () => {
     expect(getSpeedLabel({ start: 0, end: DAY }, 'en')).toBe('1 hour ≈ 2 s');
     expect(getSpeedLabel({ start: 0, end: 3 * DAY }, 'en')).toBe('1 day ≈ 16 s');
     expect(getSpeedLabel({ start: 0, end: 7 * DAY }, 'en')).toBe('1 day ≈ 7 s');
     expect(getSpeedLabel({ start: 0, end: 7 * DAY }, 'es')).toBe('1 día ≈ 7 s');
+    expect(getSpeedLabel({ start: 0, end: 30 * DAY }, 'en')).toBe('1 week ≈ 11 s');
+    expect(getSpeedLabel({ start: 0, end: 365 * DAY }, 'en')).toBe('1 month ≈ 4 s');
+    expect(getSpeedLabel({ start: 0, end: 365 * DAY }, 'pt')).toBe('1 mês ≈ 4 s');
   });
 });
 

@@ -185,7 +185,7 @@ export function SummaryPanel() {
               {getDecimalLabel(stats.count, locale)}
             </span>{' '}
             <span className="text-lead md:text-value">
-              {getCountPhrase(search.interval, stats.count, locale)}
+              {getCountPhrase(search, stats.count, locale)}
             </span>
           </h2>
           <dl className="mt-3.5 grid grid-cols-2 gap-3.5 md:mt-0 md:block md:border-b md:border-line">

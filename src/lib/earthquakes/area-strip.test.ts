@@ -71,7 +71,7 @@ describe('getStripDotRadius', () => {
 
 describe('getStripTicks', () => {
   it('ticks each UTC midnight of a week, as the design does from Tue 27 to Mon 02', () => {
-    const ticks = getStripTicks(RANGE, '7d');
+    const ticks = getStripTicks(RANGE);
 
     expect(ticks.map(({ time }) => new Date(time).toISOString().slice(5, 10))).toEqual([
       '10-27',
@@ -88,10 +88,10 @@ describe('getStripTicks', () => {
   });
 
   it('ticks every three hours over 24 hours and marks the midnight as a day', () => {
-    const ticks = getStripTicks(
-      { start: Date.UTC(2026, 9, 26, 17, 36), end: Date.UTC(2026, 9, 27, 17, 36) },
-      '24h',
-    );
+    const ticks = getStripTicks({
+      start: Date.UTC(2026, 9, 26, 17, 36),
+      end: Date.UTC(2026, 9, 27, 17, 36),
+    });
 
     expect(ticks.map(({ time }) => new Date(time).getUTCHours())).toEqual([
       18, 21, 0, 3, 6, 9, 12, 15,
@@ -106,6 +106,22 @@ describe('getStripTicks', () => {
       'hour',
       'hour',
     ]);
+  });
+
+  it('ticks each Monday of a month-long range as a date', () => {
+    const ticks = getStripTicks({ start: Date.UTC(2026, 9, 1), end: Date.UTC(2026, 9, 31) });
+    expect(ticks.map(({ time }) => new Date(time).getUTCDate())).toEqual([5, 12, 19, 26]);
+    expect(ticks.every(({ kind }) => kind === 'date')).toBe(true);
+  });
+
+  it('ticks each first of the month over a year', () => {
+    const ticks = getStripTicks({
+      start: Date.UTC(2025, 10, 20, 12),
+      end: Date.UTC(2026, 10, 20, 12),
+    });
+    expect(ticks).toHaveLength(12);
+    expect(new Date(ticks[0].time).toISOString()).toBe('2025-12-01T00:00:00.000Z');
+    expect(ticks.every(({ kind }) => kind === 'month')).toBe(true);
   });
 });
 

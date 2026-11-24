@@ -7,8 +7,8 @@ import { LanguageSwitch } from '@/containers/language-switch/language-switch';
 import { PauseIcon, PlayIcon } from '@/containers/timeline/playback-control';
 import { useIsLiveUpdatesPaused, useToggleLiveUpdates } from '@/hooks/use-live-updates';
 import { getLiveSnapshot, playbackClock } from '@/lib/earthquakes/playback-clock';
-import { SOURCE_ADAPTERS } from '@/lib/earthquakes/query-options';
-import type { EarthquakeSource } from '@/lib/earthquakes/search-schema';
+import { getSourceLabel } from '@/lib/earthquakes/query-options';
+import type { SourceFilter } from '@/lib/earthquakes/search-schema';
 import { cn } from '@/lib/utils';
 import { m } from '@/paraglide/messages';
 
@@ -30,13 +30,25 @@ function getWordmarkClassName(isDetail: boolean): string {
   return isDetail ? '' : 'mr-auto h-auto w-[124px] md:mr-0 md:w-[159px]';
 }
 
-function getStatusLabel(source: EarthquakeSource, isLive: boolean, isPaused: boolean): string {
-  const label = SOURCE_ADAPTERS[source].label;
+function getStatusLabel(source: SourceFilter, isLive: boolean, isPaused: boolean): string {
+  const label = getSourceLabel(source);
   if (isPaused) return `${m.header_paused()} · ${label}`;
   return isLive ? `${m.header_live()} · ${label}` : label;
 }
 
-function LiveStatus({ source, isPaused }: { source: EarthquakeSource; isPaused: boolean }) {
+function getNarrowSourceLabel(source: SourceFilter): string {
+  return source === 'all' ? m.filter_source_all() : getSourceLabel(source);
+}
+
+function getFullLabelClassName(source: SourceFilter): string {
+  return source === 'all' ? '@max-[370px]:sr-only' : '@max-[340px]:sr-only';
+}
+
+function getNarrowLabelClassName(source: SourceFilter): string {
+  return source === 'all' ? '@min-[370px]:hidden' : '@min-[340px]:hidden';
+}
+
+function LiveStatus({ source, isPaused }: { source: SourceFilter; isPaused: boolean }) {
   const { playhead } = useSyncExternalStore(
     playbackClock.subscribe,
     playbackClock.getSnapshot,
@@ -50,14 +62,14 @@ function LiveStatus({ source, isPaused }: { source: EarthquakeSource; isPaused: 
       {isLive && !isPaused && (
         <span data-live-dot aria-hidden="true" className="size-[5px] rounded-full bg-foreground" />
       )}
-      <span className={cn(hasState && '@max-[339px]:sr-only')}>
+      <span className={cn(hasState && getFullLabelClassName(source))}>
         {getStatusLabel(source, isLive, isPaused)}
       </span>
       {hasState && (
         <span
           aria-hidden="true"
-          data-label={SOURCE_ADAPTERS[source].label}
-          className="before:content-[attr(data-label)] @min-[340px]:hidden"
+          data-label={getNarrowSourceLabel(source)}
+          className={cn('before:content-[attr(data-label)]', getNarrowLabelClassName(source))}
         />
       )}
     </output>

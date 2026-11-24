@@ -122,10 +122,20 @@ describe('getClampedT', () => {
 });
 
 describe('getHistogramUnit', () => {
-  it('is hourly for 24h and daily otherwise', () => {
-    expect(getHistogramUnit('24h')).toBe('hour');
-    expect(getHistogramUnit('7d')).toBe('day');
-    expect(getHistogramUnit('3d')).toBe('day');
+  it.each([
+    [1, 'hour'],
+    [3, 'day'],
+    [7, 'day'],
+    [30, 'week'],
+    [365, 'month'],
+  ] as const)('is %s days → %s', (days, unit) => {
+    expect(getHistogramUnit({ start: 0, end: days * DAY })).toBe(unit);
+  });
+
+  it('bins a year by month', () => {
+    const loaded = { start: new Date(2026, 0, 15).getTime(), end: new Date(2026, 3, 2).getTime() };
+    const bins = getHistogramBins([], loaded, 'month');
+    expect(bins.map(({ start }) => new Date(start).getMonth())).toEqual([0, 1, 2, 3]);
   });
 });
 
@@ -377,8 +387,11 @@ describe('getIntervalRange', () => {
   it('ends at the fetch time and starts one interval before', () => {
     const fetchedAt = Date.parse('2026-11-02T12:00:00.000Z');
 
-    expect(getIntervalRange('24h', fetchedAt)).toEqual({ start: fetchedAt - DAY, end: fetchedAt });
-    expect(getIntervalRange('7d', fetchedAt)).toEqual({
+    expect(getIntervalRange({ interval: '24h' }, fetchedAt)).toEqual({
+      start: fetchedAt - DAY,
+      end: fetchedAt,
+    });
+    expect(getIntervalRange({ interval: '7d' }, fetchedAt)).toEqual({
       start: fetchedAt - 7 * DAY,
       end: fetchedAt,
     });

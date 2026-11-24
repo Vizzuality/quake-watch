@@ -1,4 +1,4 @@
-import { type Interval, getIntervalStart } from './search-schema';
+import { type TimeFilters, getTimeWindow } from './search-schema';
 import type { Earthquake } from './types';
 
 type PlaybackWindow = '24h' | '7d';
@@ -53,23 +53,43 @@ export function getClampedT(t: string | undefined, loaded: TimeRange | null): nu
   return Math.min(loaded.end, Math.max(loaded.start, parsed));
 }
 
-export type HistogramUnit = 'hour' | 'day';
+export type TimeUnit = 'hour' | 'day' | 'week' | 'month';
+export type HistogramUnit = TimeUnit;
 
-export function getHistogramUnit(interval: Interval): HistogramUnit {
-  return interval === '24h' ? 'hour' : 'day';
+const HOUR_UNIT_MAX_MS = 30 * 3_600_000;
+const DAY_UNIT_MAX_MS = 16 * DAY_MS;
+const WEEK_UNIT_MAX_MS = 120 * DAY_MS;
+
+export function getTimeUnit(range: TimeRange): TimeUnit {
+  const span = range.end - range.start;
+  if (span <= HOUR_UNIT_MAX_MS) return 'hour';
+  if (span <= DAY_UNIT_MAX_MS) return 'day';
+  if (span <= WEEK_UNIT_MAX_MS) return 'week';
+  return 'month';
+}
+
+export function getHistogramUnit(range: TimeRange): HistogramUnit {
+  return getTimeUnit(range);
 }
 
 function getBinStart(time: number, unit: HistogramUnit): Date {
   const date = new Date(time);
-  if (unit === 'hour') date.setMinutes(0, 0, 0);
-  else date.setHours(0, 0, 0, 0);
+  if (unit === 'hour') {
+    date.setMinutes(0, 0, 0);
+    return date;
+  }
+  date.setHours(0, 0, 0, 0);
+  if (unit === 'week') date.setDate(date.getDate() - ((date.getDay() + 6) % 7));
+  if (unit === 'month') date.setDate(1);
   return date;
 }
 
 function getNextBinStart(start: number, unit: HistogramUnit): number {
   const date = new Date(start);
   if (unit === 'hour') date.setHours(date.getHours() + 1);
-  else date.setDate(date.getDate() + 1);
+  if (unit === 'day') date.setDate(date.getDate() + 1);
+  if (unit === 'week') date.setDate(date.getDate() + 7);
+  if (unit === 'month') date.setMonth(date.getMonth() + 1);
   return date.getTime();
 }
 
@@ -144,6 +164,6 @@ export function getShownEarthquakes<T extends { time: number }>(
   return earthquakes.filter(({ time }) => time <= playhead);
 }
 
-export function getIntervalRange(interval: Interval, fetchedAt: number): TimeRange {
-  return { start: getIntervalStart(interval, new Date(fetchedAt)).getTime(), end: fetchedAt };
+export function getIntervalRange(filters: TimeFilters, fetchedAt: number): TimeRange {
+  return getTimeWindow(filters, fetchedAt);
 }

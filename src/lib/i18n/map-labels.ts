@@ -1,19 +1,23 @@
 import type { StripTick } from '@/lib/earthquakes/area-strip';
 import { getRoundedReachKm } from '@/lib/earthquakes/meaning';
-import type { Interval } from '@/lib/earthquakes/search-schema';
+import type { RelativeInterval, TimeFilters } from '@/lib/earthquakes/search-schema';
 import { getKmLabel } from '@/lib/format';
 import { getIntlLocale } from '@/lib/i18n/intl-locale';
+import { getRangeInputs } from '@/lib/i18n/labels';
 import { m } from '@/paraglide/messages';
 import type { Locale } from '@/paraglide/runtime';
 
 type MessageOptions = { locale: Locale };
 type CaptionMessage = (inputs: { count: string }, options: MessageOptions) => string;
 
-const AREA_CAPTIONS: Record<Interval, CaptionMessage> = {
+const AREA_CAPTIONS: Record<RelativeInterval, CaptionMessage> = {
   '24h': m.map_area_caption_24h,
   '3d': m.map_area_caption_3d,
   '7d': m.map_area_caption_7d,
+  '1y': m.map_area_caption_1y,
 };
+
+const DAY_MONTH_OPTIONS: Intl.DateTimeFormatOptions = { day: '2-digit', month: 'short' };
 
 const CLOCK_OPTIONS: Intl.DateTimeFormatOptions = {
   hour: '2-digit',
@@ -62,6 +66,9 @@ export function getStripTickLabel(
   locale: Locale,
 ): string {
   if (kind === 'hour') return getClockLabel(time, locale);
+  const month = getDatePart(time, locale, DAY_MONTH_OPTIONS, 'month').replace('.', '');
+  if (kind === 'month') return month;
+  if (kind === 'date') return `${getDatePart(time, locale, DAY_MONTH_OPTIONS, 'day')} ${month}`;
   const day = getDatePart(time, locale, { day: '2-digit' }, 'day');
   return `${getWeekdayLabel(time, locale)} ${day}`;
 }
@@ -81,6 +88,13 @@ function getAreaCountLabel(count: number, locale: Locale): string {
     : m.map_area_count_other({ count: formatted }, { locale });
 }
 
-export function getAreaCaption(interval: Interval, count: number, locale: Locale): string {
-  return AREA_CAPTIONS[interval]({ count: getAreaCountLabel(count, locale) }, { locale });
+export function getAreaCaption(filters: TimeFilters, count: number, locale: Locale): string {
+  const countLabel = getAreaCountLabel(count, locale);
+  if (filters.interval === 'custom') {
+    return m.map_area_caption_custom(
+      { ...getRangeInputs(filters, locale), count: countLabel },
+      { locale },
+    );
+  }
+  return AREA_CAPTIONS[filters.interval]({ count: countLabel }, { locale });
 }

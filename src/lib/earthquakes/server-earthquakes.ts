@@ -11,9 +11,12 @@ import {
   getEarthquakesQueryKey,
   getEarthquakesStaleMs,
 } from './query-options';
+import { getTimeWindow } from './search-schema';
 import type { EarthquakeFilters } from './search-schema';
+import { isLongWindow } from './sources/feature-collection';
 
 export const LIST_SERVER_FETCH_TIMEOUT_MS = 15_000;
+export const LIST_SERVER_CACHE_MAX_ENTRIES = 64;
 
 type CacheEntry = { result?: EarthquakesResult; refresh?: Promise<EarthquakesResult> };
 
@@ -22,8 +25,18 @@ const cache = new Map<string, CacheEntry>();
 function getCacheEntry(filters: EarthquakeFilters): CacheEntry {
   const key = JSON.stringify(getEarthquakesQueryKey(filters));
   const entry = cache.get(key) ?? {};
+  cache.delete(key);
   cache.set(key, entry);
+  for (const oldest of cache.keys()) {
+    if (cache.size <= LIST_SERVER_CACHE_MAX_ENTRIES) break;
+    cache.delete(oldest);
+  }
   return entry;
+}
+
+function isServerPrefetched(filters: EarthquakeFilters): boolean {
+  if (filters.interval === 'custom') return false;
+  return !isLongWindow(getTimeWindow(filters, Date.now()));
 }
 
 function getRefresh(entry: CacheEntry, filters: EarthquakeFilters): Promise<EarthquakesResult> {
@@ -55,6 +68,7 @@ export async function getServerEarthquakes(
   filters: EarthquakeFilters,
   signal: AbortSignal,
 ): Promise<EarthquakesResult> {
+  if (filters.interval === 'custom') return getEarthquakes(filters, signal);
   const entry = getCacheEntry(filters);
   const staleMs = getEarthquakesStaleMs(filters.interval);
   const fresh = getResultYoungerThan(entry.result, staleMs / 2);
@@ -67,7 +81,7 @@ export async function prefetchServerEarthquakes(
   queryClient: QueryClient,
   filters: EarthquakeFilters,
 ): Promise<void> {
-  if (!isServer) return;
+  if (!isServer || !isServerPrefetched(filters)) return;
   try {
     const result = await getServerEarthquakes(filters, AbortSignal.timeout(PAGE_FETCH_TIMEOUT_MS));
     queryClient.setQueryData(earthquakesQueryOptions(filters).queryKey, result, {

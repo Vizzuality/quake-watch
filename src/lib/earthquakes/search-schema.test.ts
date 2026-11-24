@@ -6,7 +6,9 @@ import {
   EARTHQUAKE_SEARCH_ROUTE,
   earthquakeSearchSchema,
   getEarthquakeFilters,
-  getIntervalStart,
+  getCustomRangeError,
+  getDefaultCustomRange,
+  getTimeWindow,
   getRoundedCoordinate,
 } from './search-schema';
 
@@ -60,8 +62,41 @@ describe('earthquakeSearchSchema', () => {
     });
   });
 
-  it.each(['24h', '3d', '7d'])('accepts interval %s', (interval) => {
+  it.each(['24h', '3d', '7d', '1y'])('accepts interval %s', (interval) => {
     expect(getSearch({ interval }).interval).toBe(interval);
+  });
+
+  it.each(['emsc', 'usgs', 'all'])('accepts source %s', (source) => {
+    expect(getSearch({ source }).source).toBe(source);
+  });
+
+  it('keeps a valid custom range', () => {
+    expect(getSearch({ interval: 'custom', from: '2026-01-01', to: '2026-01-31' })).toMatchObject({
+      interval: 'custom',
+      from: '2026-01-01',
+      to: '2026-01-31',
+    });
+  });
+
+  it.each([
+    { from: '2026-02-01', to: '2026-01-31' },
+    { from: '2024-01-01', to: '2026-01-31' },
+    { from: '2026-01-01' },
+    { from: 'yesterday', to: '2026-01-31' },
+  ])('falls back to 7d for the custom range %o', (range) => {
+    expect(getSearch({ interval: 'custom', ...range })).toMatchObject({
+      interval: '7d',
+      from: undefined,
+      to: undefined,
+    });
+  });
+
+  it('drops from and to outside a custom range', () => {
+    expect(getSearch({ interval: '1y', from: '2026-01-01', to: '2026-01-31' })).toMatchObject({
+      interval: '1y',
+      from: undefined,
+      to: undefined,
+    });
   });
 
   it.each([0, 3, 4, 5, 6])('accepts minmag %s', (minmag) => {
@@ -194,13 +229,45 @@ describe('DEPTH_RANGES_KM', () => {
   });
 });
 
-describe('getIntervalStart', () => {
+describe('getTimeWindow', () => {
   it.each([
     ['24h', '2026-10-07T12:00:00.000Z'],
     ['3d', '2026-10-05T12:00:00.000Z'],
     ['7d', '2026-10-01T12:00:00.000Z'],
-  ] as const)('%s starts at %s', (interval, start) => {
-    expect(getIntervalStart(interval, NOW).toISOString()).toBe(start);
+    ['1y', '2025-10-08T12:00:00.000Z'],
+  ] as const)('%s starts at %s and ends now', (interval, start) => {
+    const window = getTimeWindow({ interval }, NOW.getTime());
+    expect(new Date(window.start).toISOString()).toBe(start);
+    expect(window.end).toBe(NOW.getTime());
+  });
+
+  it('spans whole UTC days for a custom range', () => {
+    expect(
+      getTimeWindow({ interval: 'custom', from: '2026-09-01', to: '2026-09-30' }, NOW.getTime()),
+    ).toEqual({ start: Date.UTC(2026, 8, 1), end: Date.UTC(2026, 9, 1) });
+  });
+});
+
+describe('getCustomRangeError', () => {
+  const now = NOW.getTime();
+
+  it.each([
+    [undefined, '2026-10-01', 'missing'],
+    ['2026-10-01', '', 'missing'],
+    ['2026-02-30', '2026-03-01', 'missing'],
+    ['2026-10-02', '2026-10-01', 'order'],
+    ['2026-10-01', '2026-10-09', 'future'],
+    ['2025-10-01', '2026-10-02', 'span'],
+    ['2025-10-08', '2026-10-08', null],
+    ['2026-10-08', '2026-10-08', null],
+  ] as const)('%s to %s is %s', (from, to, error) => {
+    expect(getCustomRangeError(from, to, now)).toBe(error);
+  });
+});
+
+describe('getDefaultCustomRange', () => {
+  it('covers the last 30 days up to today', () => {
+    expect(getDefaultCustomRange(NOW.getTime())).toEqual({ from: '2026-09-09', to: '2026-10-08' });
   });
 });
 

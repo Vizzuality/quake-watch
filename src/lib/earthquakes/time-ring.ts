@@ -5,7 +5,7 @@ import type { Locale } from '@/paraglide/runtime';
 
 import { getDepthColor } from './depth-color';
 import type { TimeRange } from './timeline';
-import { getPlaybackSpeed } from './timeline';
+import { type TimeUnit, getPlaybackSpeed, getTimeUnit } from './timeline';
 import type { Earthquake } from './types';
 
 export type RingTick = {
@@ -46,7 +46,9 @@ export const TIME_RING_LOOK = {
 
 const HOUR_MS = 3_600_000;
 const DAY_MS = 24 * HOUR_MS;
-const HOURLY_LABEL_SPAN_MS = 30 * HOUR_MS;
+const WEEK_MS = 7 * DAY_MS;
+const MONTH_MS = 30.44 * DAY_MS;
+const MONDAY_OFFSET_MS = 4 * DAY_MS;
 const HOURLY_MARK_STEP_MS = 3 * HOUR_MS;
 const NEEDLE_WINDOW_MIN_MS = 2 * HOUR_MS;
 const NEEDLE_WINDOW_FRACTION = 0.05;
@@ -130,30 +132,54 @@ function getUtcParts(time: number, locale: Locale) {
   const parts = new Intl.DateTimeFormat(getIntlLocale(locale), {
     weekday: 'short',
     day: '2-digit',
+    month: 'short',
     hour: '2-digit',
     hourCycle: 'h23',
     timeZone: 'UTC',
   }).formatToParts(time);
   const getPart = (type: Intl.DateTimeFormatPartTypes) =>
-    parts.find((part) => part.type === type)?.value ?? '';
+    parts.find((part) => part.type === type)?.value.replace('.', '') ?? '';
   return {
-    weekday: getPart('weekday').replace('.', ''),
+    weekday: getPart('weekday'),
     day: getPart('day'),
+    month: getPart('month'),
     hour: getPart('hour'),
   };
 }
 
-function getMarkTimes(range: TimeRange, stepMs: number): number[] {
+function getSteppedTimes(range: TimeRange, stepMs: number, offsetMs = 0): number[] {
   const times: number[] = [];
-  for (let time = Math.ceil(range.start / stepMs) * stepMs; time <= range.end; time += stepMs) {
+  const first = Math.ceil((range.start - offsetMs) / stepMs) * stepMs + offsetMs;
+  for (let time = first; time <= range.end; time += stepMs) times.push(time);
+  return times;
+}
+
+function getMonthTimes(range: TimeRange): number[] {
+  const times: number[] = [];
+  const date = new Date(range.start);
+  let time = Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), 1);
+  if (time < range.start) time = Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + 1, 1);
+  while (time <= range.end) {
     times.push(time);
+    const next = new Date(time);
+    time = Date.UTC(next.getUTCFullYear(), next.getUTCMonth() + 1, 1);
   }
   return times;
 }
 
-function getMarkLabel(time: number, isHourly: boolean, locale: Locale): string {
-  const { weekday, day, hour } = getUtcParts(time, locale);
-  return isHourly ? `${hour}:00` : `${weekday} ${day}`;
+function getMarkTimes(range: TimeRange, unit: TimeUnit): number[] {
+  if (unit === 'hour') return getSteppedTimes(range, HOURLY_MARK_STEP_MS);
+  if (unit === 'day') return getSteppedTimes(range, DAY_MS);
+  if (unit === 'week') return getSteppedTimes(range, WEEK_MS, MONDAY_OFFSET_MS);
+  return getMonthTimes(range);
+}
+
+function getMarkLabel(time: number, unit: TimeUnit, locale: Locale): string {
+  const { weekday, day, month, hour } = getUtcParts(time, locale);
+  if (unit === 'hour') return `${hour}:00`;
+  if (unit === 'day') return `${weekday} ${day}`;
+  if (unit === 'week') return `${day} ${month}`;
+  return month;
 }
 
 function isLabelled(fraction: number): boolean {
@@ -162,23 +188,32 @@ function isLabelled(fraction: number): boolean {
 }
 
 export function getRingMarks(range: TimeRange, locale: Locale): RingMark[] {
-  const isHourly = range.end - range.start <= HOURLY_LABEL_SPAN_MS;
-  const stepMs = isHourly ? HOURLY_MARK_STEP_MS : DAY_MS;
-  return getMarkTimes(range, stepMs).map((time) => {
+  const unit = getTimeUnit(range);
+  return getMarkTimes(range, unit).map((time) => {
     const fraction = getRingFraction(time, range);
-    const label = isLabelled(fraction) ? getMarkLabel(time, isHourly, locale) : null;
+    const label = isLabelled(fraction) ? getMarkLabel(time, unit, locale) : null;
     return { fraction, label };
   });
 }
 
+const SPEED_UNITS: Record<
+  TimeUnit,
+  {
+    ms: number;
+    message: (inputs: { seconds: number }, options: { locale: Locale }) => string;
+  }
+> = {
+  hour: { ms: HOUR_MS, message: m.timeline_speed_hour },
+  day: { ms: DAY_MS, message: m.timeline_speed_day },
+  week: { ms: WEEK_MS, message: m.timeline_speed_week },
+  month: { ms: MONTH_MS, message: m.timeline_speed_month },
+};
+
 export function getSpeedLabel(range: TimeRange, locale: Locale): string {
   const msPerSecond = getPlaybackSpeed(range) * 1000;
-  if (range.end - range.start <= HOURLY_LABEL_SPAN_MS) {
-    const seconds = Math.max(1, Math.round(HOUR_MS / msPerSecond));
-    return m.timeline_speed_hour({ seconds }, { locale });
-  }
-  const seconds = Math.max(1, Math.round(DAY_MS / msPerSecond));
-  return m.timeline_speed_day({ seconds }, { locale });
+  const { ms, message } = SPEED_UNITS[getTimeUnit(range)];
+  const seconds = Math.max(1, Math.round(ms / msPerSecond));
+  return message({ seconds }, { locale });
 }
 
 export function getScrubStepMs(range: TimeRange): number {
