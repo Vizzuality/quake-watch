@@ -1,5 +1,8 @@
 import { z } from 'zod';
 
+import { getExtentRadius } from '@/lib/earthquakes/search-area';
+import type { SearchRadiusKm } from '@/lib/earthquakes/search-schema';
+
 const PHOTON_URL = 'https://photon.komoot.io/api/';
 const PLACE_SUGGESTION_LIMIT = 5;
 
@@ -9,6 +12,7 @@ export type Place = {
   label: string;
   latitude: number;
   longitude: number;
+  radiusKm: SearchRadiusKm;
 };
 
 const photonFeatureSchema = z.object({
@@ -19,6 +23,7 @@ const photonFeatureSchema = z.object({
     name: z.string(),
     state: z.string().optional(),
     country: z.string().optional(),
+    extent: z.tuple([z.number(), z.number(), z.number(), z.number()]).optional().catch(undefined),
   }),
 });
 
@@ -32,9 +37,12 @@ function getPlace(feature: unknown): Place | null {
   return {
     id: `${properties.osm_type}${properties.osm_id}`,
     name: properties.name,
-    label: [properties.name, properties.state, properties.country].filter(Boolean).join(', '),
+    label: [...new Set([properties.name, properties.state, properties.country])]
+      .filter(Boolean)
+      .join(', '),
     latitude,
     longitude,
+    radiusKm: getExtentRadius(properties.extent),
   };
 }
 

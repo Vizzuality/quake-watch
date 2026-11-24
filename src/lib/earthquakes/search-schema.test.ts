@@ -19,14 +19,17 @@ function getSearch(input: Record<string, unknown> = {}) {
 }
 
 describe('earthquakeSearchSchema', () => {
-  it('fills the five defaults and leaves the rest undefined', () => {
+  it('fills the six defaults and leaves the rest undefined', () => {
     expect(getSearch()).toEqual({
       source: 'emsc',
       interval: '7d',
       minmag: 0,
       depth: 'all',
+      radius: 100,
       view: 'map',
       place: undefined,
+      plat: undefined,
+      plon: undefined,
       quake: undefined,
       lat: undefined,
       lon: undefined,
@@ -39,6 +42,9 @@ describe('earthquakeSearchSchema', () => {
       getSearch({
         source: 'usgs',
         place: '  Granada ',
+        plat: 37.173,
+        plon: -3.599,
+        radius: 250,
         interval: '3d',
         minmag: 5,
         depth: 'deep',
@@ -51,6 +57,9 @@ describe('earthquakeSearchSchema', () => {
     ).toEqual({
       source: 'usgs',
       place: 'Granada',
+      plat: 37.17,
+      plon: -3.6,
+      radius: 250,
       interval: '3d',
       minmag: 5,
       depth: 'deep',
@@ -153,7 +162,25 @@ describe('earthquakeSearchSchema', () => {
 
   it('accepts a 120-character place', () => {
     const place = 'x'.repeat(120);
-    expect(getSearch({ place }).place).toBe(place);
+    expect(getSearch({ place, plat: 1, plon: 2 }).place).toBe(place);
+  });
+
+  it('drops the place and a half centre when the search centre is incomplete', () => {
+    expect(getSearch({ place: 'Granada', plat: 37.17 })).toMatchObject({
+      place: undefined,
+      plat: undefined,
+      plon: undefined,
+    });
+  });
+
+  it('keeps a centre without a place for my location', () => {
+    const search = getSearch({ plat: 37.17, plon: -3.6 });
+    expect(search).toMatchObject({ plat: 37.17, plon: -3.6, radius: 100 });
+    expect(search.place).toBeUndefined();
+  });
+
+  it.each([75, '250', -1])('falls back to the 100 km radius for %s', (radius) => {
+    expect(getSearch({ radius }).radius).toBe(100);
   });
 
   it('accepts the coordinate bounds', () => {
@@ -185,12 +212,13 @@ describe('getRoundedCoordinate', () => {
 });
 
 describe('EARTHQUAKE_SEARCH_DEFAULTS', () => {
-  it('holds exactly the five defaulted params', () => {
+  it('holds exactly the six defaulted params', () => {
     expect(EARTHQUAKE_SEARCH_DEFAULTS).toEqual({
       source: 'emsc',
       interval: '7d',
       minmag: 0,
       depth: 'all',
+      radius: 100,
       view: 'map',
     });
   });
@@ -211,6 +239,8 @@ describe('EARTHQUAKE_SEARCH_ROUTE', () => {
     expect(strip?.({ search, next: (value) => value })).toEqual({
       minmag: 5,
       place: undefined,
+      plat: undefined,
+      plon: undefined,
       quake: undefined,
       lat: 10,
       lon: undefined,

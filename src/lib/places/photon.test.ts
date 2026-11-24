@@ -14,8 +14,33 @@ describe('getPlacesFromPhoton', () => {
         label: 'Granada, Andalucía, España',
         latitude: 37.1773,
         longitude: -3.5986,
+        radiusKm: 100,
       },
     ]);
+  });
+
+  it('sizes the search radius from the place extent', () => {
+    const json = getPhotonCollection();
+    const spain = {
+      ...json,
+      features: json.features.map((f) => ({
+        ...f,
+        properties: { ...f.properties, extent: [-18.39, 43.99, 4.59, 27.43] },
+      })),
+    };
+    expect(getPlacesFromPhoton(spain)[0]?.radiusKm).toBe(500);
+  });
+
+  it('names a country once in its label', () => {
+    const json = getPhotonCollection(['España']);
+    const country = {
+      ...json,
+      features: json.features.map((f) => ({
+        ...f,
+        properties: { ...f.properties, state: undefined },
+      })),
+    };
+    expect(getPlacesFromPhoton(country)[0]?.label).toBe('España');
   });
 
   it('drops features without a name', () => {

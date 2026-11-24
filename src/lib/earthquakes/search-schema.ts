@@ -7,6 +7,8 @@ export const INTERVALS = ['24h', '3d', '7d', '1y', 'custom'] as const;
 export const MIN_MAGNITUDES = [0, 3, 4, 5, 6] as const;
 export const DEPTHS = ['all', 'shallow', 'mid', 'deep'] as const;
 export const DETAIL_VIEWS = ['map', 'section'] as const;
+export const SEARCH_RADII_KM = [50, 100, 250, 500] as const;
+export const DEFAULT_SEARCH_RADIUS_KM = 100;
 
 export type EarthquakeSource = (typeof SOURCES)[number];
 export type SourceFilter = (typeof SOURCE_FILTERS)[number];
@@ -16,6 +18,7 @@ export type TimeWindow = { start: number; end: number };
 export type MinMagnitude = (typeof MIN_MAGNITUDES)[number];
 export type Depth = (typeof DEPTHS)[number];
 export type DetailView = (typeof DETAIL_VIEWS)[number];
+export type SearchRadiusKm = (typeof SEARCH_RADII_KM)[number];
 
 export const DEPTH_RANGES_KM: Record<Exclude<Depth, 'all'>, { min?: number; max?: number }> = {
   shallow: { max: 70 },
@@ -82,9 +85,28 @@ function getValidatedRange<T extends { interval: Interval; from?: string; to?: s
   return { ...search, interval: '7d', from: undefined, to: undefined };
 }
 
+function getValidatedArea<T extends { place?: string; plat?: number; plon?: number }>(
+  search: T,
+): T {
+  if (search.plat !== undefined && search.plon !== undefined) return search;
+  return { ...search, place: undefined, plat: undefined, plon: undefined };
+}
+
+function getValidatedSearch<
+  T extends { interval: Interval; from?: string; to?: string; plat?: number; plon?: number },
+>(search: T): T {
+  return getValidatedArea(getValidatedRange(search));
+}
+
 export const earthquakeSearchFieldsSchema = z.object({
   source: z.enum(SOURCE_FILTERS).default('emsc').catch('emsc'),
   place: z.string().trim().min(1).max(120).optional().catch(undefined),
+  plat: getRoundedNumberSchema(-90, 90),
+  plon: getRoundedNumberSchema(-180, 180),
+  radius: z
+    .literal(SEARCH_RADII_KM)
+    .default(DEFAULT_SEARCH_RADIUS_KM)
+    .catch(DEFAULT_SEARCH_RADIUS_KM),
   interval: z.enum(INTERVALS).default('7d').catch('7d'),
   from: z.iso.date().optional().catch(undefined),
   to: z.iso.date().optional().catch(undefined),
@@ -97,7 +119,7 @@ export const earthquakeSearchFieldsSchema = z.object({
   view: z.enum(DETAIL_VIEWS).default('map').catch('map'),
 });
 
-export const earthquakeSearchSchema = earthquakeSearchFieldsSchema.transform(getValidatedRange);
+export const earthquakeSearchSchema = earthquakeSearchFieldsSchema.transform(getValidatedSearch);
 
 export type EarthquakeSearch = z.infer<typeof earthquakeSearchSchema>;
 
@@ -125,6 +147,7 @@ export const EARTHQUAKE_SEARCH_DEFAULTS = {
   interval: '7d',
   minmag: 0,
   depth: 'all',
+  radius: DEFAULT_SEARCH_RADIUS_KM,
   view: 'map',
 } as const satisfies Partial<EarthquakeSearch>;
 

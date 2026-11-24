@@ -6,7 +6,17 @@ import type { EarthquakeSearch } from '@/lib/earthquakes/search-schema';
 export type FilterSearchPatch = Partial<
   Pick<
     EarthquakeSearch,
-    'source' | 'place' | 'interval' | 'from' | 'to' | 'minmag' | 'depth' | 'quake'
+    | 'source'
+    | 'place'
+    | 'plat'
+    | 'plon'
+    | 'radius'
+    | 'interval'
+    | 'from'
+    | 'to'
+    | 'minmag'
+    | 'depth'
+    | 'quake'
   >
 >;
 

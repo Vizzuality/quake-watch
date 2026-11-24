@@ -6,33 +6,43 @@ import {
   useEffect,
   useId,
   useLayoutEffect,
-  useMemo,
   useRef,
   useState,
 } from 'react';
 
+import { useDebouncedValue } from '@/hooks/use-debounced-value';
 import { useFilterSearch } from '@/hooks/use-filter-search';
-import { earthquakesQueryOptions } from '@/lib/earthquakes/query-options';
-import { type RegionSuggestion, getRegionSuggestions } from '@/lib/earthquakes/regions';
-import { getEarthquakeFilters } from '@/lib/earthquakes/search-schema';
-import type { Earthquake } from '@/lib/earthquakes/types';
-import { getDecimalLabel } from '@/lib/format';
+import {
+  DEFAULT_SEARCH_RADIUS_KM,
+  type SearchRadiusKm,
+  getRoundedCoordinate,
+} from '@/lib/earthquakes/search-schema';
+import type { Place } from '@/lib/places/photon';
+import {
+  PLACE_QUERY_DEBOUNCE_MS,
+  PLACE_QUERY_MIN_LENGTH,
+  placeSuggestionsQueryOptions,
+} from '@/lib/places/query-options';
 import { m } from '@/paraglide/messages';
 import { type Locale, getLocale } from '@/paraglide/runtime';
 
-import { getNearestRegion } from './nearest-region';
-
 const homeRoute = getRouteApi('/');
-const EMPTY_EARTHQUAKES: Earthquake[] = [];
+const EMPTY_PLACES: Place[] = [];
 const ARROW_STEPS: Partial<Record<string, number>> = { ArrowDown: 1, ArrowUp: -1 };
 const LOCATE_OPTIONS: PositionOptions = { timeout: 10_000, maximumAge: 600_000 };
 
-type LocateError = 'denied' | 'unavailable' | 'empty';
+type LocateError = 'denied' | 'unavailable';
+
+type PickedArea = {
+  place: string | undefined;
+  latitude: number;
+  longitude: number;
+  radiusKm: SearchRadiusKm;
+};
 
 const LOCATE_ERROR_MESSAGES: Record<LocateError, (locale: Locale) => string> = {
   denied: (locale) => m.search_locate_denied({}, { locale }),
   unavailable: (locale) => m.search_locate_unavailable({}, { locale }),
-  empty: (locale) => m.search_locate_empty({}, { locale }),
 };
 
 function ClearIcon() {
@@ -53,6 +63,32 @@ function GpsFixIcon() {
 
 function getLocateError(error: GeolocationPositionError): LocateError {
   return error.code === error.PERMISSION_DENIED ? 'denied' : 'unavailable';
+}
+
+function getErrorMessage(
+  locateError: LocateError | null,
+  isSearchError: boolean,
+  locale: Locale,
+): string | null {
+  if (locateError) return LOCATE_ERROR_MESSAGES[locateError](locale);
+  if (isSearchError) return m.search_error({}, { locale });
+  return null;
+}
+
+function getSuggestionStatus(text: string, isSearching: boolean, locale: Locale): string {
+  if (text.trim().length < PLACE_QUERY_MIN_LENGTH) return m.search_min_chars({}, { locale });
+  if (isSearching) return m.search_searching({}, { locale });
+  return m.search_empty({}, { locale });
+}
+
+function getSuggestions(places: Place[] | undefined, isSearching: boolean): Place[] {
+  if (isSearching) return EMPTY_PLACES;
+  return places ?? EMPTY_PLACES;
+}
+
+function getPlaceholder(hasArea: boolean, place: string | undefined, locale: Locale): string {
+  if (hasArea && place === undefined) return m.place_my_location({}, { locale });
+  return m.search_label({}, { locale });
 }
 
 function syncCaret(
@@ -80,20 +116,17 @@ function getNextIndex(index: number, step: number, count: number): number {
 
 type SuggestionsProps = {
   id: string;
-  suggestions: RegionSuggestion[];
+  suggestions: Place[];
+  status: string;
   activeIndex: number;
-  onPick: (suggestion: RegionSuggestion) => void;
+  onPick: (suggestion: Place) => void;
 };
 
-function Suggestions({ id, suggestions, activeIndex, onPick }: SuggestionsProps) {
+function Suggestions({ id, suggestions, status, activeIndex, onPick }: SuggestionsProps) {
   const locale = getLocale();
 
   if (suggestions.length === 0) {
-    return (
-      <output className="block px-3 py-2 text-body-s text-muted">
-        {m.search_empty({}, { locale })}
-      </output>
-    );
+    return <output className="block px-3 py-2 text-body-s text-muted">{status}</output>;
   }
   return (
     // oxlint-disable-next-line jsx-a11y/prefer-tag-over-role -- a native select or datalist cannot render the styled suggestions of the combobox pattern
@@ -101,7 +134,7 @@ function Suggestions({ id, suggestions, activeIndex, onPick }: SuggestionsProps)
       {suggestions.map((suggestion, index) => (
         // oxlint-disable-next-line jsx-a11y/click-events-have-key-events -- the combobox input owns the keyboard (https://www.w3.org/WAI/ARIA/apg/patterns/combobox/)
         <div
-          key={suggestion.name}
+          key={suggestion.id}
           id={`${id}-${index}`}
           // oxlint-disable-next-line jsx-a11y/prefer-tag-over-role -- a native option cannot live outside a select
           role="option"
@@ -111,8 +144,7 @@ function Suggestions({ id, suggestions, activeIndex, onPick }: SuggestionsProps)
           onMouseDown={(event) => event.preventDefault()}
           onClick={() => onPick(suggestion)}
         >
-          <span className="truncate text-body-s text-foreground">{suggestion.name}</span>{' '}
-          <span className="text-label text-muted">{getDecimalLabel(suggestion.count, locale)}</span>
+          <span className="truncate text-body-s text-foreground">{suggestion.label}</span>
         </div>
       ))}
     </div>
@@ -121,7 +153,6 @@ function Suggestions({ id, suggestions, activeIndex, onPick }: SuggestionsProps)
 
 export function PlaceSearch() {
   const search = homeRoute.useSearch();
-  const { data } = useQuery(earthquakesQueryOptions(getEarthquakeFilters(search)));
   const setSearch = useFilterSearch();
   const locale = getLocale();
   const listboxId = useId();
@@ -129,15 +160,19 @@ export function PlaceSearch() {
   const mirrorRef = useRef<HTMLSpanElement>(null);
   const caretRef = useRef<HTMLSpanElement>(null);
   const { place } = search;
-  const earthquakes = data?.earthquakes ?? EMPTY_EARTHQUAKES;
+  const hasArea = search.plat !== undefined && search.plon !== undefined;
   const [text, setText] = useState(place ?? '');
   const [syncedPlace, setSyncedPlace] = useState(place);
   const [isOpen, setIsOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
   const [isLocating, setIsLocating] = useState(false);
   const [locateError, setLocateError] = useState<LocateError | null>(null);
-  const suggestions = useMemo(() => getRegionSuggestions(earthquakes, text), [earthquakes, text]);
-  const isListShown = isOpen && text.trim() !== '';
+  const debouncedText = useDebouncedValue(text, PLACE_QUERY_DEBOUNCE_MS);
+  const placesQuery = useQuery(placeSuggestionsQueryOptions(debouncedText));
+  const isSearching = placesQuery.isFetching || text.trim() !== debouncedText.trim();
+  const suggestions = getSuggestions(placesQuery.data, isSearching);
+  const errorMessage = getErrorMessage(locateError, placesQuery.isError, locale);
+  const isListShown = isOpen && text.trim() !== '' && !placesQuery.isError;
   const hasOptions = isListShown && suggestions.length > 0;
   const optionIndex = Math.min(activeIndex, Math.max(suggestions.length - 1, 0));
   const controlsId = hasOptions ? listboxId : undefined;
@@ -149,23 +184,29 @@ export function PlaceSearch() {
     setActiveIndex(0);
   }
 
-  function selectPlace(name: string) {
-    setText(name);
+  function selectArea(area: PickedArea) {
+    setText(area.place ?? '');
     setIsOpen(false);
     setActiveIndex(0);
     setLocateError(null);
-    void setSearch({ place: name });
+    void setSearch({
+      place: area.place,
+      plat: getRoundedCoordinate(area.latitude),
+      plon: getRoundedCoordinate(area.longitude),
+      radius: area.radiusKm,
+    });
   }
 
-  function pick(suggestion: RegionSuggestion) {
-    selectPlace(suggestion.name);
+  function pick(suggestion: Place) {
+    selectArea({ ...suggestion, place: suggestion.name });
   }
 
   function clear() {
     setText('');
     setIsOpen(false);
     setActiveIndex(0);
-    if (place !== undefined) void setSearch({ place: undefined });
+    if (!hasArea) return;
+    void setSearch({ place: undefined, plat: undefined, plon: undefined, radius: undefined });
   }
 
   function handleChange(event: ChangeEvent<HTMLInputElement>) {
@@ -210,9 +251,12 @@ export function PlaceSearch() {
     navigator.geolocation.getCurrentPosition(
       ({ coords }) => {
         setIsLocating(false);
-        const region = getNearestRegion(earthquakes, coords);
-        if (region === null) setLocateError('empty');
-        else selectPlace(region);
+        selectArea({
+          place: undefined,
+          latitude: coords.latitude,
+          longitude: coords.longitude,
+          radiusKm: DEFAULT_SEARCH_RADIUS_KM,
+        });
       },
       (error) => {
         setIsLocating(false);
@@ -262,6 +306,7 @@ export function PlaceSearch() {
           <Suggestions
             id={listboxId}
             suggestions={suggestions}
+            status={getSuggestionStatus(text, isSearching, locale)}
             activeIndex={optionIndex}
             onPick={pick}
           />
@@ -280,7 +325,7 @@ export function PlaceSearch() {
             aria-activedescendant={activeOption}
             autoComplete="off"
             spellCheck={false}
-            placeholder={m.search_label({}, { locale })}
+            placeholder={getPlaceholder(hasArea, place, locale)}
             value={text}
             onChange={handleChange}
             onKeyDown={handleKeyDown}
@@ -302,7 +347,7 @@ export function PlaceSearch() {
             className="pointer-events-none absolute inset-y-0 left-0 my-auto h-[12.1px] w-[9.8px] bg-accent forced-colors:hidden"
           />
         </div>
-        {text !== '' && (
+        {(text !== '' || hasArea) && (
           <button
             type="button"
             aria-label={m.search_clear({}, { locale })}
@@ -322,12 +367,12 @@ export function PlaceSearch() {
           <GpsFixIcon />
         </button>
       </div>
-      {locateError && (
+      {errorMessage && (
         <p
           role="alert"
           className="mt-2 text-body-s text-muted md:absolute md:inset-x-0 md:top-full"
         >
-          {LOCATE_ERROR_MESSAGES[locateError](locale)}
+          {errorMessage}
         </p>
       )}
     </div>

@@ -121,8 +121,8 @@ describe('earthquakes query', () => {
       .poll(() => router.state.location.search)
       .toMatchObject({ lat: 37.18, lon: -3.6, zoom: 4 });
 
-    await setters.setSearch({ place: 'Spain' });
-    expect(router.state.location.search).toMatchObject({ place: 'Spain' });
+    await setters.setSearch({ place: 'Spain', plat: 39.33, plon: -4.84, radius: 500 });
+    expect(router.state.location.search).toMatchObject({ place: 'Spain', plat: 39.33 });
     await setters.setSearch({ quake: 'usgs:us7000abcd' });
     expect(router.state.location.search).toMatchObject({ quake: 'usgs:us7000abcd' });
 

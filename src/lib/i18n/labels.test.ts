@@ -20,9 +20,9 @@ describe('getIntervalLabel', () => {
 describe('getPlaceLabel', () => {
   it('uses the place name or my location', () => {
     expect(
-      getPlaceLabel(earthquakeSearchSchema.parse({ place: 'Granada', lat: 1, lon: 1 }), 'en'),
+      getPlaceLabel(earthquakeSearchSchema.parse({ place: 'Granada', plat: 1, plon: 1 }), 'en'),
     ).toBe('Granada');
-    expect(getPlaceLabel(earthquakeSearchSchema.parse({ lat: 1, lon: 1 }), 'es')).toBe(
+    expect(getPlaceLabel(earthquakeSearchSchema.parse({ plat: 1, plon: 1 }), 'es')).toBe(
       'Mi ubicación',
     );
   });
