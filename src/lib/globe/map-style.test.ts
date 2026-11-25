@@ -192,11 +192,11 @@ describe('getQuakeMapStyle', () => {
     });
   });
 
-  it('keeps z3 coarse water under the map while zoomed out so fast moves show coasts, not straight-edged wedges', () => {
+  it('keeps z4 coarse water under the map while zoomed out so fast moves show coasts, not straight-edged wedges', () => {
     expect(style.sources['openmaptiles-low']).toEqual({
       type: 'vector',
       url: 'https://tiles.openfreemap.org/planet',
-      maxzoom: 3,
+      maxzoom: 4,
     });
     expect(getLayer('water-low')).toMatchObject({
       source: 'openmaptiles-low',
@@ -205,8 +205,8 @@ describe('getQuakeMapStyle', () => {
     });
   });
 
-  it('drops the coarse water at street zooms, where its rough coast would cover the land', () => {
-    expect(getLayer('water-low')).toMatchObject({ maxzoom: 8 });
+  it('drops the coarse water once its tiles would be overzoomed past the detailed coastline', () => {
+    expect(getLayer('water-low')).toMatchObject({ maxzoom: 5 });
   });
 
   it('serves the three label weights from our own files and never from the OpenFreeMap glyphs', () => {
