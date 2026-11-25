@@ -449,6 +449,7 @@ function PanelNavigation({
     <div className="absolute top-[50px] right-4 left-[max(1rem,env(safe-area-inset-left))] flex items-center gap-2 md:top-13.5 md:right-14 md:left-79 md:gap-7 short:right-84">
       <button
         type="button"
+        data-label-obstacle
         onClick={onClose}
         className={`${PILL_CLASS_NAME} ${CIRCLE_HIT_CLASS_NAME} size-control shrink-0 justify-center md:size-auto md:shrink md:justify-normal md:px-4 md:py-2.5`}
       >
@@ -457,11 +458,14 @@ function PanelNavigation({
       </button>
       <div className="flex min-w-0 flex-1 items-center gap-2 md:ml-auto md:min-w-auto md:flex-initial md:gap-7">
         {position && (
-          <p className="min-w-0 flex-1 text-center text-caption text-muted uppercase md:min-w-auto md:flex-initial md:text-start md:text-label">
+          <p
+            data-label-obstacle
+            className="min-w-0 flex-1 text-center text-caption text-muted uppercase md:min-w-auto md:flex-initial md:text-start md:text-label"
+          >
             {getPositionLabel(position, locale)}
           </p>
         )}
-        <div className="ml-auto flex items-center gap-2 md:ml-0">
+        <div data-label-obstacle className="ml-auto flex items-center gap-2 md:ml-0">
           <button
             ref={previousRef}
             type="button"
@@ -558,7 +562,10 @@ export default function EarthquakePanel({ quake }: { quake: string }) {
       )}
       <PanelNavigation position={position} locale={locale} onClose={close} onGoTo={goTo} />
       {earthquake && (
-        <div className="absolute top-24 left-[max(1rem,env(safe-area-inset-left))] flex items-center gap-2 md:top-29 md:left-139">
+        <div
+          data-label-obstacle
+          className="absolute top-24 left-[max(1rem,env(safe-area-inset-left))] flex items-center gap-2 md:top-29 md:left-139"
+        >
           <button
             type="button"
             disabled={position === null}
@@ -584,7 +591,10 @@ export default function EarthquakePanel({ quake }: { quake: string }) {
         bodyRef={sheetBodyRef}
         className="pointer-events-auto"
       >
-        <div className="pointer-events-auto md:absolute md:top-35 md:left-14 md:max-h-[calc(100%-156px)] md:w-105 md:overflow-y-auto">
+        <div
+          data-label-obstacle
+          className="pointer-events-auto md:absolute md:top-35 md:left-14 md:max-h-[calc(100%-156px)] md:w-105 md:overflow-y-auto"
+        >
           {state === 'ready' && earthquake && (
             <EarthquakeFacts
               earthquake={earthquake}

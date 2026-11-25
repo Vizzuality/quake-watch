@@ -127,6 +127,7 @@ export function AreaStrip() {
     <figure
       ref={figureRef}
       data-testid="area-strip"
+      data-label-obstacle
       style={getPhoneDetailOverlayStyle(phoneLayout)}
       className="pointer-events-none absolute top-(--area-strip-top) right-[22px] left-[22px] block h-[111px] md:top-auto md:right-14 md:bottom-[57.55px] md:left-140 md:hidden lg:block short:right-[342px]"
     >

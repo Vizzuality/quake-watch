@@ -101,6 +101,7 @@ export function BottomSheet({
   return (
     <section
       aria-label={label}
+      data-label-obstacle
       data-dragging={dragOffset !== null || undefined}
       style={{ top }}
       className={cn(

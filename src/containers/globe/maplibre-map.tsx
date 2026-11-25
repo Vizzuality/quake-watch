@@ -638,6 +638,7 @@ export default function GlobeMap({
     element.addEventListener('touchend', handleTouchEnd, { capture: true });
     element.addEventListener('touchcancel', handleTouchEnd, { capture: true });
     element.addEventListener('keydown', handleKeyDown, { capture: true });
+    document.addEventListener('transitionend', syncLabelObstacles);
     if (import.meta.env.DEV) window.__globeMap = map;
     return () => {
       unsubscribeSection();
@@ -651,6 +652,7 @@ export default function GlobeMap({
       element.removeEventListener('touchend', handleTouchEnd, { capture: true });
       element.removeEventListener('touchcancel', handleTouchEnd, { capture: true });
       element.removeEventListener('keydown', handleKeyDown, { capture: true });
+      document.removeEventListener('transitionend', syncLabelObstacles);
       if (window.__globeMap === map) delete window.__globeMap;
       mapRef.current = null;
       setReadyMap(null);
