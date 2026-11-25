@@ -15,7 +15,7 @@ import { SEARCH_AREA_LOOK } from './search-area-ring';
 export const MAP_STYLE_URL = 'https://tiles.openfreemap.org/styles/dark';
 export const MAP_SOURCE_ID = 'openmaptiles';
 export const MAP_LOW_SOURCE_ID = 'openmaptiles-low';
-export const MAP_LOW_MAXZOOM = 3;
+export const MAP_LOW_MAXZOOM = 4;
 export const QUAKE_SOURCE_ID = 'quakes';
 export const QUAKE_LAYER_ID = 'quakes';
 export const FELT_SOURCE_ID = 'felt-rings';
@@ -57,7 +57,6 @@ export const QUAKE_EDGE_PX = 0.5;
 
 const MAP_LOOK = {
   coastlinePx: 0.6,
-  coarseWaterMaxZoom: 8,
   areaDash: [2, 4],
   labelPx: 10,
   townPx: 11,
@@ -263,7 +262,7 @@ function getBaseLayers(): LayerSpecification[] {
       type: 'fill',
       source: MAP_LOW_SOURCE_ID,
       'source-layer': 'water',
-      maxzoom: MAP_LOOK.coarseWaterMaxZoom,
+      maxzoom: MAP_LOW_MAXZOOM + 1,
       paint: { 'fill-color': MAP_COLORS.ocean, 'fill-antialias': false },
     },
     {
