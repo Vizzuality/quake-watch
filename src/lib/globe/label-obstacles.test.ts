@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
-import { LABEL_OBSTACLE_ICON_PX, getObstacleFeatures, getObstacleSquares } from './label-obstacles';
+import {
+  LABEL_OBSTACLE_ICON_PX,
+  LABEL_OBSTACLE_MAX_SQUARE_PX,
+  getObstacleFeatures,
+  getObstacleSquares,
+} from './label-obstacles';
 
 describe('getObstacleSquares', () => {
   it('covers a square obstacle with one square of its size', () => {
@@ -17,11 +22,16 @@ describe('getObstacleSquares', () => {
     ]);
   });
 
-  it('covers a large obstacle with squares of its short side, however big', () => {
-    expect(getObstacleSquares({ left: 0, top: 0, right: 600, bottom: 300 })).toEqual([
-      { x: 150, y: 150, size: 300 },
-      { x: 450, y: 150, size: 300 },
-    ]);
+  it('tiles a large obstacle in both directions with squares no bigger than the cap', () => {
+    const squares = getObstacleSquares({ left: 0, top: 0, right: 200, bottom: 100 });
+
+    expect(new Set(squares.map(({ size }) => size))).toEqual(
+      new Set([LABEL_OBSTACLE_MAX_SQUARE_PX]),
+    );
+    expect(new Set(squares.map(({ x }) => x)).size).toBe(4);
+    expect(new Set(squares.map(({ y }) => y))).toEqual(new Set([32, 68]));
+    expect(Math.min(...squares.map(({ x }) => x))).toBe(32);
+    expect(Math.max(...squares.map(({ x }) => x))).toBe(168);
   });
 
   it('spreads squares down a tall obstacle', () => {

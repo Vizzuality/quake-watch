@@ -40,7 +40,6 @@ import {
   getMapZoomFromUrl,
   getUrlZoom,
 } from '@/lib/globe/map-handover';
-import { setMapNearFarZ } from '@/lib/globe/map-near-far';
 import { type MapPadding, getAreaFrame, getDetailPadding } from '@/lib/globe/map-overlay';
 import { holdMapRepaints } from '@/lib/globe/map-repaint-hold';
 import {
@@ -374,7 +373,6 @@ export default function GlobeMap({
     map.getCanvas().style.backgroundColor = MAP_COLORS.land;
     map.touchZoomRotate.disableRotation();
     map.setVerticalFieldOfView(MAP_FIELD_OF_VIEW);
-    setMapNearFarZ(map);
     let isStyleLoaded = false;
     let isReady = false;
     let isShown = false;
@@ -646,7 +644,6 @@ export default function GlobeMap({
     releaseDetailRef.current = releaseDetail;
     map.once('style.load', handleStyleLoad);
     map.on('move', syncLabelObstacles);
-    map.on('resize', () => setMapNearFarZ(map));
     map.on('resize', syncLabelObstacles);
     map.on('idle', syncLabelObstacles);
     map.on('movestart', handleMoveStart);
