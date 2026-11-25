@@ -219,10 +219,11 @@ describe('getScrubStepMs', () => {
 });
 
 describe('getRingOpacity', () => {
-  it('shows the ring at the overview zoom and fades it out by zoom 1.48', () => {
+  it('shows the ring at the overview zoom and fades it out by zoom 1.08', () => {
     expect(getRingOpacity(undefined)).toBe(1);
     expect(getRingOpacity(1)).toBe(1);
-    expect(getRingOpacity(1.28)).toBeCloseTo(0.5, 9);
+    expect(getRingOpacity(1.04)).toBeCloseTo(0.5, 9);
+    expect(getRingOpacity(1.08)).toBe(0);
     expect(getRingOpacity(2)).toBe(0);
   });
 });

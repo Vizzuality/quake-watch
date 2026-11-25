@@ -359,8 +359,8 @@ describe('timeline', () => {
     const { screen } = await renderTimeline();
     const svg = screen.container.querySelector('svg') as SVGSVGElement;
 
-    setGlobeZoom(1.28);
-    await expect.poll(() => svg.style.opacity).toBe('0.5');
+    setGlobeZoom(1.04);
+    await expect.poll(() => Number(svg.style.opacity)).toBeCloseTo(0.5, 6);
     setGlobeZoom(2);
     await expect.poll(() => svg.style.opacity).toBe('0');
     setGlobeZoom(undefined);

@@ -58,8 +58,8 @@ const NEEDLE_WINDOW_FRACTION = 0.05;
 const SCRUB_STEPS = 48;
 const PAGE_STEPS = 6;
 const FULL_TURN = Math.PI * 2;
-const RING_FADE_START_ZOOM = 1.08;
-const RING_FADE_SPAN_ZOOM = 0.4;
+const RING_FADE_START_ZOOM = 1;
+const RING_FADE_SPAN_ZOOM = 0.08;
 const RING_LABEL_CLEARANCE_PX = 8;
 
 export function getRingFraction(time: number, range: TimeRange): number {
