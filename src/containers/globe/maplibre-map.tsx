@@ -34,7 +34,7 @@ import {
   MAP_FIELD_OF_VIEW,
   MAP_ZOOM_SPAN,
   getMapFade,
-  getMapVerticalPadding,
+  getMapHandoverPadding,
   getMapProjection,
   getMapZoom,
   getMapZoomFromUrl,
@@ -411,12 +411,12 @@ export default function GlobeMap({
     }
 
     function getHandoverPadding(): MapPadding {
-      const frame = getGlobeFrame(element.clientWidth, element.clientHeight);
-      return {
-        ...getMapVerticalPadding(element.clientHeight, frame.cy),
-        left: 0,
-        right: 0,
-      };
+      const { clientWidth, clientHeight } = element;
+      return getMapHandoverPadding(
+        clientWidth,
+        clientHeight,
+        getGlobeFrame(clientWidth, clientHeight),
+      );
     }
 
     function setInput(isMapInput: boolean) {
