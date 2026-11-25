@@ -139,7 +139,7 @@
   "summary_largest_at": "Maior · {place}",
   "summary_in_view": "Em vista · {place}",
   "summary_largest_here": "Maior aqui",
-  "summary_area_empty": "Não há sismos aqui neste intervalo. Experimente um intervalo mais longo ou afaste o zoom.",
+  "summary_area_empty": "Não há sismos aqui neste intervalo. Experimente um intervalo mais longo ou uma magnitude menor, ou limpe a pesquisa.",
   "search_label": "Procurar um lugar",
   "search_suggestions": "Lugares",
   "search_clear": "Limpar pesquisa",

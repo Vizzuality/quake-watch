@@ -404,7 +404,7 @@ describe('place search', () => {
     await expect
       .element(
         screen.getByText(
-          'No earthquakes here in this interval. Try a longer interval or zoom out.',
+          'No earthquakes here in this interval. Try a longer interval or a lower magnitude, or clear the search.',
         ),
       )
       .toBeVisible();
