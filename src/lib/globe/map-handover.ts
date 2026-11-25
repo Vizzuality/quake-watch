@@ -1,3 +1,4 @@
+import type { MapPadding } from './map-overlay';
 import { ZOOM_RANGE } from './motion';
 
 const MAPLIBRE_TILE_SIZE = 512;
@@ -12,9 +13,19 @@ export function getMapZoom(radiusPx: number, latitude: number): number {
   return Math.log2((2 * Math.PI * radiusPx * cos) / MAPLIBRE_TILE_SIZE);
 }
 
-export function getMapVerticalPadding(height: number, cy: number) {
-  const offset = 2 * cy - height;
-  return { top: Math.max(0, offset), bottom: Math.max(0, -offset) };
+function getAxisPadding(size: number, centre: number): [number, number] {
+  const offset = 2 * centre - size;
+  return [Math.max(0, offset), Math.max(0, -offset)];
+}
+
+export function getMapHandoverPadding(
+  width: number,
+  height: number,
+  centre: { cx: number; cy: number },
+): MapPadding {
+  const [top, bottom] = getAxisPadding(height, centre.cy);
+  const [left, right] = getAxisPadding(width, centre.cx);
+  return { top, bottom, left, right };
 }
 
 export function getMapProjection(globeZoom: number) {

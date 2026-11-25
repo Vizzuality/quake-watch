@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   getMapFade,
-  getMapVerticalPadding,
+  getMapHandoverPadding,
   getMapZoom,
   getMapZoomFromUrl,
   getUrlZoom,
@@ -36,13 +36,32 @@ describe('URL zoom', () => {
   });
 });
 
-describe('getMapVerticalPadding', () => {
+describe('getMapHandoverPadding', () => {
   it('pads the top when the globe sits below the middle', () => {
-    expect(getMapVerticalPadding(900, 462)).toEqual({ top: 24, bottom: 0 });
+    expect(getMapHandoverPadding(1440, 900, { cx: 720, cy: 462 })).toEqual({
+      top: 24,
+      bottom: 0,
+      left: 0,
+      right: 0,
+    });
   });
 
   it('pads the bottom when the globe sits above the middle', () => {
-    expect(getMapVerticalPadding(844, 330)).toEqual({ top: 0, bottom: 184 });
+    expect(getMapHandoverPadding(390, 844, { cx: 195, cy: 330 })).toEqual({
+      top: 0,
+      bottom: 184,
+      left: 0,
+      right: 0,
+    });
+  });
+
+  it('pads the right when the globe sits left of the side sheet', () => {
+    expect(getMapHandoverPadding(844, 390, { cx: 262, cy: 221 })).toEqual({
+      top: 52,
+      bottom: 0,
+      left: 0,
+      right: 320,
+    });
   });
 });
 
