@@ -1,14 +1,10 @@
 import { useFrame, useThree } from '@react-three/fiber';
 import { useEffect, useRef } from 'react';
 
-import {
-  type LabelBox,
-  type LabelSize,
-  LABEL_OBSTACLE_SELECTOR,
-  getPlacedLabels,
-} from '@/lib/globe/country-labels';
+import { type LabelSize, getPlacedLabels } from '@/lib/globe/country-labels';
 import { COUNTRY_LABELS } from '@/lib/globe/country-labels.data';
 import { getGlobeFrame } from '@/lib/globe/frame';
+import { getLabelObstacleBoxes } from '@/lib/globe/label-obstacles';
 import { getLocale } from '@/paraglide/runtime';
 
 import type { GlobeControls } from './use-globe-controls';
@@ -65,20 +61,6 @@ function getLabelLayer(host: HTMLDivElement): LabelLayer {
   };
 }
 
-function getObstacleBoxes(host: HTMLElement): LabelBox[] {
-  const origin = host.getBoundingClientRect();
-  return [...document.querySelectorAll(LABEL_OBSTACLE_SELECTOR)]
-    .filter((obstacle) => obstacle.checkVisibility({ visibilityProperty: true }))
-    .map((obstacle) => obstacle.getBoundingClientRect())
-    .filter(({ width, height }) => width > 0 && height > 0)
-    .map(({ left, top, right, bottom }) => ({
-      left: left - origin.left,
-      top: top - origin.top,
-      right: right - origin.left,
-      bottom: bottom - origin.top,
-    }));
-}
-
 function showLabel(layer: LabelLayer, index: number, x: number, y: number, opacity: number) {
   const { style } = layer.spans[index];
   const { width, height } = layer.sizes[index];
@@ -119,7 +101,7 @@ export default function GlobeLabels({ controls }: { controls: GlobeControls }) {
       layer.sizes,
       controls.viewRef.current,
       frame,
-      getObstacleBoxes(layer.host),
+      getLabelObstacleBoxes(layer.host),
     );
     layer.frame += 1;
     for (const { index, x, y, opacity } of placed) showLabel(layer, index, x, y, opacity);
