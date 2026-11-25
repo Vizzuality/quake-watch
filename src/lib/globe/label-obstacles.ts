@@ -2,8 +2,6 @@ import { type LabelBox, LABEL_OBSTACLE_SELECTOR } from './country-labels';
 
 export const LABEL_OBSTACLE_ICON_ID = 'qw-label-obstacle';
 export const LABEL_OBSTACLE_ICON_PX = 16;
-// A blocker exists only while the tile holding its anchor is loaded, and MapLibre can leave a padded viewport's edge uncovered, so anchors stay near every point of the chrome.
-export const LABEL_OBSTACLE_MAX_SQUARE_PX = 64;
 
 export type ObstacleSquare = { x: number; y: number; size: number };
 export type ObstacleFeatureCollection = {
@@ -39,7 +37,7 @@ function getSpreadCentres(start: number, length: number, size: number): number[]
 export function getObstacleSquares({ left, top, right, bottom }: LabelBox): ObstacleSquare[] {
   const width = right - left;
   const height = bottom - top;
-  const size = Math.min(width, height, LABEL_OBSTACLE_MAX_SQUARE_PX);
+  const size = Math.min(width, height);
   return getSpreadCentres(top, height, size).flatMap((y) =>
     getSpreadCentres(left, width, size).map((x) => ({ x, y, size })),
   );
