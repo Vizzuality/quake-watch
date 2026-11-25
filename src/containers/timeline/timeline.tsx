@@ -7,6 +7,7 @@ import { earthquakesQueryOptions } from '@/lib/earthquakes/query-options';
 import { getEarthquakeFilters } from '@/lib/earthquakes/search-schema';
 import { getRingOpacity } from '@/lib/earthquakes/time-ring';
 import { getIntervalRange } from '@/lib/earthquakes/timeline';
+import { getGlobeZoom, subscribeGlobeZoom } from '@/lib/globe/globe-zoom-store';
 import {
   getIsHomeSheetOpen,
   getIsHomeSheetOpenOnServer,
@@ -34,6 +35,11 @@ export function Timeline() {
     getIsHomeSheetOpen,
     getIsHomeSheetOpenOnServer,
   );
+  const ringOpacity = useSyncExternalStore(
+    subscribeGlobeZoom,
+    () => getRingOpacity(getGlobeZoom() ?? search.zoom),
+    () => getRingOpacity(search.zoom),
+  );
   const fetchedAt = data?.fetchedAt;
   const { interval, from, to, quake } = search;
   const range = useMemo(
@@ -54,7 +60,7 @@ export function Timeline() {
   if (quake !== undefined) return null;
   return (
     <div className={getRingLayerClassName(isSheetOpen)}>
-      <TimeRing opacity={getRingOpacity(search.zoom)} />
+      <TimeRing opacity={ringOpacity} />
       <PlaybackControl />
     </div>
   );

@@ -45,6 +45,7 @@ import {
   getWavesEndTime,
 } from '@/lib/globe/felt-rings';
 import { getGlobeFrame } from '@/lib/globe/frame';
+import { setGlobeZoom } from '@/lib/globe/globe-zoom-store';
 import { GLOBE_DOT_COUNT, GLOBE_LOOK, getCoastAlpha } from '@/lib/globe/look';
 import type { GlobeView } from '@/lib/globe/motion';
 import {
@@ -540,6 +541,7 @@ export function GlobeScene({
     const time = state.clock.elapsedTime;
     const dt = isContinuingRef.current ? delta : Math.min(delta, FRAME_SECONDS);
     const view = controls.advance(dt);
+    setGlobeZoom(view.zoom);
     setFrameUniforms(assets, view, state.size, state.viewport.dpr);
     const playhead = playbackClock.getPlayhead();
     const { range } = playbackClock.getSnapshot();
@@ -616,6 +618,8 @@ export function GlobeScene({
     },
     [assets],
   );
+
+  useEffect(() => () => setGlobeZoom(undefined), []);
 
   useEffect(() => {
     if (isHidden) return;
