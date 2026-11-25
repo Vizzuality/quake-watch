@@ -1,3 +1,5 @@
+import { LABEL_OBSTACLE_ICON_ID, LABEL_OBSTACLE_ICON_PX } from './label-obstacles';
+
 export const TOWN_ICON_ID = 'qw-town';
 export const MAP_IMAGE_PIXEL_RATIO = 2;
 
@@ -28,6 +30,16 @@ function getTownIcon(): MapImage {
   return { id: TOWN_ICON_ID, width: size, height: size, data };
 }
 
+function getLabelObstacleIcon(): MapImage {
+  const size = LABEL_OBSTACLE_ICON_PX * MAP_IMAGE_PIXEL_RATIO;
+  return {
+    id: LABEL_OBSTACLE_ICON_ID,
+    width: size,
+    height: size,
+    data: new Uint8Array(size * size * 4),
+  };
+}
+
 export function getMapImages(): MapImage[] {
-  return [getTownIcon()];
+  return [getTownIcon(), getLabelObstacleIcon()];
 }

@@ -325,6 +325,7 @@ export function MapScaleBar({ rootRef, midRef, endRef }: MapScaleBarProps) {
     <div
       ref={rootRef}
       data-testid="map-scale-bar"
+      data-label-obstacle
       style={getPhoneDetailOverlayStyle(layout)}
       className="pointer-events-none absolute top-(--scale-bar-top) right-[18px] h-0.5 md:top-auto md:right-14 md:bottom-[238px] short:right-[338px]"
       aria-hidden="true"
@@ -346,6 +347,7 @@ export function MapScaleBar({ rootRef, midRef, endRef }: MapScaleBarProps) {
       </svg>
       <span
         data-map-measure="scale-start"
+        data-label-obstacle
         className={`${SCALE_LABEL_CLASS_NAME} left-0 -translate-x-1/2`}
       >
         0
@@ -353,11 +355,13 @@ export function MapScaleBar({ rootRef, midRef, endRef }: MapScaleBarProps) {
       <span
         ref={midRef}
         data-map-measure="scale-mid"
+        data-label-obstacle
         className={`${SCALE_LABEL_CLASS_NAME} left-1/2 -translate-x-1/2`}
       />
       <span
         ref={endRef}
         data-map-measure="scale-end"
+        data-label-obstacle
         className={`${SCALE_LABEL_CLASS_NAME} -right-0.5`}
       />
     </div>

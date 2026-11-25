@@ -2,12 +2,15 @@ import type { LayerSpecification, StyleSpecification } from 'maplibre-gl';
 import { describe, expect, it } from 'vitest';
 
 import { FELT_RING_LOOK } from './felt-rings';
+import { LABEL_OBSTACLE_ICON_ID } from './label-obstacles';
 import { TOWN_ICON_ID } from './map-images';
 import {
   AREA_LAYER_ID,
   AREA_SOURCE_ID,
   FELT_FILL_LAYER_ID,
   FELT_LINE_LAYER_ID,
+  LABEL_OBSTACLE_LAYER_ID,
+  LABEL_OBSTACLE_SOURCE_ID,
   MAP_COLORS,
   MAP_FONTS,
   QUAKE_LAYER_ID,
@@ -95,7 +98,23 @@ describe('getQuakeMapStyle', () => {
       'label-neighbourhood',
       'label-town',
       'label-country',
+      LABEL_OBSTACLE_LAYER_ID,
     ]);
+  });
+
+  it('places the UI chrome blockers first and always, so no label lands under the chrome', () => {
+    expect(style.sources[LABEL_OBSTACLE_SOURCE_ID]).toMatchObject({ type: 'geojson' });
+    expect(getLayer(LABEL_OBSTACLE_LAYER_ID)).toMatchObject({
+      type: 'symbol',
+      source: LABEL_OBSTACLE_SOURCE_ID,
+      layout: {
+        'icon-image': LABEL_OBSTACLE_ICON_ID,
+        'icon-size': ['get', 'iconSize'],
+        'icon-padding': 0,
+        'icon-allow-overlap': true,
+      },
+    });
+    expect(getLayer(LABEL_OBSTACLE_LAYER_ID).layout).not.toHaveProperty('icon-ignore-placement');
   });
 
   it('fills the land flat and the water in the ocean colour, with no dot grid at any zoom', () => {
@@ -209,6 +228,7 @@ describe('getQuakeMapStyle', () => {
       AREA_SOURCE_ID,
       'felt-rings',
       'quakes',
+      LABEL_OBSTACLE_SOURCE_ID,
     ]);
   });
 
