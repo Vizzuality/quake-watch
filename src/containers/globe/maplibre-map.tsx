@@ -10,7 +10,7 @@ import {
   setWorkerUrl,
 } from 'maplibre-gl';
 import workerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?url';
-import { type RefObject, useEffect, useId, useRef, useState } from 'react';
+import { type RefObject, useEffect, useId, useMemo, useRef, useState } from 'react';
 
 import { addMapImages } from '@/containers/detail-map/add-map-images';
 import { MAP_FONT_URLS } from '@/containers/detail-map/map-fonts';
@@ -21,9 +21,11 @@ import { getDepthColor } from '@/lib/earthquakes/depth-color';
 import { getFeltReachKm } from '@/lib/earthquakes/intensity';
 import { playbackClock } from '@/lib/earthquakes/playback-clock';
 import { earthquakesQueryOptions } from '@/lib/earthquakes/query-options';
+import { type SearchArea, getSearchArea } from '@/lib/earthquakes/search-area';
 import { getEarthquakeFilters } from '@/lib/earthquakes/search-schema';
 import { getShownCount, getSortedByTime } from '@/lib/earthquakes/timeline';
 import type { Earthquake } from '@/lib/earthquakes/types';
+import { getAreaMapZoom } from '@/lib/globe/area-view';
 import { getMinRingRadiusPx, isFeltRingShown } from '@/lib/globe/felt-rings';
 import { getGlobeFrame } from '@/lib/globe/frame';
 import { getLabelObstacleBoxes, getObstacleFeatures } from '@/lib/globe/label-obstacles';
@@ -38,7 +40,7 @@ import {
   getMapZoomFromUrl,
   getUrlZoom,
 } from '@/lib/globe/map-handover';
-import { type MapPadding, getDetailPadding } from '@/lib/globe/map-overlay';
+import { type MapPadding, getAreaFrame, getDetailPadding } from '@/lib/globe/map-overlay';
 import { holdMapRepaints } from '@/lib/globe/map-repaint-hold';
 import {
   FELT_SOURCE_ID,
@@ -48,12 +50,14 @@ import {
   MAP_STYLE_URL,
   QUAKE_LAYER_ID,
   QUAKE_SOURCE_ID,
+  SEARCH_AREA_SOURCE_ID,
   getQuakeMapStyle,
   getReplayFilters,
 } from '@/lib/globe/map-style';
 import { type GlobeView, ZOOM_RANGE, getViewCamera } from '@/lib/globe/motion';
 import { PICK_TOLERANCE_PX, getPickedQuakeIndex } from '@/lib/globe/picking';
 import { getEpicentreRadiusPx } from '@/lib/globe/quakes';
+import { getSearchAreaFeatures } from '@/lib/globe/search-area-ring';
 import { getMapLibreLocale } from '@/lib/i18n/map-labels';
 import { getMapSheetTopStyle } from '@/lib/layout/phone-detail';
 import { getIsSectionShown, subscribeSectionShown } from '@/lib/section/section-shown-store';
@@ -74,6 +78,7 @@ export type MapHandover = {
   activate: (urlZoom?: number) => boolean;
   centre: (earthquake: Earthquake) => void;
   focus: (earthquake: Earthquake) => void;
+  frameArea: (area: SearchArea) => void;
   exit: () => void;
   zoom: (direction: 1 | -1) => void;
 };
@@ -249,6 +254,8 @@ export default function GlobeMap({
   const mapRef = useRef<MapLibreMap | null>(null);
   const [readyMap, setReadyMap] = useState<MapLibreMap | null>(null);
   const earthquakes = data?.earthquakes ?? EMPTY_EARTHQUAKES;
+  const { plat, plon, radius } = search;
+  const area = useMemo(() => getSearchArea({ plat, plon, radius }), [plat, plon, radius]);
   const earthquakesRef = useRef(earthquakes);
   const selectedEarthquake = getSelectedEarthquake(earthquakes, search.quake);
   const selectedRef = useRef(selectedEarthquake);
@@ -306,6 +313,10 @@ export default function GlobeMap({
   useEffect(() => {
     if (mapRef.current) setQuakeData(mapRef.current, earthquakes, selectedEarthquake);
   }, [earthquakes, selectedEarthquake]);
+
+  useEffect(() => {
+    readyMap?.getSource<GeoJSONSource>(SEARCH_AREA_SOURCE_ID)?.setData(getSearchAreaFeatures(area));
+  }, [readyMap, area]);
 
   useEffect(() => {
     if (!readyMap) return;
@@ -483,6 +494,15 @@ export default function GlobeMap({
       });
     }
 
+    function frameArea(area: SearchArea) {
+      const { padding, radiusPx } = getAreaFrame(element.clientWidth, element.clientHeight);
+      map.easeTo({
+        center: [area.longitude, area.latitude],
+        zoom: Math.max(getAreaMapZoom(area, radiusPx), getMinZoom()),
+        padding,
+      });
+    }
+
     function releaseDetail() {
       if (isActive) map.easeTo({ padding: getHandoverPadding() });
     }
@@ -620,7 +640,7 @@ export default function GlobeMap({
     sync(controls.viewRef.current);
     const unsubscribeSection = subscribeSectionShown(handleSectionShown);
     controls.setFrameListener(sync);
-    handoverRef.current = { activate, centre, focus, exit, zoom };
+    handoverRef.current = { activate, centre, focus, frameArea, exit, zoom };
     releaseDetailRef.current = releaseDetail;
     map.once('style.load', handleStyleLoad);
     map.on('move', syncLabelObstacles);

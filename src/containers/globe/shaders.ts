@@ -7,6 +7,7 @@ import {
 } from '@/lib/globe/felt-rings';
 import { GLOBE_LOOK } from '@/lib/globe/look';
 import { QUAKE_AGE_LOOK } from '@/lib/globe/quakes';
+import { SEARCH_AREA_LOOK } from '@/lib/globe/search-area-ring';
 
 function getGlslFloat(value: number): string {
   return Number.isInteger(value) ? `${value}.0` : String(value);
@@ -17,6 +18,7 @@ function getGlslRgb(rgb: readonly number[]): string {
 }
 
 const RING = GLOBE_RING_LOOK;
+const AREA = SEARCH_AREA_LOOK;
 const AGE = QUAKE_AGE_LOOK;
 const BACK_K = getGlslFloat(AGE.backK);
 const BACK_GREY = getGlslRgb([150, 156, 196]);
@@ -45,6 +47,22 @@ vec4 getClipPosition(vec2 offsetPx) {
 void cull() {
   gl_Position = vec4(2.0, 2.0, 2.0, 1.0);
   gl_PointSize = 0.0;
+}
+`;
+
+const STROKE_CHUNK = `
+float getPixelDistance(float signedPx) {
+  return signedPx / max(length(vec2(dFdx(signedPx), dFdy(signedPx))), 1e-4);
+}
+
+float getStroke(float deviceDistance, float widthPx) {
+  return clamp(widthPx * uDpr * 0.5 + 0.5 - abs(deviceDistance), 0.0, 1.0);
+}
+
+float getGroundPx(vec2 offsetPx, vec3 centre) {
+  vec2 q = offsetPx / uRadius;
+  vec3 surface = vec3(q, sqrt(max(1.0 - dot(q, q), 0.0)));
+  return 2.0 * asin(min(0.5 * length(surface - centre), 1.0)) * uRadius;
 }
 `;
 
@@ -379,15 +397,7 @@ varying vec3 vFelt;
 varying vec4 vRings;
 varying vec4 vRingAlpha;
 varying vec4 vPulse;
-
-float getPixelDistance(float signedPx) {
-  return signedPx / max(length(vec2(dFdx(signedPx), dFdy(signedPx))), 1e-4);
-}
-
-float getStroke(float deviceDistance, float widthPx) {
-  return clamp(widthPx * uDpr * 0.5 + 0.5 - abs(deviceDistance), 0.0, 1.0);
-}
-
+${STROKE_CHUNK}
 float getRing(float distancePx, float radiusPx, float widthPx) {
   return getStroke((distancePx - radiusPx) * uDpr, widthPx);
 }
@@ -399,8 +409,7 @@ void main() {
   float colorA = vRingAlpha.x * getRing(screenPx, vRings.x, ${getGlslFloat(FELT_RING_LOOK.strokePx)});
   colorA += vRingAlpha.y * max(0.0, 1.0 - screenPx / vRings.y);
   colorA += vPulse.w * getRing(length(vOffset - vPulse.xy), vPulse.z, ${getGlslFloat(RING.pulsePx)});
-  vec3 surface = vec3(q, sqrt(max(1.0 - q2, 0.0)));
-  float groundPx = 2.0 * asin(min(0.5 * length(surface - vEpicentre), 1.0)) * uRadius;
+  float groundPx = getGroundPx(vOffset, vEpicentre);
   float edge = getPixelDistance(min(groundPx - vFelt.x * uRadius, screenPx - vRings.x));
   if (vFelt.x > 0.0 && q2 <= 1.0) {
     colorA += vFelt.z * clamp(0.5 - edge, 0.0, 1.0) + vFelt.y * getStroke(edge, ${getGlslFloat(FELT_RING_LOOK.strokePx)});
@@ -409,6 +418,46 @@ void main() {
   float alpha = colorA + whiteA;
   if (alpha <= 0.0) discard;
   gl_FragColor = vec4((vColor * colorA + whiteA) / alpha, min(alpha, 1.0));
+}
+`;
+
+export const AREA_VERTEX_SHADER = `
+${VIEW_CHUNK}
+uniform vec3 uAreaDirection;
+uniform float uAreaAngle;
+varying vec2 vOffset;
+varying vec3 vCentre;
+
+void main() {
+  vec3 c = getRotated(uAreaDirection);
+  if (c.z < -uAreaAngle) {
+    cull();
+    return;
+  }
+  float halfPx = uAreaAngle * uRadius + ${getGlslFloat(AREA.centrePx + AREA.strokePx + 2)};
+  vCentre = c;
+  vOffset = c.xy * uRadius + position.xy * halfPx;
+  gl_Position = getClipPosition(vOffset);
+}
+`;
+
+export const AREA_FRAGMENT_SHADER = `
+uniform float uRadius;
+uniform float uDpr;
+uniform float uAreaAngle;
+varying vec2 vOffset;
+varying vec3 vCentre;
+${STROKE_CHUNK}
+void main() {
+  vec2 q = vOffset / uRadius;
+  if (dot(q, q) > 1.0) discard;
+  float edge = getPixelDistance(getGroundPx(vOffset, vCentre) - uAreaAngle * uRadius);
+  float lineA = ${getGlslFloat(AREA.strokeA)} * getStroke(edge, ${getGlslFloat(AREA.strokePx)});
+  float centreDistance = (length(vOffset - vCentre.xy * uRadius) - ${getGlslFloat(AREA.centrePx)}) * uDpr;
+  float centreA = vCentre.z > 0.0 ? ${getGlslFloat(AREA.centreA)} * clamp(0.5 - centreDistance, 0.0, 1.0) : 0.0;
+  float alpha = max(lineA, centreA);
+  if (alpha <= 0.0) discard;
+  gl_FragColor = vec4(${getGlslRgb(AREA.rgb)}, alpha);
 }
 `;
 

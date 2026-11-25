@@ -1918,6 +1918,38 @@ describe('globe country labels', () => {
   });
 });
 
+describe('globe search area', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('rings the searched radius on the surface and dots its centre, leaving the inside clear', async () => {
+    const area = { lat: 10, lon: 20, depth: 0, mag: 0 };
+    const north = { ...area, lat: area.lat + (500 / 6371) * (180 / Math.PI) };
+    const inside = { ...area, lat: area.lat + (250 / 6371) * (180 / Math.PI) };
+    const zoom = 3;
+    stubReducedMotion(true);
+    stubPreservedDrawingBuffer();
+    const globe = await renderGlobe({}, { initialEntries: ['/?lat=10&lon=20&zoom=3'] });
+    const empty = await globe.getSettledSnapshot();
+
+    await globe.router.navigate({
+      to: '/',
+      search: (prev) => ({ ...prev, place: 'Test', plat: 10, plon: 20, radius: 500 }),
+    });
+    await expect.poll(() => getGlobeView().zoom).toBe(zoom);
+    expect(Math.abs(getGlobeView().lat - area.lat)).toBeLessThanOrEqual(0.01);
+    expect(getLonDistance(getGlobeView().lon, area.lon)).toBeLessThanOrEqual(0.01);
+    await waitFrames(10);
+    const ringed = getSnapshot(globe.getCanvas());
+
+    const ringPoint = getCentredViewPoint(north, area, zoom);
+    expect(getPaintedDiffCount(empty, ringed, ringPoint, 4)).toBeGreaterThan(0);
+    expect(getPaintedDiffCount(empty, ringed, CENTRE, 4)).toBeGreaterThan(0);
+    expect(getPaintedDiffCount(empty, ringed, getCentredViewPoint(inside, area, zoom), 6)).toBe(0);
+  });
+});
+
 describe('globe camera URL', () => {
   afterEach(() => {
     vi.restoreAllMocks();
@@ -2098,6 +2130,26 @@ describe('globe camera URL', () => {
     await expect.poll(() => getGlobeView().zoom).toBe(ZOOM_RANGE[0]);
     expect(Math.abs(getGlobeView().lat - VIEW_LAT)).toBeLessThanOrEqual(0.1);
   });
+
+  it.each([
+    [50, ZOOM_RANGE[1]],
+    [250, ZOOM_RANGE[1]],
+    [500, 3],
+  ] as const)(
+    'flies over a %i km area to globe zoom %d, the closest one when the map takes over',
+    async (radius, zoom) => {
+      const globe = await renderTooltipGlobe(FRAME_QUAKES);
+
+      await globe.router.navigate({
+        to: '/',
+        search: (prev) => ({ ...prev, place: 'Granada', plat: 37.17, plon: -3.6, radius }),
+      });
+
+      await expect.poll(() => getGlobeView().zoom).toBe(zoom);
+      expect(Math.abs(getGlobeView().lat - 37.17)).toBeLessThanOrEqual(0.01);
+      expect(getLonDistance(getGlobeView().lon, -3.6)).toBeLessThanOrEqual(0.01);
+    },
+  );
 
   it('frames the most active window for a place name without a search centre', async () => {
     await renderTooltipGlobe(FRAME_QUAKES, {

@@ -17,10 +17,11 @@ import { type Camera, getWrappedLongitude, useCameraSearch } from '@/hooks/use-c
 import { getNewestArrival, isNoteworthyArrival } from '@/lib/earthquakes/arrivals';
 import { getLiveSnapshot, playbackClock } from '@/lib/earthquakes/playback-clock';
 import { earthquakesQueryOptions } from '@/lib/earthquakes/query-options';
-import { getSearchArea } from '@/lib/earthquakes/search-area';
+import { type SearchArea, getSearchArea } from '@/lib/earthquakes/search-area';
 import { type EarthquakeSearch, getEarthquakeFilters } from '@/lib/earthquakes/search-schema';
 import { getShownEarthquakes } from '@/lib/earthquakes/timeline';
 import type { Earthquake } from '@/lib/earthquakes/types';
+import { getAreaGlobeView, isAreaFramedOnMap } from '@/lib/globe/area-view';
 import { getGlobeFrame } from '@/lib/globe/frame';
 import { getFramedLongitude } from '@/lib/globe/framing';
 import {
@@ -79,7 +80,6 @@ const GlobeLabels = lazy(() => import('./globe-labels').catch(() => ({ default: 
 const ZoomButtons = lazy(() => import('./zoom-buttons').catch(() => ({ default: () => null })));
 const CENTRE_TOLERANCE = 1e-4;
 const ZOOM_STEP_FACTOR = 1.5;
-const PLACE_ZOOM = 3;
 
 function isWebGLAvailable(): boolean {
   const context = document.createElement('canvas').getContext('webgl2');
@@ -98,7 +98,10 @@ function getInitialView({ lat, lon, zoom }: EarthquakeSearch): GlobeView | undef
   return getSearchView(lat, lon, zoom);
 }
 
-function isViewCentredOn(view: GlobeView, { latitude, longitude }: Earthquake): boolean {
+function isViewCentredOn(
+  view: GlobeView,
+  { latitude, longitude }: { latitude: number; longitude: number },
+): boolean {
   const target = getCenteredView(latitude, longitude, view);
   return (
     Math.abs(view.lat - target.lat) < CENTRE_TOLERANCE &&
@@ -180,6 +183,7 @@ function GlobeCanvas() {
   const mapLayerRef = useRef<HTMLDivElement>(null);
   const mapHandoverRef = useRef<MapHandover | null>(null);
   const pendingMapQuakeRef = useRef<Earthquake | null>(null);
+  const pendingMapAreaRef = useRef<SearchArea | null>(null);
   const {
     hovered,
     pinned,
@@ -232,6 +236,7 @@ function GlobeCanvas() {
     hideHover();
     unpin();
     pendingMapQuakeRef.current = earthquake;
+    pendingMapAreaRef.current = null;
     setIsMapMounted(true);
     controls.flyTo({
       ...getCenteredView(earthquake.latitude, earthquake.longitude, controls.viewRef.current),
@@ -267,6 +272,7 @@ function GlobeCanvas() {
     if (isMapActive) return;
     setCamera(getViewCamera(view));
     focusPendingQuake(view);
+    focusPendingArea(view);
   }
 
   function handleZoom(view: GlobeView) {
@@ -274,6 +280,7 @@ function GlobeCanvas() {
     if (isMapActive) return;
     initialMapZoomRef.current = undefined;
     pendingMapQuakeRef.current = null;
+    pendingMapAreaRef.current = null;
     if (view.zoom >= MAP_MOUNT_ZOOM) setIsMapMounted(true);
     if (view.zoom < MAP_UNMOUNT_ZOOM) setIsMapMounted(false);
   }
@@ -294,8 +301,9 @@ function GlobeCanvas() {
     else controls.zoomBy(ZOOM_STEP_FACTOR ** direction);
   }
 
-  function dropPendingQuake(view: GlobeView) {
+  function dropPendingMap(view: GlobeView) {
     pendingMapQuakeRef.current = null;
+    pendingMapAreaRef.current = null;
     if (view.zoom < MAP_UNMOUNT_ZOOM) setIsMapMounted(false);
   }
 
@@ -303,7 +311,7 @@ function GlobeCanvas() {
     const earthquake = pendingMapQuakeRef.current;
     if (!earthquake) return;
     if (!isViewCentredOn(view, earthquake)) {
-      dropPendingQuake(view);
+      dropPendingMap(view);
       return;
     }
     if (view.zoom < ZOOM_RANGE[1] || !activateMap()) return;
@@ -311,11 +319,28 @@ function GlobeCanvas() {
     mapHandoverRef.current?.focus(earthquake);
   }
 
+  function focusPendingArea(view: GlobeView) {
+    const pendingArea = pendingMapAreaRef.current;
+    if (!pendingArea) return;
+    if (!isViewCentredOn(view, pendingArea)) {
+      dropPendingMap(view);
+      return;
+    }
+    if (view.zoom < ZOOM_RANGE[1]) return;
+    setIsMapMounted(true);
+    if (!activateMap()) return;
+    pendingMapAreaRef.current = null;
+    mapHandoverRef.current?.frameArea(pendingArea);
+  }
+
   function handleMapReady() {
     const urlZoom = initialMapZoomRef.current;
     initialMapZoomRef.current = undefined;
     if (urlZoom !== undefined) activateMap(urlZoom);
-    else if (!controls.isAnimating()) focusPendingQuake(controls.viewRef.current);
+    else if (!controls.isAnimating()) {
+      focusPendingQuake(controls.viewRef.current);
+      focusPendingArea(controls.viewRef.current);
+    }
   }
 
   function handleMapExit(centre: MapCentre, hadFocus: boolean) {
@@ -434,6 +459,11 @@ function GlobeCanvas() {
 
   useEffect(() => {
     if (areaKey === lastAreaKeyRef.current || quake !== undefined) return;
+    if (isMapActive && area !== null && isAreaFramedOnMap(area)) {
+      lastAreaKeyRef.current = areaKey;
+      mapHandoverRef.current?.frameArea(area);
+      return;
+    }
     if (isMapActive) {
       mapHandoverRef.current?.exit();
       return;
@@ -444,7 +474,9 @@ function GlobeCanvas() {
       controls.flyTo(getFramedView(getViewCamera(view).lon, view));
       return;
     }
-    controls.flyTo({ ...getCenteredView(area.latitude, area.longitude, view), zoom: PLACE_ZOOM });
+    pendingMapQuakeRef.current = null;
+    if (isAreaFramedOnMap(area)) pendingMapAreaRef.current = area;
+    controls.flyTo(getAreaGlobeView(area, view));
   }, [areaKey, area, quake, controls, isMapActive]);
 
   useEffect(() => {
@@ -497,6 +529,7 @@ function GlobeCanvas() {
             earthquakes={earthquakes}
             selectedEarthquake={selectedEarthquake}
             hoveredEarthquake={card?.earthquake}
+            area={area}
             waves={waves}
             isHidden={isMapActive || isSectionShown}
           />

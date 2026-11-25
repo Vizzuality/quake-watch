@@ -15,6 +15,9 @@ import {
   MAP_FONTS,
   QUAKE_LAYER_ID,
   QUAKE_RING_LAYER_ID,
+  SEARCH_AREA_CENTRE_LAYER_ID,
+  SEARCH_AREA_LINE_LAYER_ID,
+  SEARCH_AREA_SOURCE_ID,
   SELECTED_LAYER_ID,
   SELECTED_RING_LAYER_ID,
   getFeltRingPaint,
@@ -78,6 +81,8 @@ describe('getQuakeMapStyle', () => {
       'road-secondary',
       'road-primary',
       'road-motorway',
+      SEARCH_AREA_LINE_LAYER_ID,
+      SEARCH_AREA_CENTRE_LAYER_ID,
       AREA_LAYER_ID,
       FELT_FILL_LAYER_ID,
       FELT_LINE_LAYER_ID,
@@ -219,6 +224,7 @@ describe('getQuakeMapStyle', () => {
     expect(Object.keys(style.sources)).toEqual([
       'openmaptiles',
       'openmaptiles-low',
+      SEARCH_AREA_SOURCE_ID,
       AREA_SOURCE_ID,
       'felt-rings',
       'quakes',
@@ -335,6 +341,19 @@ describe('getQuakeMapStyle', () => {
     expect(getLayer(AREA_LAYER_ID)).toMatchObject({
       source: AREA_SOURCE_ID,
       paint: { 'line-color': MAP_COLORS.muted, 'line-width': 1, 'line-dasharray': [2, 4] },
+    });
+  });
+
+  it('outlines the searched area in a thin primary line and dots its centre', () => {
+    expect(getLayer(SEARCH_AREA_LINE_LAYER_ID)).toMatchObject({
+      source: SEARCH_AREA_SOURCE_ID,
+      filter: ['==', ['geometry-type'], 'LineString'],
+      paint: { 'line-color': MAP_COLORS.primary, 'line-opacity': 0.5, 'line-width': 1 },
+    });
+    expect(getLayer(SEARCH_AREA_CENTRE_LAYER_ID)).toMatchObject({
+      source: SEARCH_AREA_SOURCE_ID,
+      filter: ['==', ['geometry-type'], 'Point'],
+      paint: { 'circle-color': MAP_COLORS.primary, 'circle-opacity': 0.9, 'circle-radius': 2.5 },
     });
   });
 

@@ -10,6 +10,7 @@ import { FELT_RING_LOOK } from './felt-rings';
 import { LABEL_OBSTACLE_ICON_ID } from './label-obstacles';
 import { TOWN_ICON_ID } from './map-images';
 import { QUAKE_MARKER_LOOK } from './quakes';
+import { SEARCH_AREA_LOOK } from './search-area-ring';
 
 export const MAP_STYLE_URL = 'https://tiles.openfreemap.org/styles/dark';
 export const MAP_SOURCE_ID = 'openmaptiles';
@@ -23,6 +24,9 @@ export const FELT_LINE_LAYER_ID = 'felt-rings-line';
 export const QUAKE_RING_LAYER_ID = 'quake-rings';
 export const AREA_SOURCE_ID = 'area-ring';
 export const AREA_LAYER_ID = 'area-ring';
+export const SEARCH_AREA_SOURCE_ID = 'search-area';
+export const SEARCH_AREA_LINE_LAYER_ID = 'search-area-line';
+export const SEARCH_AREA_CENTRE_LAYER_ID = 'search-area-centre';
 export const SELECTED_LAYER_ID = 'selected-quake';
 export const SELECTED_RING_LAYER_ID = 'selected-quake-ring';
 export const LABEL_OBSTACLE_SOURCE_ID = 'label-obstacles';
@@ -286,6 +290,28 @@ function getQuakeLayers(): LayerSpecification[] {
   const feltPaint = getFeltRingPaint(false);
   return [
     {
+      id: SEARCH_AREA_LINE_LAYER_ID,
+      type: 'line',
+      source: SEARCH_AREA_SOURCE_ID,
+      filter: LINE_FILTER,
+      paint: {
+        'line-color': MAP_COLORS.primary,
+        'line-opacity': SEARCH_AREA_LOOK.strokeA,
+        'line-width': SEARCH_AREA_LOOK.strokePx,
+      },
+    },
+    {
+      id: SEARCH_AREA_CENTRE_LAYER_ID,
+      type: 'circle',
+      source: SEARCH_AREA_SOURCE_ID,
+      filter: POINT_FILTER,
+      paint: {
+        'circle-color': MAP_COLORS.primary,
+        'circle-opacity': SEARCH_AREA_LOOK.centreA,
+        'circle-radius': SEARCH_AREA_LOOK.centrePx,
+      },
+    },
+    {
       id: AREA_LAYER_ID,
       type: 'line',
       source: AREA_SOURCE_ID,
@@ -538,6 +564,7 @@ export function getQuakeMapStyle(
     sources: {
       [MAP_SOURCE_ID]: source,
       [MAP_LOW_SOURCE_ID]: { ...source, maxzoom: MAP_LOW_MAXZOOM } as typeof source,
+      [SEARCH_AREA_SOURCE_ID]: { type: 'geojson', data: EMPTY_COLLECTION },
       [AREA_SOURCE_ID]: { type: 'geojson', data: EMPTY_COLLECTION },
       [FELT_SOURCE_ID]: { type: 'geojson', data: EMPTY_COLLECTION },
       [QUAKE_SOURCE_ID]: { type: 'geojson', data: EMPTY_COLLECTION },
