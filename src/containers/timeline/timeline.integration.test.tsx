@@ -19,6 +19,7 @@ import { playbackClock } from '@/lib/earthquakes/playback-clock';
 import { EARTHQUAKE_SEARCH_ROUTE } from '@/lib/earthquakes/search-schema';
 import { TIME_RING_LOOK, getRingAngle, getRingPoint } from '@/lib/earthquakes/time-ring';
 import { getGlobeFrame } from '@/lib/globe/frame';
+import { setGlobeZoom } from '@/lib/globe/globe-zoom-store';
 import { setHomeSheetOpen } from '@/lib/layout/home-sheet-store';
 import { overwriteGetLocale } from '@/paraglide/runtime';
 import { getEmscFeature, getFeatureCollection } from '@/test/fixtures/earthquakes';
@@ -352,6 +353,18 @@ describe('timeline', () => {
     await settleFade(false);
     expect(getComputedStyle(ring).opacity).toBe('1');
     expect(getComputedStyle(ring).visibility).toBe('visible');
+  });
+
+  it('fades the ring with the live globe zoom before the URL catches up', async () => {
+    const { screen } = await renderTimeline();
+    const svg = screen.container.querySelector('svg') as SVGSVGElement;
+
+    setGlobeZoom(1.28);
+    await expect.poll(() => svg.style.opacity).toBe('0.5');
+    setGlobeZoom(2);
+    await expect.poll(() => svg.style.opacity).toBe('0');
+    setGlobeZoom(undefined);
+    await expect.poll(() => svg.style.opacity).toBe('1');
   });
 
   it('keeps the ring on desktop whatever the home sheet state', async () => {
