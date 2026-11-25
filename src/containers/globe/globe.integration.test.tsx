@@ -2131,6 +2131,26 @@ describe('globe camera URL', () => {
     expect(Math.abs(getGlobeView().lat - VIEW_LAT)).toBeLessThanOrEqual(0.1);
   });
 
+  it.each([
+    [50, ZOOM_RANGE[1]],
+    [250, ZOOM_RANGE[1]],
+    [500, 3],
+  ] as const)(
+    'flies over a %i km area to globe zoom %d, the closest one when the map takes over',
+    async (radius, zoom) => {
+      const globe = await renderTooltipGlobe(FRAME_QUAKES);
+
+      await globe.router.navigate({
+        to: '/',
+        search: (prev) => ({ ...prev, place: 'Granada', plat: 37.17, plon: -3.6, radius }),
+      });
+
+      await expect.poll(() => getGlobeView().zoom).toBe(zoom);
+      expect(Math.abs(getGlobeView().lat - 37.17)).toBeLessThanOrEqual(0.01);
+      expect(getLonDistance(getGlobeView().lon, -3.6)).toBeLessThanOrEqual(0.01);
+    },
+  );
+
   it('frames the most active window for a place name without a search centre', async () => {
     await renderTooltipGlobe(FRAME_QUAKES, {
       initialEntries: ['/?place=Atlantis'],

@@ -31,9 +31,11 @@ const DETAIL_FOCUS_Y = 392;
 const DETAIL_PANEL_RIGHT_PX = 476;
 const FADE_SOLID_PX = 286;
 const FADE_END_PX = 520;
+export const AREA_MARGIN_PX = 48;
 
 export type ReplayRing = { radiusPx: number; alpha: number };
 export type MapPadding = { top: number; bottom: number; left: number; right: number };
+export type AreaFrame = { padding: MapPadding; radiusPx: number };
 type ScreenPoint = { x: number; y: number };
 
 function getRoundedPx(value: number): number {
@@ -85,6 +87,29 @@ export function getDetailPadding(width: number, height: number): MapPadding {
   }
   const [top, bottom] = getEdgePadding((height * DETAIL_FOCUS_Y) / BOARD.height, height);
   return { top, bottom, left: DETAIL_PANEL_RIGHT_PX, right: 0 };
+}
+
+function getAreaHalfSize(width: number, height: number): { x: number; y: number } {
+  if (!isPhoneViewport(width, height)) {
+    const { radius } = getGlobeFrame(width, height);
+    return { x: radius, y: radius };
+  }
+  const { globe, headerBottom, homeMapBottom } = getPhoneLayout(width, height);
+  return { x: globe.cx, y: Math.min(globe.cy - headerBottom, homeMapBottom - globe.cy) };
+}
+
+export function getAreaFrame(width: number, height: number): AreaFrame {
+  const { cx, cy } = getGlobeFrame(width, height);
+  const half = getAreaHalfSize(width, height);
+  return {
+    padding: {
+      top: cy - half.y + AREA_MARGIN_PX,
+      bottom: height - cy - half.y + AREA_MARGIN_PX,
+      left: cx - half.x + AREA_MARGIN_PX,
+      right: width - cx - half.x + AREA_MARGIN_PX,
+    },
+    radiusPx: Math.min(half.x, half.y) - AREA_MARGIN_PX,
+  };
 }
 
 function getFadeScale(width: number, height: number): number {

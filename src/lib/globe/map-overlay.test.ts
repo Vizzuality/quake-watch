@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   LOOP_RING_LOOK,
   REPLAY_RING_LOOK,
+  getAreaFrame,
   getDetailPadding,
   getLoopRings,
   getMapFadeMask,
@@ -53,6 +54,29 @@ describe('getLoopRings', () => {
 
     expect(ring.radiusPx).toBeCloseTo(replay.radiusPx, 6);
     expect(ring.alpha).toBeCloseTo(replay.alpha / 2, 6);
+  });
+});
+
+describe('getAreaFrame', () => {
+  it('fits the area inside the globe disc, 48 px in, on the 1440 × 900 board', () => {
+    expect(getAreaFrame(1440, 900)).toEqual({
+      padding: { top: 180, bottom: 156, left: 438, right: 438 },
+      radiusPx: 282,
+    });
+  });
+
+  it('fits the area between the header and the home sheet, full width, on the 390 × 844 phone board', () => {
+    expect(getAreaFrame(390, 844)).toEqual({
+      padding: { top: 160, bottom: 344, left: 48, right: 48 },
+      radiusPx: 147,
+    });
+  });
+
+  it('fits the area left of the side sheet on short landscape screens', () => {
+    expect(getAreaFrame(844, 390)).toEqual({
+      padding: { top: 100, bottom: 48, left: 48, right: 368 },
+      radiusPx: 121,
+    });
   });
 });
 
