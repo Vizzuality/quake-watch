@@ -6,7 +6,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { SERVER_ENTRY, type SmokeServer, startServer, stopProcess } from './server';
 
-const SHELL_HEADING = '<h1 class="sr-only">Quake Watch</h1>';
+const SHELL_HEADING = '<h1 class="sr-only">Earthquakes worldwide</h1>';
 
 type RawResponse = {
   status: number;

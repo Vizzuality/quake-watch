@@ -47,13 +47,13 @@ afterAll(async () => {
 
 describe('placeholder shell', () => {
   it.each([
-    ['/en', 'en'],
-    ['/es', 'es'],
-  ])('%s renders the visually hidden heading', async (pathname, locale) => {
+    ['/en', 'en', 'Earthquakes worldwide'],
+    ['/es', 'es', 'Terremotos en todo el mundo'],
+  ])('%s renders the visually hidden heading', async (pathname, locale, heading) => {
     const { status, html } = await getPage(pathname);
     expect(status).toBe(200);
     expect(html).toContain(`<html lang="${locale}"`);
-    expect(html).toContain('<h1 class="sr-only">Quake Watch</h1>');
+    expect(html).toContain(`<h1 class="sr-only">${heading}</h1>`);
   });
 });
 
