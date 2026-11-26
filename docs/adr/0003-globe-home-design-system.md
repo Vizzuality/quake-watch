@@ -53,7 +53,7 @@ Follows the [QW · Handoff](https://www.figma.com/design/8eNSPpbMBnR6bGNEdO9CGc/
   - Colour encodes Depth: `#FF9A4D` at 0 km, `#FF5E6C` at 70 km, `#C04FD8` at 300 km, `#4F7BFF` at 700 km.
   - Size and Shaking-wave strength encode Magnitude, so Magnitude never depends on colour.
   - Felt reach is a filled ring, and an Earthquake that wasn't felt at the surface is a hollow ring.
-- **Light theme later:** tokens are named by role (background, muted, line, glass), so a light theme can redefine them without touching components ([#101](https://github.com/Vizzuality/quake-watch/issues/101)).
+- **Dark only:** the light theme was dropped ([#101](https://github.com/Vizzuality/quake-watch/issues/101), closed as not planned). Tokens stay named by role (background, muted, line, glass).
 
 ## Considered Options
 
