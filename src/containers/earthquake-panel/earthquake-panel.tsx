@@ -37,6 +37,7 @@ import {
   earthquakeDetailQueryOptions,
   getDetailEarthquake,
 } from '@/lib/earthquakes/details/query-options';
+import { getFeltReachKm } from '@/lib/earthquakes/intensity';
 import { getEarthquakeMeaning } from '@/lib/earthquakes/meaning';
 import { SOURCE_ADAPTERS, earthquakesQueryOptions } from '@/lib/earthquakes/query-options';
 import { getEarthquakeFilters } from '@/lib/earthquakes/search-schema';
@@ -399,6 +400,10 @@ function RelatedEarthquakes({
   );
 }
 
+function isWaveShown(earthquake: Earthquake, view: string | undefined): boolean {
+  return view === 'section' || getFeltReachKm(earthquake) > 0;
+}
+
 function WavePauseButton() {
   const isPaused = useIsWavePaused();
 
@@ -566,19 +571,27 @@ export default function EarthquakePanel({ quake }: { quake: string }) {
           data-label-obstacle
           className="absolute top-24 left-[max(1rem,env(safe-area-inset-left))] flex items-center gap-2 md:top-29 md:left-139"
         >
-          <button
-            type="button"
-            disabled={position === null}
-            onClick={() => requestWaveReplay(earthquake.id)}
-            className={`${PILL_BASE_CLASS_NAME} ${ROW_HIT_CLASS_NAME} relative h-8 border-foreground px-3 text-button md:h-auto md:border-muted md:px-4 md:py-2.5 md:text-[9.5px]`}
-          >
-            <PlayIcon />
-            <span aria-hidden="true" className="md:hidden">
-              {m.details_replay_short()}
-            </span>
-            <span className="sr-only md:not-sr-only">{m.details_replay()}</span>
-          </button>
-          <WavePauseButton />
+          {isWaveShown(earthquake, search.view) ? (
+            <>
+              <button
+                type="button"
+                disabled={position === null}
+                onClick={() => requestWaveReplay(earthquake.id)}
+                className={`${PILL_BASE_CLASS_NAME} ${ROW_HIT_CLASS_NAME} relative h-8 border-foreground px-3 text-button md:h-auto md:border-muted md:px-4 md:py-2.5 md:text-[9.5px]`}
+              >
+                <PlayIcon />
+                <span aria-hidden="true" className="md:hidden">
+                  {m.details_replay_short()}
+                </span>
+                <span className="sr-only md:not-sr-only">{m.details_replay()}</span>
+              </button>
+              <WavePauseButton />
+            </>
+          ) : (
+            <p className="flex h-8 items-center text-button leading-[1.2] font-medium tracking-[0.2em] text-muted uppercase md:text-[9.5px]">
+              {m.details_wave_not_felt()}
+            </p>
+          )}
         </div>
       )}
       {earthquake && <ViewToggle />}

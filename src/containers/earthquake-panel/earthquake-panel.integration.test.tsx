@@ -285,6 +285,23 @@ describe('earthquake panel', () => {
     unsubscribe();
   });
 
+  it('shows "Not felt" instead of the wave controls for an unfelt Earthquake on the map', async () => {
+    const list = [getEmscFeature({ id: EARLY_ID, mag: 4.1, depth: 300 })];
+    const { screen } = await renderPanel(`/?quake=emsc:${EARLY_ID}`, { list });
+
+    await expect.element(screen.getByText('Not felt · no wave')).toBeVisible();
+    expect(screen.getByRole('button', { name: 'Replay wave' }).query()).toBeNull();
+    expect(screen.getByRole('button', { name: 'Pause wave', exact: true }).query()).toBeNull();
+  });
+
+  it('keeps the wave controls for an unfelt Earthquake in the section view', async () => {
+    const list = [getEmscFeature({ id: EARLY_ID, mag: 4.1, depth: 300 })];
+    const { screen } = await renderPanel(`/?quake=emsc:${EARLY_ID}&view=section`, { list });
+
+    await expect.element(screen.getByRole('button', { name: 'Replay wave' })).toBeVisible();
+    expect(screen.getByText('Not felt · no wave').query()).toBeNull();
+  });
+
   it('pauses and resumes the looping wave from a button beside Replay that keeps its choice across Earthquakes', async () => {
     const { screen, router } = await renderPanel(`/?quake=emsc:${EARLY_ID}`);
     const pause = screen.getByRole('button', { name: 'Pause wave', exact: true });
