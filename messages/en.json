@@ -29,6 +29,7 @@
   "detail_meta_title": "M{magnitude} earthquake · {place} · {date} | Quake Watch",
   "detail_meta_description": "Magnitude {magnitude} Earthquake, {place}. Depth: {depth}. Time: {time}. {feltReach}.",
   "page_title_home": "Earthquakes worldwide | Quake Watch",
+  "home_heading": "Earthquakes worldwide",
   "page_title_not_found": "Page not found | Quake Watch",
   "page_title_error": "Something went wrong | Quake Watch",
   "og_image_alt_detail": "Magnitude {magnitude} earthquake, {place}, {date}",
