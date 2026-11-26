@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { render } from 'vitest-browser-react';
 import { cdp, userEvent } from 'vitest/browser';
 
+import { getIsMapCovered } from '@/lib/layout/sheet-cover-store';
 import { setViewport } from '@/test/set-viewport';
 
 import { BottomSheet } from './bottom-sheet';
@@ -220,5 +221,48 @@ describe('BottomSheet', () => {
     await expect.element(screen.getByText('Sheet content')).toBeVisible();
     expect(getComputedStyle(sheet).display).toBe('contents');
     expect(getComputedStyle(sheet.querySelector('button') as HTMLElement).display).toBe('none');
+  });
+  it('marks the map as covered only while it is expanded over it', async () => {
+    const { screen, handle } = await renderSheet();
+    expect(getIsMapCovered()).toBe(false);
+
+    await handle.click();
+    await expect.poll(getIsMapCovered).toBe(true);
+
+    await screen.getByRole('button', { name: HANDLE_LABELS.close }).click();
+    await expect.poll(getIsMapCovered).toBe(false);
+  });
+
+  it('leaves the map uncovered beside a side sheet and after unmount', async () => {
+    const screen = await render(
+      <BottomSheet
+        label="Side sheet"
+        isOpen
+        onOpenChange={() => {}}
+        collapsedTop={0}
+        expandedTop={0}
+        handleLabels={HANDLE_LABELS}
+      >
+        <p>Side content</p>
+      </BottomSheet>,
+    );
+    expect(getIsMapCovered()).toBe(false);
+
+    await screen.rerender(
+      <BottomSheet
+        label="Side sheet"
+        isOpen
+        onOpenChange={() => {}}
+        collapsedTop={548}
+        expandedTop={128}
+        handleLabels={HANDLE_LABELS}
+      >
+        <p>Side content</p>
+      </BottomSheet>,
+    );
+    await expect.poll(getIsMapCovered).toBe(true);
+
+    await screen.unmount();
+    expect(getIsMapCovered()).toBe(false);
   });
 });

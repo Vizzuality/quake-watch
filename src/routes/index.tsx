@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { ClientOnly, createFileRoute } from '@tanstack/react-router';
 import { Suspense, lazy } from 'react';
 
-import { GlobeSlot } from '@/containers/globe/globe-slot';
+import { GlobeLayer } from '@/containers/globe/globe-layer';
 import { Header } from '@/containers/header/header';
 import { HomeSheet } from '@/containers/home-sheet/home-sheet';
 import { LiveBanner } from '@/containers/live-banner/live-banner';
@@ -61,11 +61,9 @@ function Home() {
         data-minmag={minmag}
         data-depth={depth}
       >
-        <div className="absolute inset-0">
-          <GlobeSlot>
-            <Globe />
-          </GlobeSlot>
-        </div>
+        <GlobeLayer>
+          <Globe />
+        </GlobeLayer>
         <Timeline />
         <h1 className="sr-only">{m.home_heading()}</h1>
         <ResultsStatus />
