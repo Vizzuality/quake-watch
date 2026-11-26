@@ -257,6 +257,7 @@
   "map_likely_felt_short": "~{distance}",
   "details_wave_pause": "Pausar onda",
   "details_wave_play": "Reproducir onda",
+  "details_wave_not_felt": "No sentido · sin onda",
   "live_updates_pause": "Pausar actualizaciones en directo",
   "header_paused": "En pausa",
   "live_row_paused": "En pausa",
