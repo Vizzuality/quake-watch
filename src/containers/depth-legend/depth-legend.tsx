@@ -21,15 +21,19 @@ export function DepthLegend() {
       aria-hidden={isQuakeSelected}
       inert={isQuakeSelected}
       data-testid="depth-legend"
-      data-ring-obstacle
-      data-label-obstacle
       className={cn(
-        'pointer-events-none m-0 mt-3 border-y border-line py-3.5 text-muted uppercase md:absolute md:right-[65px] md:bottom-[140px] md:z-10 md:mt-0 md:flex md:flex-col md:items-end md:gap-1 md:border-y-0 md:py-0 md:transition-[opacity,translate,visibility] md:duration-300 md:ease-out md:motion-reduce:transition-none',
+        'pointer-events-none m-0 mt-3 border-y border-line py-3.5 text-muted uppercase md:mt-0 md:flex md:min-h-0 md:w-[230px] md:flex-1 md:flex-col md:justify-end md:border-y-0 md:py-0 md:transition-[opacity,translate,visibility] md:duration-300 md:ease-out md:[container:legend/size] md:motion-reduce:transition-none',
         isQuakeSelected && 'md:invisible md:translate-x-6 md:opacity-0',
       )}
     >
       <figcaption className="sr-only">{m.depth_legend_label({ shallowest, deepest })}</figcaption>
-      <div aria-hidden className="flex flex-col gap-2.5 md:hidden">
+      <div
+        aria-hidden
+        data-testid="depth-legend-row"
+        data-ring-obstacle
+        data-label-obstacle
+        className="flex flex-col gap-2.5 md:hidden legend-cramped:flex! legend-tiny:hidden!"
+      >
         <span className="text-caption">{m.col_depth()}</span>
         <div className="flex flex-col gap-1.5">
           <div className="h-[1.5px]" style={{ backgroundImage: DEPTH_ROW_GRADIENT }} />
@@ -40,20 +44,28 @@ export function DepthLegend() {
           />
         </div>
       </div>
-      <div aria-hidden className="hidden w-[17px] justify-center text-label md:flex">
-        <span className="rotate-180 [writing-mode:vertical-rl]">{m.col_depth()}</span>
-      </div>
-      <div aria-hidden className="hidden h-[147px] md:flex">
-        <div className="flex flex-col items-end justify-between text-label-s">
-          <span>{shallowest}</span>
-          <span>{deepest}</span>
+      <div
+        aria-hidden
+        data-testid="depth-legend-column"
+        data-ring-obstacle
+        data-label-obstacle
+        className="mr-[9px] mb-[26px] hidden min-h-0 flex-col items-end gap-1 self-end md:flex legend-cramped:hidden!"
+      >
+        <div className="flex w-[17px] shrink-0 justify-center text-label">
+          <span className="rotate-180 [writing-mode:vertical-rl]">{m.col_depth()}</span>
         </div>
-        <div className="relative w-[21px]">
-          <div
-            data-testid="depth-legend-bar"
-            className="absolute top-0 left-[9.5px] h-[147px] w-[1.5px]"
-            style={{ backgroundImage: DEPTH_BAR_GRADIENT }}
-          />
+        <div className="flex h-[147px] min-h-10">
+          <div className="flex flex-col items-end justify-between text-label-s">
+            <span>{shallowest}</span>
+            <span>{deepest}</span>
+          </div>
+          <div className="relative w-[21px]">
+            <div
+              data-testid="depth-legend-bar"
+              className="absolute inset-y-0 left-[9.5px] w-[1.5px]"
+              style={{ backgroundImage: DEPTH_BAR_GRADIENT }}
+            />
+          </div>
         </div>
       </div>
     </figure>

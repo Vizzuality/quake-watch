@@ -19,6 +19,8 @@ import {
 import { cn } from '@/lib/utils';
 import { m } from '@/paraglide/messages';
 
+import { RightRail } from './right-rail';
+
 function isFocusLost(): boolean {
   return document.activeElement === null || document.activeElement === document.body;
 }
@@ -91,8 +93,10 @@ export function HomeSheet() {
       )}
       <div className={cn('md:contents', !isOpen && 'hidden group-data-dragging/sheet:block')}>
         <PlaceSearch />
-        <FiltersPanel />
-        <DepthLegend />
+        <RightRail>
+          <FiltersPanel />
+          <DepthLegend />
+        </RightRail>
         <LanguageGroup />
       </div>
     </BottomSheet>
