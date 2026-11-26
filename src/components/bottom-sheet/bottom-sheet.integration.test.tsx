@@ -82,7 +82,7 @@ describe('BottomSheet', () => {
     await setViewport(1280, 800);
   });
 
-  it('draws the sheet surface and a 38×4 handle inside a 44 px hit row', async () => {
+  it('draws the sheet surface and a 38×4 handle inside a 44 px hit row clear of the corners', async () => {
     const { sheet, handle } = await renderSheet();
     const style = getComputedStyle(sheet);
     const handleRect = handle.element().getBoundingClientRect();
@@ -97,7 +97,8 @@ describe('BottomSheet', () => {
     expect(style.backgroundColor).toBe('rgba(23, 26, 51, 0.62)');
     expect(style.backdropFilter).toBe('blur(24px)');
     expect(handleRect.height).toBeGreaterThanOrEqual(44);
-    expect(handleRect.width).toBe(390);
+    expect(handleRect.left).toBe(44);
+    expect(handleRect.right).toBe(346);
     expect(bar.getBoundingClientRect().width).toBe(38);
     expect(bar.getBoundingClientRect().height).toBe(4);
     expect(getComputedStyle(bar).backgroundColor).toBe('rgba(230, 228, 245, 0.35)');

@@ -110,6 +110,7 @@ export function BottomSheet({
         className,
       )}
     >
+      {/* The hit row overhangs the sheet by 18 px; mx-11 keeps it off the map attribution button in the corner above. */}
       <button
         ref={handleRef}
         type="button"
@@ -121,7 +122,7 @@ export function BottomSheet({
         onPointerCancel={handlePointerCancel}
         onLostPointerCapture={handlePointerCancel}
         onClick={handleClick}
-        className="relative z-10 -mt-[18px] flex h-11 w-full shrink-0 cursor-grab touch-none justify-center pt-[29px] select-none active:cursor-grabbing md:hidden"
+        className="relative z-10 mx-11 -mt-[18px] flex h-11 shrink-0 cursor-grab touch-none justify-center pt-[29px] select-none active:cursor-grabbing md:hidden"
       >
         <span className="h-1 w-[38px] rounded-handle bg-handle" />
       </button>
