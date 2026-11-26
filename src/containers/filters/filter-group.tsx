@@ -37,12 +37,12 @@ export function FilterGroup<T extends string | number>({
       <div
         role="radiogroup"
         aria-labelledby={labelId}
-        className="flex flex-wrap gap-x-3 md:h-[17px] md:flex-nowrap md:items-start md:gap-[14px]"
+        className="flex flex-wrap gap-x-3 md:min-h-[17px] md:items-start md:gap-x-[14px] md:gap-y-2"
       >
         {options.map((option) => (
           <label
             key={option.value}
-            className="flex min-h-11 min-w-11 cursor-pointer items-center md:inline md:min-h-0 md:min-w-0"
+            className="flex min-h-11 min-w-11 shrink-0 cursor-pointer items-center md:inline md:min-h-0 md:min-w-0"
           >
             <input
               type="radio"

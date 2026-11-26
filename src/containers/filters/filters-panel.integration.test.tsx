@@ -238,4 +238,19 @@ describe('filters panel', () => {
       expect(document.documentElement.scrollWidth).toBe(320);
     },
   );
+  it.each(['en', 'es', 'pt'] as const)(
+    'wraps desktop options that do not fit the 230 px panel instead of squeezing them in %s',
+    async (locale) => {
+      overwriteGetLocale(() => locale);
+      await page.viewport(1440, 900);
+      const { screen } = await renderPanel();
+      const panel = screen.getByRole('region').element();
+      (panel.parentElement as HTMLElement).style.width = '230px';
+      const panelRight = panel.getBoundingClientRect().right;
+      for (const span of panel.querySelectorAll<HTMLElement>('[role=radiogroup] span')) {
+        expect(span.scrollWidth).toBeLessThanOrEqual(span.clientWidth);
+        expect(span.getBoundingClientRect().right).toBeLessThanOrEqual(panelRight);
+      }
+    },
+  );
 });
