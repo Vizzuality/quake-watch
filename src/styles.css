@@ -213,3 +213,5 @@
 @custom-variant max-md (@media not all and (width >= 48rem) and (height >= 30rem));
 @custom-variant lg (@media (width >= 64rem) and (height >= 30rem));
 @custom-variant short (@media (height < 30rem) and (orientation: landscape));
+@custom-variant legend-cramped (@container legend (height < 11rem));
+@custom-variant legend-tiny (@container legend (height < 2.75rem));

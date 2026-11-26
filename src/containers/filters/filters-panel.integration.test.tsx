@@ -12,6 +12,7 @@ import { render } from 'vitest-browser-react';
 import { page, userEvent } from 'vitest/browser';
 
 import { FiltersPanel } from '@/containers/filters/filters-panel';
+import { RightRail } from '@/containers/home-sheet/right-rail';
 import { getEarthquakesQueryKey } from '@/lib/earthquakes/query-options';
 import {
   EARTHQUAKE_SEARCH_ROUTE,
@@ -30,7 +31,9 @@ async function renderPanel(initialEntry = '/', queryClient = getQueryClient()) {
     ...EARTHQUAKE_SEARCH_ROUTE,
     component: () => (
       <main className="relative min-h-dvh">
-        <FiltersPanel />
+        <RightRail>
+          <FiltersPanel />
+        </RightRail>
       </main>
     ),
   });
@@ -228,7 +231,7 @@ describe('filters panel', () => {
       await page.viewport(320, 640);
       const { screen } = await renderPanel('/?interval=custom&from=2026-01-01&to=2026-01-31');
       const panel = screen.getByRole('region').element();
-      (panel.parentElement as HTMLElement).style.padding = '0 20px';
+      (panel.closest('main') as HTMLElement).style.padding = '0 20px';
       const options = [...panel.querySelectorAll('[role=radiogroup]')[0].children];
       const tops = new Set(options.map((option) => option.getBoundingClientRect().top));
       expect(tops.size).toBe(1);
