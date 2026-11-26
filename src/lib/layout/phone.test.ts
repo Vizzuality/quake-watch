@@ -51,8 +51,17 @@ describe('getPhoneLayout', () => {
   });
 
   it.each([
-    [360, 740, 90, 444, 112.227, 462, 131.517, 180, 287.744, 106.967],
-    [320, 640, 90, 344, 97.062, 362, 113.744, 160, 217, 82.181],
+    [390, 844],
+    [320, 640],
+    [320, 568],
+  ])('keeps the open home sheet the board gap below the header at %ix%i', (width, height) => {
+    const layout = getPhoneLayout(width, height);
+    expect(layout.homeSheetOpenTop - layout.headerBottom).toBeGreaterThanOrEqual(38);
+  });
+
+  it.each([
+    [360, 740, 90, 444, 128, 462, 131.517, 180, 287.744, 106.967],
+    [320, 640, 90, 344, 128, 362, 113.744, 160, 217, 82.181],
   ])(
     'keeps the sheets clear of the bottom at %ix%i',
     (width, height, headerBottom, homeTop, homeOpen, detailTop, detailOpen, cx, cy, radius) => {

@@ -90,6 +90,11 @@ function getSideLayout(width: number, height: number): PhoneLayout {
   };
 }
 
+function getHomeSheetOpenTop(height: number, headerBottom: number): number {
+  const boardGap = SHEET.home.openTop - PHONE_HEADER_BOTTOM;
+  return Math.max(getBoardY(SHEET.home.openTop, height), headerBottom + boardGap);
+}
+
 export function getPhoneLayout(width: number, height: number): PhoneLayout {
   if (isSideViewport(width, height)) return getSideLayout(width, height);
   const k = Math.min(width / BOARD.width, height / BOARD.height);
@@ -107,7 +112,7 @@ export function getPhoneLayout(width: number, height: number): PhoneLayout {
     homeMapBottom: homeSheetTop,
     detailMapBottom: detailSheetTop,
     homeSheetTop,
-    homeSheetOpenTop: getBoardY(SHEET.home.openTop, height),
+    homeSheetOpenTop: getHomeSheetOpenTop(height, headerBottom),
     detailSheetTop,
     detailSheetOpenTop: getBoardY(SHEET.detail.openTop, height),
     detailFocusY: getBoardY(DETAIL_FOCUS_Y, height),
