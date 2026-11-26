@@ -29,6 +29,7 @@
   "detail_meta_title": "Terremoto M{magnitude} · {place} · {date} | Quake Watch",
   "detail_meta_description": "Terremoto de magnitud {magnitude}, {place}. Profundidad: {depth}. Hora: {time}. {feltReach}.",
   "page_title_home": "Terremotos en todo el mundo | Quake Watch",
+  "home_heading": "Terremotos en todo el mundo",
   "page_title_not_found": "Página no encontrada | Quake Watch",
   "page_title_error": "Algo ha fallado | Quake Watch",
   "og_image_alt_detail": "Terremoto de magnitud {magnitude}, {place}, {date}",

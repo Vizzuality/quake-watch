@@ -29,6 +29,7 @@
   "detail_meta_title": "Sismo M{magnitude} · {place} · {date} | Quake Watch",
   "detail_meta_description": "Sismo de magnitude {magnitude}, {place}. Profundidade: {depth}. Hora: {time}. {feltReach}.",
   "page_title_home": "Sismos em todo o mundo | Quake Watch",
+  "home_heading": "Sismos em todo o mundo",
   "page_title_not_found": "Página não encontrada | Quake Watch",
   "page_title_error": "Algo correu mal | Quake Watch",
   "og_image_alt_detail": "Sismo de magnitude {magnitude}, {place}, {date}",

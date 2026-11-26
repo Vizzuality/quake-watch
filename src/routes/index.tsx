@@ -67,7 +67,7 @@ function Home() {
           </GlobeSlot>
         </div>
         <Timeline />
-        <h1 className="sr-only">{m.app_title()}</h1>
+        <h1 className="sr-only">{m.home_heading()}</h1>
         <ResultsStatus />
         <LiveBanner />
         <HomeSheet />
