@@ -3,10 +3,13 @@ import {
   type MouseEvent,
   type ReactNode,
   type Ref,
+  useEffect,
+  useId,
   useRef,
   useState,
 } from 'react';
 
+import { setSheetCovering } from '@/lib/layout/sheet-cover-store';
 import { isSheetDragToggle } from '@/lib/layout/sheet-drag';
 import { cn } from '@/lib/utils';
 
@@ -37,6 +40,15 @@ function getDraggedTop(
   return Math.min(collapsedTop, Math.max(expandedTop, top + offset));
 }
 
+function isCoveringMap(
+  isOpen: boolean,
+  expandedTop: number | undefined,
+  collapsedTop: number | undefined,
+): boolean {
+  if (!isOpen || expandedTop === undefined || collapsedTop === undefined) return false;
+  return expandedTop < collapsedTop;
+}
+
 function getTransitionClassName(isDragging: boolean): string {
   return isDragging
     ? 'transition-none'
@@ -55,11 +67,13 @@ export function BottomSheet({
   className,
   children,
 }: BottomSheetProps) {
+  const sheetId = useId();
   const dragStartRef = useRef<DragStart | null>(null);
   const didDragRef = useRef(false);
   const [dragOffset, setDragOffset] = useState<number | null>(null);
   const restingTop = isOpen ? expandedTop : collapsedTop;
   const top = getDraggedTop(restingTop, dragOffset ?? 0, expandedTop, collapsedTop);
+  const isCovering = isCoveringMap(isOpen, expandedTop, collapsedTop);
 
   function handlePointerDown(event: PointerEvent<HTMLButtonElement>) {
     if (event.button !== 0) return;
@@ -97,6 +111,11 @@ export function BottomSheet({
     if (event.detail !== 0 && didDragRef.current) return;
     onOpenChange(!isOpen);
   }
+
+  useEffect(() => {
+    setSheetCovering(sheetId, isCovering);
+    return () => setSheetCovering(sheetId, false);
+  }, [sheetId, isCovering]);
 
   return (
     <section
